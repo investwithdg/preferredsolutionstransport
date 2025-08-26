@@ -20,9 +20,9 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 5. **Driver App receives job** → updates statuses (PickedUp → Delivered), uploads proof
 6. **Notifications flow** → customer & dispatcher receive updates; receipt/invoice issued
 
-## 🚀 Current Status: Milestone 1
+## 🚀 Current Status: Milestone 2 (In Progress)
 
-**✅ IMPLEMENTED (Ready for Production)**
+**✅ Milestone 1: Complete (Production Ready)**
 - Customer quote submission with distance-based pricing
 - Stripe payment processing (test mode ready)
 - Order creation via webhook automation
@@ -30,10 +30,14 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - HubSpot integration for contact/deal management
 - Complete API infrastructure
 
-**🚧 COMING IN FUTURE MILESTONES**
-- Driver authentication & mobile app
+**🚧 Milestone 2: In Progress**
+- Driver authentication & management
+- Driver assignment to orders
+- Order status updates by drivers
+- Basic driver dashboard
+
+**🚧 Future Milestones**
 - Real-time order tracking & notifications
-- Driver assignment & status management
 - Admin dashboard & reporting
 - Google Maps integration
 - Enhanced security & permissions
@@ -139,10 +143,11 @@ Set all environment variables in your hosting provider and deploy. `VERCEL_URL` 
 
 ## 🗺 Roadmap
 
-- M2: Driver management & actions
+- M1: Complete - Core quote-to-payment flow
+- M2: In Progress - Driver management & actions
 - M3: Real-time tracking, Google Maps, notifications
 - M4: Admin analytics & reporting
 
 ---
 
-Current Version: Milestone 1 (Production Ready)
+Current Version: Milestone 2 (In Progress)
