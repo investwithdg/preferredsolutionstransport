@@ -46,9 +46,10 @@ export async function POST(request: NextRequest) {
     const amountInCents = Math.round(pricing.total * 100);
 
     // Determine base URL for redirects
-    const baseUrl = process.env.VERCEL_URL 
-      ? `https://${process.env.VERCEL_URL}`
-      : `${request.nextUrl.protocol}//${request.nextUrl.host}`;
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 
+      (process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}`
+        : `${request.nextUrl.protocol}//${request.nextUrl.host}`);
 
     // Create Stripe Checkout Session with deterministic idempotency anchor
     const session = await stripe.checkout.sessions.create({
