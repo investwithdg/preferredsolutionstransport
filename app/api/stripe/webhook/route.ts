@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import {
+  createHubSpotClient,
+  upsertHubSpotContact,
+  createHubSpotDeal,
+} from '@/lib/hubspot/client';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -119,6 +124,34 @@ export async function POST(request: NextRequest) {
         });
 
       console.log('Order created successfully:', order.id);
+
+      // HubSpot Integration: Create contact and deal
+      const hubspotClient = createHubSpotClient();
+      if (hubspotClient && quote.customers) {
+        const contactId = await upsertHubSpotContact(hubspotClient, {
+          email: quote.customers.email,
+          name: quote.customers.name || undefined,
+          phone: quote.customers.phone || undefined,
+        });
+
+        if (contactId) {
+          await createHubSpotDeal(
+            hubspotClient,
+            {
+              properties: {
+                dealname: `Delivery Order - ${order.id.slice(0, 8)}`,
+                amount: (order.price_total || 0).toString(),
+                pipeline: 'default', // Or your specific pipeline ID
+                dealstage: 'appointmentscheduled', // Or your specific stage ID
+                closedate: new Date(
+                  Date.now() + 30 * 24 * 60 * 60 * 1000
+                ).toISOString(), // e.g., 30 days from now
+              },
+            },
+            contactId
+          );
+        }
+      }
     }
 
     return NextResponse.json({ received: true });
