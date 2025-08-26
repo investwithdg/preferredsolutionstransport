@@ -12,6 +12,9 @@ export async function POST(request: NextRequest) {
     const validatedData = quoteRequestSchema.parse(body);
     const { name, email, phone, pickupAddress, dropoffAddress, distanceMi, weightLb } = validatedData;
 
+    // Normalize email for idempotent upserts
+    const normalizedEmail = email.trim().toLowerCase();
+
     // Calculate pricing
     const pricing = calculatePrice({
       ...PRICING,
@@ -26,8 +29,8 @@ export async function POST(request: NextRequest) {
     const { data: customer, error: customerError } = await supabase
       .from('customers')
       .upsert(
-        { email, name, phone },
-        { onConflict: 'email', ignoreDuplicates: false }
+        { email: normalizedEmail, name, phone },
+        { onConflict: 'email' }
       )
       .select()
       .single();
