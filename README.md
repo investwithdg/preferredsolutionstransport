@@ -1,32 +1,70 @@
-# Delivery Platform - Milestone 1
+# Preferred Solutions Transport - Delivery Platform
 
-A modern delivery platform built with Next.js, Supabase, and Stripe. This is Milestone 1 focusing on the core quote-to-payment-to-dispatch workflow.
+A modern, full-service delivery platform built with Next.js, Supabase, and Stripe. This platform provides end-to-end delivery management from quote request to proof of delivery.
 
-## Features
+## 🎯 End-State Vision
 
-- **Customer Quote Form**: Submit delivery requests with distance-based pricing
-- **Stripe Integration**: Secure payment processing with test mode
+### Users & Outcomes
+
+**Customer**: Request quotes, pay securely, receive live delivery updates & receipts.
+**Dispatcher**: Manage incoming orders, assign drivers, monitor jobs in real-time.  
+**Driver**: Accept jobs, update statuses, capture proof of delivery.
+**Admin**: Manage pricing, products, users, and view comprehensive reports.
+
+### Complete Workflow
+
+1. **Customer submits Quote Request** → pricing rules applied (base + per-mile + surcharges)
+2. **Customer pays via Stripe Checkout** → secure payment processing
+3. **Payment webhook** → Supabase Order created (status=ReadyForDispatch)
+4. **Dispatcher assigns driver** → job routing and management
+5. **Driver App receives job** → updates statuses (PickedUp → Delivered), uploads proof
+6. **Notifications flow** → customer & dispatcher receive updates; receipt/invoice issued
+
+## 🚀 Current Status: Milestone 1
+
+**✅ IMPLEMENTED (Ready for Production)**
+- Customer quote submission with distance-based pricing
+- Stripe payment processing (test mode ready)
+- Order creation via webhook automation
+- Dispatcher queue (read-only view)
+- HubSpot integration for contact/deal management
+- Complete API infrastructure
+
+**🚧 COMING IN FUTURE MILESTONES**
+- Driver authentication & mobile app
+- Real-time order tracking & notifications
+- Driver assignment & status management
+- Admin dashboard & reporting
+- Google Maps integration
+- Enhanced security & permissions
+
+## 📋 Current Features (M1)
+
+- **Customer Quote Form**: Distance-based pricing with instant calculation
+- **Stripe Integration**: Secure payment processing with webhook automation
 - **Order Management**: Automatic order creation after successful payment
 - **Dispatcher Queue**: Real-time view of orders ready for dispatch
-- **Webhook Processing**: Stripe webhook verification and order processing
+- **HubSpot Sync**: Automatic contact and deal creation
+- **Database**: Full audit trail and event logging
 
-## Tech Stack
+## 🛠 Tech Stack
 
 - **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS
 - **Database**: Supabase (PostgreSQL with Row Level Security)
 - **Payments**: Stripe Checkout + Webhooks
+- **CRM**: HubSpot API integration
 - **Deployment**: Vercel-ready configuration
 
-## Quick Start
+## ⚡ Quick Start
 
 ### 1. Environment Setup
 
-Copy the environment template:
+Copy the environment template to create your local configuration:
 ```bash
 cp env.example .env.local
 ```
 
-Fill in your environment variables:
+Fill in your **actual** environment variables in `.env.local`:
 
 #### Supabase Setup
 1. Create a new project at [supabase.com](https://supabase.com)
@@ -40,17 +78,23 @@ Fill in your environment variables:
 2. Use test mode keys from your Stripe Dashboard:
    - `STRIPE_SECRET_KEY`: Secret key (sk_test_...)
    - `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`: Publishable key (pk_test_...)
-3. Set up a webhook endpoint (see Webhook Setup below)
+3. Set up webhook endpoint (see Webhook Setup below)
+
+#### HubSpot Setup (Optional)
+1. Create a Private App in your HubSpot portal
+2. Grant scopes: `crm.objects.contacts.read`, `crm.objects.contacts.write`, `crm.objects.deals.read`, `crm.objects.deals.write`
+3. Copy the Private App Access Token to `HUBSPOT_PRIVATE_APP_TOKEN`
 
 ### 2. Database Setup
 
 Run the schema in your Supabase SQL editor:
 
-```sql
--- Copy and paste the contents of supabase/schema.sql
-```
+1. Copy and paste the contents of `supabase/schema.sql`
+2. Run the query to create all tables and policies
+3. Copy and paste the contents of `supabase/migrations/20250819_hardening.sql`
+4. Run the hardening migration (ignore "already exists" warnings)
 
-Or run the file directly:
+Or use Supabase CLI:
 ```bash
 # If you have Supabase CLI installed
 supabase db reset
@@ -58,16 +102,18 @@ supabase db reset
 
 ### 3. Stripe Webhook Setup
 
-1. In Stripe Dashboard, go to Developers → Webhooks
-2. Add endpoint: `https://your-domain.vercel.app/api/stripe/webhook`
-3. Select event: `checkout.session.completed`
-4. Copy the webhook signing secret to `STRIPE_WEBHOOK_SECRET`
-
 For local development:
 ```bash
 # Install Stripe CLI and forward events
 stripe listen --forward-to localhost:3000/api/stripe/webhook
+# Copy the webhook signing secret to STRIPE_WEBHOOK_SECRET in .env.local
 ```
+
+For production:
+1. In Stripe Dashboard, go to Developers → Webhooks
+2. Add endpoint: `https://your-domain.vercel.app/api/stripe/webhook`
+3. Select event: `checkout.session.completed`
+4. Copy the webhook signing secret to `STRIPE_WEBHOOK_SECRET`
 
 ### 4. Install and Run
 
@@ -78,69 +124,21 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) in your browser.
 
-## Database Schema
+## 🧪 Testing the Complete Flow
 
-The platform uses these core tables:
+### Automated Test Script
 
-### `customers`
-- Customer information (name, email, phone)
-- Upserted by email for repeat customers
+Run the provided test script for quick API validation:
+```bash
+# Install jq for JSON parsing (optional but recommended)
+brew install jq  # macOS
 
-### `quotes`
-- Delivery requests with pricing calculations
-- Includes pickup/dropoff addresses and distance
-- Expires after 24 hours
-
-### `orders`
-- Created after successful Stripe payment
-- Links to quote and customer
-- Tracks Stripe payment IDs
-
-### `dispatch_events`
-- Audit trail for order lifecycle events
-- Used for webhook processing and system events
-
-### `webhook_events`
-- Ensures idempotent webhook processing
-- Prevents duplicate order creation
-
-## API Routes
-
-### `POST /api/quote`
-Creates a customer and quote with pricing calculation.
-
-**Request:**
-```json
-{
-  "name": "John Doe",
-  "email": "john@example.com",
-  "phone": "+1234567890",
-  "pickupAddress": "123 Main St",
-  "dropoffAddress": "456 Oak Ave",
-  "distanceMi": 5.2,
-  "weightLb": 10
-}
+# Run the test
+chmod +x scripts/test-api.sh
+./scripts/test-api.sh
 ```
 
-### `POST /api/checkout`
-Creates a Stripe Checkout session for a quote.
-
-**Request:**
-```json
-{
-  "quoteId": "uuid-of-quote"
-}
-```
-
-### `POST /api/stripe/webhook`
-Processes Stripe webhooks (checkout.session.completed).
-- Verifies webhook signature
-- Creates order with status 'ReadyForDispatch'
-- Logs dispatch event
-
-## Testing the Flow
-
-### Complete End-to-End Test
+### Manual End-to-End Test
 
 1. **Submit Quote**:
    - Go to `/quote`
@@ -156,78 +154,162 @@ Processes Stripe webhooks (checkout.session.completed).
    - Check Supabase `orders` table for new record
    - Status should be 'ReadyForDispatch'
    - Visit `/dispatcher` to see the order listed
+   - Check HubSpot for new contact and deal (if enabled)
 
-### Pricing Calculation
+## 💰 Pricing Configuration
 
 Current pricing structure (configured in `lib/config.ts`):
-- Base fee: $50.00
-- Per mile: $2.00
-- Fuel surcharge: 10% of subtotal
-- **Example**: 5 miles = $50 + ($2 × 5) + ($60 × 0.10) = $66.00
+- **Base fee**: $50.00
+- **Per mile**: $2.00  
+- **Fuel surcharge**: 10% of subtotal
+- **Example**: 5 miles = $50 + ($2 × 5) + ($60 × 0.10) = **$66.00**
 
-## Deployment
+## 🗃 Database Schema
 
-### Vercel Deployment
+### Core Tables
+
+**`customers`**
+- Customer information (name, email, phone)
+- Upserted by email for repeat customers
+
+**`quotes`**
+- Delivery requests with pricing calculations
+- Pickup/dropoff addresses and distance
+- Expires after 24 hours
+- Status tracking
+
+**`orders`**
+- Created after successful Stripe payment
+- Links to quote and customer
+- Tracks Stripe payment IDs
+- Status: Draft → AwaitingPayment → ReadyForDispatch → Assigned → Accepted → PickedUp → InTransit → Delivered
+
+**`dispatch_events`**
+- Complete audit trail for order lifecycle
+- System events and webhook processing
+- Actor tracking (system, dispatcher, driver)
+
+**`webhook_events`**
+- Ensures idempotent webhook processing
+- Prevents duplicate order creation
+
+### Order Status Flow
+
+```
+ReadyForDispatch → Assigned → Accepted → PickedUp → InTransit → Delivered
+                                    ↓
+                              (Can be Canceled at any stage)
+```
+
+## 🔌 API Routes
+
+### `POST /api/quote`
+Creates a customer and quote with pricing calculation.
+
+**Request:**
+```json
+{
+  "name": "John Doe",
+  "email": "john@example.com", 
+  "phone": "+1234567890",
+  "pickupAddress": "123 Main St",
+  "dropoffAddress": "456 Oak Ave",
+  "distanceMi": 5.2,
+  "weightLb": 10
+}
+```
+
+**Response:**
+```json
+{
+  "quoteId": "uuid-of-quote",
+  "pricing": {
+    "baseFee": 50,
+    "perMileRate": 2,
+    "distanceMi": 5.2,
+    "subtotal": 60.4,
+    "fuel": 6.04,
+    "total": 66.44
+  }
+}
+```
+
+### `POST /api/checkout`
+Creates a Stripe Checkout session for a quote.
+
+**Request:**
+```json
+{
+  "quoteId": "uuid-of-quote"
+}
+```
+
+**Response:**
+```json
+{
+  "url": "https://checkout.stripe.com/pay/..."
+}
+```
+
+### `POST /api/stripe/webhook`
+Processes Stripe webhooks (checkout.session.completed).
+- Verifies webhook signature
+- Creates order with status 'ReadyForDispatch'
+- Logs dispatch event
+- Syncs to HubSpot (if configured)
+
+## 🚀 Deployment
+
+### Vercel Deployment (Recommended)
 
 1. Push code to GitHub
 2. Connect repository to Vercel
 3. Add environment variables in Vercel dashboard
 4. Deploy
 
-The `VERCEL_URL` environment variable is automatically set by Vercel and used for Stripe redirect URLs.
+The `VERCEL_URL` environment variable is automatically set by Vercel.
 
 ### Environment Variables for Production
 
-Make sure to set all environment variables in your deployment platform:
-- Use production Stripe keys (not test keys)
-- Use production Supabase project
-- Set up production webhook endpoint
+**Required:**
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` 
+- `SUPABASE_SERVICE_ROLE_KEY`
+- `STRIPE_SECRET_KEY` (production key: sk_live_...)
+- `STRIPE_WEBHOOK_SECRET`
+- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (production key: pk_live_...)
 
-## Milestone 1 Limitations
+**Optional:**
+- `HUBSPOT_PRIVATE_APP_TOKEN`
 
-The following features are intentionally limited for M1:
+## 🔒 Security & Best Practices
 
-### ✅ Implemented
-- Customer quote submission (no auth required)
-- Distance-based pricing calculation
-- Stripe test payment processing
-- Order creation via webhook
-- Dispatcher queue (read-only view)
-
-### 🚧 Coming in Future Milestones
-- **Authentication**: Driver login and customer accounts
-- **Google Maps**: Automatic distance calculation
-- **Driver Actions**: Order assignment and status updates
-- **Notifications**: Email/SMS confirmations
-- **Integrations**: Make.com and HubSpot automation
-- **Enhanced Security**: Proper RLS policies and permissions
-
-## Development
-
-### Code Quality
-- TypeScript for type safety
-- Zod for runtime validation
-- ESLint and Prettier for code formatting
-- Tailwind CSS for consistent styling
-
-### Security Notes
-- RLS is enabled but permissive for M1
+### Current Security (M1)
+- Row Level Security (RLS) enabled with permissive policies
 - Service role key used for API operations
 - Webhook signature verification implemented
 - Input validation on all API endpoints
+- Environment variables for secrets
 
-## Troubleshooting
+### Coming in M2+
+- User authentication and session management
+- Granular RLS policies by user role
+- API rate limiting
+- Enhanced data encryption
+
+## 🐛 Troubleshooting
 
 ### Common Issues
 
 **Webhook not firing locally:**
 ```bash
-# Use Stripe CLI to forward webhooks
+# Ensure Stripe CLI is running
 stripe listen --forward-to localhost:3000/api/stripe/webhook
+# Copy the webhook secret to .env.local and restart your dev server
 ```
 
 **Database connection errors:**
-- Verify Supabase URL and keys
+- Verify Supabase URL and keys in `.env.local`
 - Check that RLS policies allow the operations
 - Ensure service role key is set for API routes
 
@@ -242,20 +324,55 @@ stripe listen --forward-to localhost:3000/api/stripe/webhook
 - Check RLS policies allow anonymous reads
 - Look for JavaScript console errors
 
-### Logs and Debugging
+**HubSpot sync not working:**
+- Verify `HUBSPOT_PRIVATE_APP_TOKEN` is set
+- Check that Private App has required scopes
+- Monitor server logs for HubSpot API errors
 
-- Supabase: Check logs in Supabase dashboard
-- Stripe: Monitor webhook attempts in Stripe dashboard
-- Vercel: Check function logs in Vercel dashboard
-- Local: Check browser console and terminal output
+### Debugging Resources
 
-## Contributing
+- **Supabase**: Check logs in Supabase dashboard
+- **Stripe**: Monitor webhook attempts in Stripe dashboard  
+- **Vercel**: Check function logs in Vercel dashboard
+- **Local**: Check browser console and terminal output
 
-This is Milestone 1 of a larger project. Future milestones will add:
-- Driver authentication and mobile app
-- Real-time tracking and notifications
-- Advanced routing and optimization
-- Integration with external systems
-- Enhanced security and permissions
+## 🗺 Roadmap
+
+### Milestone 2: Driver Management
+- Driver authentication system
+- Mobile-optimized driver interface
+- Order assignment by dispatchers
+- Real-time status updates
+- Push notifications
+
+### Milestone 3: Advanced Features
+- Google Maps integration for automatic distance calculation
+- Real-time GPS tracking
+- Photo upload for proof of delivery
+- Customer notifications (SMS/Email)
+- Route optimization
+
+### Milestone 4: Business Intelligence
+- Admin dashboard with analytics
+- Revenue and performance reporting
+- Customer management system
+- Pricing rule management
+- Integration with accounting systems
+
+## 🤝 Contributing
+
+This project is designed with scalability and maintainability in mind:
+
+- **TypeScript** for type safety
+- **Zod** for runtime validation
+- **ESLint** and **Prettier** for code quality
+- **Tailwind CSS** for consistent styling
+- **Supabase** for realtime capabilities
+- **Modular architecture** for easy feature addition
 
 For questions or issues, check the troubleshooting section or review the code comments for implementation details.
+
+---
+
+**Current Version**: Milestone 1 (Production Ready)  
+**Next Release**: Driver Management (M2)
