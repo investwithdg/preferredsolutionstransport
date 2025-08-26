@@ -25,15 +25,38 @@ export async function POST(request: NextRequest) {
     // Create Supabase client with service role
     const supabase = createServiceRoleClient();
 
-    // Upsert customer (by email)
-    const { data: customer, error: customerError } = await supabase
+    // First, try to find existing customer
+    const { data: existingCustomer } = await supabase
       .from('customers')
-      .upsert(
-        { email: normalizedEmail, name, phone },
-        { onConflict: 'email' }
-      )
       .select()
+      .eq('email', normalizedEmail)
       .single();
+
+    let customer;
+    let customerError;
+
+    if (existingCustomer) {
+      // Update existing customer
+      const { data: updatedCustomer, error: updateError } = await supabase
+        .from('customers')
+        .update({ name, phone })
+        .eq('email', normalizedEmail)
+        .select()
+        .single();
+      
+      customer = updatedCustomer;
+      customerError = updateError;
+    } else {
+      // Create new customer
+      const { data: newCustomer, error: createError } = await supabase
+        .from('customers')
+        .insert({ email: normalizedEmail, name, phone })
+        .select()
+        .single();
+      
+      customer = newCustomer;
+      customerError = createError;
+    }
 
     if (customerError) {
       console.error('Customer upsert error:', customerError);
