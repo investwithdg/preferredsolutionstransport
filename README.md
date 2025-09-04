@@ -31,10 +31,10 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - Complete API infrastructure
 
 **🚧 Milestone 2: In Progress**
-- Driver authentication & management
-- Driver assignment to orders
-- Order status updates by drivers
-- Basic driver dashboard
+- Driver authentication & management (initial schema complete)
+- Driver assignment to orders (UI and API complete)
+- Order status updates by drivers (UI and API complete)
+- Basic driver dashboard (UI and API complete)
 
 **🚧 Future Milestones**
 - Real-time order tracking & notifications
@@ -42,12 +42,14 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - Google Maps integration
 - Enhanced security & permissions
 
-## 📋 Current Features (M1)
+## 📋 Current Features (M1 & M2)
 
 - **Customer Quote Form**: Distance-based pricing with instant calculation
 - **Stripe Integration**: Secure payment processing with webhook automation
 - **Order Management**: Automatic order creation after successful payment
 - **Dispatcher Queue**: Real-time view of orders ready for dispatch
+- **Driver Assignment**: Dispatchers can assign available drivers to orders
+- **Driver Dashboard**: Drivers can view assigned orders and update their status
 - **HubSpot Sync**: Automatic contact and deal creation
 - **Database**: Full audit trail and event logging
 
@@ -103,11 +105,14 @@ Open http://localhost:3000 in your browser.
 
 Use the script in `scripts/test-api.sh` or test manually:
 
-1. Go to `/quote`, submit a request, then click Continue to Payment
-2. Complete Stripe test checkout (4242 4242 4242 4242)
-3. Return to `/thank-you`
-4. Visit `/dispatcher` and you should see a new order with `ReadyForDispatch`
-5. In your Stripe CLI window, you should see `checkout.session.completed`
+1.  Go to `/quote`, submit a request, then click Continue to Payment
+2.  Complete Stripe test checkout (4242 4242 4242 4242)
+3.  Return to `/thank-you`
+4.  Visit `/dispatcher` and you should see a new order with `ReadyForDispatch`
+5.  Assign an available driver to the order
+6.  Visit `/driver`, select the assigned driver from the demo dropdown
+7.  Verify you can see the assigned order and update its status
+8.  In your Stripe CLI window, you should see `checkout.session.completed`
 
 ## 💰 Pricing Configuration
 
@@ -118,17 +123,21 @@ Pricing currently in `lib/config.ts`:
 
 ## 🗃 Database Schema
 
-Core tables: `customers`, `quotes`, `orders`, `dispatch_events`, `webhook_events`.
+Core tables: `customers`, `quotes`, `orders`, `dispatch_events`, `webhook_events`, `drivers`.
 
 - `customers.email` has a unique constraint to support upserts
 - `dispatch_events` is append-only and idempotent via `(source, event_id)`
 - Order status transitions are validated via triggers
+- `drivers.user_id` is nullable to support creating drivers before full auth integration
 
 ## 🔌 API Routes
 
 - `POST /api/quote` → creates customer + quote with pricing
 - `POST /api/checkout` → creates Stripe checkout session
 - `POST /api/stripe/webhook` → verifies event, creates order, logs dispatch event, syncs to HubSpot (optional)
+- `GET, POST /api/drivers` → manage drivers
+- `POST /api/orders/assign` → assigns a driver to an order
+- `PATCH /api/orders/:orderId/status` → updates order status
 
 ## 🚀 Deployment
 
@@ -144,7 +153,7 @@ Set all environment variables in your hosting provider and deploy. `VERCEL_URL` 
 ## 🗺 Roadmap
 
 - M1: Complete - Core quote-to-payment flow
-- M2: In Progress - Driver management & actions
+- M2: In Progress - Driver management & actions (auth pending)
 - M3: Real-time tracking, Google Maps, notifications
 - M4: Admin analytics & reporting
 
