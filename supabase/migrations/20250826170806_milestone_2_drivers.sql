@@ -6,7 +6,7 @@
 -- Authentication is handled by Supabase Auth, linking via the user_id.
 CREATE TABLE IF NOT EXISTS public.drivers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES auth.users(id) NOT NULL UNIQUE,
+  user_id uuid REFERENCES auth.users(id) UNIQUE,
   name text NOT NULL,
   phone text,
   vehicle_details jsonb, -- { "make": "Ford", "model": "Transit", "license_plate": "ABC1234" }
