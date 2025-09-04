@@ -1,9 +1,10 @@
 import Link from 'next/link';
+import { Card, Button } from '@/components/ui';
 
 export default function ThankYouPage() {
   return (
     <div className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-      <div className="bg-white shadow rounded-lg">
+      <Card>
         <div className="px-6 py-8 text-center">
           <div className="mx-auto h-16 w-16 text-green-600 mb-6">
             <svg fill="currentColor" viewBox="0 0 20 20">
@@ -25,23 +26,21 @@ export default function ThankYouPage() {
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link
-                href="/quote"
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Create Another Quote
+              <Link href="/quote">
+                <Button>
+                  Create Another Quote
+                </Button>
               </Link>
               
-              <Link
-                href="/"
-                className="inline-flex items-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-              >
-                Back to Home
+              <Link href="/">
+                <Button variant="outline">
+                  Back to Home
+                </Button>
               </Link>
             </div>
           </div>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

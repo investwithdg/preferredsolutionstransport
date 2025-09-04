@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import Stripe from 'stripe';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createRepositories, DuplicateEventError } from '@/lib/database/repositories';
+import { successResponse, errorResponse, HTTP_STATUS } from '@/lib/api/utils';
 import {
   createHubSpotClient,
   upsertHubSpotContact,
@@ -26,34 +28,31 @@ export async function POST(request: NextRequest) {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
     } catch (err) {
       console.error('Webhook signature verification failed:', err);
-      return NextResponse.json(
-        { error: 'Invalid signature' },
-        { status: 400 }
-      );
+      return errorResponse('Invalid signature', HTTP_STATUS.BAD_REQUEST);
     }
 
+    // Create repositories
     const supabase = createServiceRoleClient();
+    const repos = createRepositories(supabase);
 
-    // Record event idempotently in dispatch_events using unique (source,event_id)
-    const insertEvent = await supabase
-      .from('dispatch_events')
-      .insert({
-        order_id: null,
+    // Record event idempotently
+    try {
+      await repos.dispatchEvents.create({
+        orderId: null,
         actor: 'system',
         source: 'stripe',
-        event_id: event.id,
-        event_type: event.type,
-        payload: event as any,
+        eventId: event.id,
+        eventType: event.type,
+        payload: event,
       });
-    if (insertEvent.error) {
-      const msg = insertEvent.error.message || '';
-      if (/duplicate key/i.test(msg) || (insertEvent.error as any).code === '23505') {
+    } catch (error) {
+      if (error instanceof DuplicateEventError) {
         // Already processed; acknowledge to prevent retries
-        return NextResponse.json({ received: true, dedup: true });
+        return successResponse({ received: true, dedup: true });
       }
-      console.error('Failed to record webhook event:', insertEvent.error);
+      console.error('Failed to record webhook event:', error);
       // Avoid retry storm; log and acknowledge
-      return NextResponse.json({ received: true, logged: false });
+      return successResponse({ received: true, logged: false });
     }
 
     // Handle the event
@@ -65,63 +64,41 @@ export async function POST(request: NextRequest) {
 
       if (!quoteId || !customerId) {
         console.error('Missing metadata in checkout session:', session.id);
-        return NextResponse.json(
-          { error: 'Missing required metadata' },
-          { status: 400 }
-        );
+        return errorResponse('Missing required metadata', HTTP_STATUS.BAD_REQUEST);
       }
 
       // Get the quote details
-      const { data: quote, error: quoteError } = await supabase
-        .from('quotes')
-        .select('*')
-        .eq('id', quoteId)
-        .single();
+      const quote = await repos.quotes.getByIdWithCustomer(quoteId);
 
-      if (quoteError || !quote) {
-        console.error('Quote not found:', quoteId, quoteError);
-        return NextResponse.json(
-          { error: 'Quote not found' },
-          { status: 404 }
-        );
+      if (!quote) {
+        console.error('Quote not found:', quoteId);
+        return errorResponse('Quote not found', HTTP_STATUS.NOT_FOUND);
       }
 
       // Create order
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          quote_id: quoteId,
-          customer_id: customerId,
-          price_total: session.amount_total! / 100, // Convert from cents
-          currency: session.currency || 'usd',
-          status: 'ReadyForDispatch',
-          stripe_payment_intent_id: session.payment_intent as string,
-          stripe_checkout_session_id: session.id,
-        })
-        .select()
-        .single();
-
-      if (orderError) {
-        console.error('Order creation failed:', orderError);
-        return NextResponse.json(
-          { error: 'Failed to create order' },
-          { status: 500 }
-        );
-      }
+      const order = await repos.orders.create({
+        quote_id: quoteId,
+        customer_id: customerId,
+        price_total: session.amount_total! / 100, // Convert from cents
+        currency: session.currency || 'usd',
+        status: 'ReadyForDispatch',
+        stripe_payment_intent_id: session.payment_intent as string,
+        stripe_checkout_session_id: session.id,
+      });
 
       // Create dispatch event
-      await supabase
-        .from('dispatch_events')
-        .insert({
-          order_id: order.id,
-          actor: 'system',
-          event_type: 'payment_completed',
-          payload: {
-            stripe_session_id: session.id,
-            amount_paid: session.amount_total! / 100,
-            currency: session.currency,
-          },
-        });
+      await repos.dispatchEvents.create({
+        orderId: order.id,
+        actor: 'system',
+        eventType: 'payment_completed',
+        payload: {
+          stripe_session_id: session.id,
+          amount_paid: session.amount_total! / 100,
+          currency: session.currency,
+        },
+        source: 'stripe',
+        eventId: `${event.id}-payment-completed`,
+      });
 
       console.log('Order created successfully:', order.id);
 
@@ -154,13 +131,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    return NextResponse.json({ received: true });
+    return successResponse({ received: true });
 
   } catch (error) {
     console.error('Webhook processing error:', error);
-    return NextResponse.json(
-      { error: 'Webhook processing failed' },
-      { status: 500 }
-    );
+    return errorResponse('Webhook processing failed', HTTP_STATUS.INTERNAL_SERVER_ERROR);
   }
 }
