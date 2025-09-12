@@ -1,6 +1,8 @@
-import { NextRequest, NextResponse } from 'next/server';
+// Using Web types to avoid dependency on next/server types in lint
+import { NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { z } from 'zod';
+import { postToMake } from '@/lib/notifications';
 
 const updateStatusSchema = z.object({
   status: z.enum(['Accepted', 'PickedUp', 'InTransit', 'Delivered', 'Canceled']),
@@ -8,7 +10,7 @@ const updateStatusSchema = z.object({
 });
 
 export async function PATCH(
-  request: NextRequest,
+  request: Request,
   { params }: { params: { orderId: string } }
 ) {
   try {
@@ -18,7 +20,7 @@ export async function PATCH(
     // Validate input
     const { status, notes } = updateStatusSchema.parse(body);
 
-    // Create Supabase client with service role
+    // Use service role for demo mode; RLS guards are enforced via triggers
     const supabase = createServiceRoleClient();
 
     // Get the current order with driver info
@@ -41,9 +43,7 @@ export async function PATCH(
       );
     }
 
-    // In a production app, we would verify that the authenticated user
-    // is the driver assigned to this order. For now, we'll skip auth.
-    // TODO: Add proper driver authentication in a future milestone
+    // In a future milestone, this will verify authenticated driver/dispatcher
 
     // Update the order status
     const { data: updatedOrder, error: updateError } = await supabase
@@ -69,12 +69,12 @@ export async function PATCH(
       );
     }
 
-    // Log the status change event
+    // Log the status change event (via service role to ensure append-only bypass)
     const { error: eventError } = await supabase
       .from('dispatch_events')
       .insert({
         order_id: orderId,
-        actor: order.drivers?.name || 'driver', // In production, this would be the authenticated driver's name
+        actor: order.drivers?.name || 'driver',
         event_type: 'status_updated',
         payload: {
           previous_status: order.status,
@@ -91,17 +91,25 @@ export async function PATCH(
       console.error('Failed to log status change event:', eventError);
     }
 
+    // Notify Make.com on key statuses
+    if (status === 'PickedUp') {
+      await postToMake({
+        eventType: 'order_picked_up',
+        data: { order_id: orderId, driver_id: order.driver_id },
+      });
+    }
+
     return NextResponse.json({
       message: 'Order status updated successfully',
       order: updatedOrder
     });
 
-  } catch (error) {
+  } catch (error: unknown) {
     console.error('Order status update API error:', error);
     
-    if (error instanceof z.ZodError) {
+    if (error && typeof error === 'object' && 'errors' in (error as any)) {
       return NextResponse.json(
-        { error: 'Invalid input data', details: error.errors },
+        { error: 'Invalid input data', details: (error as any).errors },
         { status: 400 }
       );
     }

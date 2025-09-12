@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PRICING } from '@/lib/config';
 import { calculatePrice } from '@/lib/pricing';
 
@@ -21,6 +21,33 @@ export default function QuotePage() {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
+
+  useEffect(() => {
+    const autoDistance = async () => {
+      if (
+        formData.pickupAddress.trim().length > 5 &&
+        formData.dropoffAddress.trim().length > 5
+      ) {
+        try {
+          const res = await fetch('/api/maps/distance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              origin: formData.pickupAddress,
+              destination: formData.dropoffAddress,
+            }),
+          });
+          if (res.ok) {
+            const data = await res.json();
+            setFormData(prev => ({ ...prev, distanceMiles: String(data.miles) }));
+          }
+        } catch (e) {
+          // ignore
+        }
+      }
+    };
+    autoDistance();
+  }, [formData.pickupAddress, formData.dropoffAddress]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

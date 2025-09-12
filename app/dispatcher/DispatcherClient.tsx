@@ -38,6 +38,7 @@ export default function DispatcherClient({ initialOrders, drivers }: DispatcherC
   const [orders, setOrders] = useState(initialOrders);
   const [isAssigning, setIsAssigning] = useState<string | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<{ [orderId: string]: string }>({});
+  const mapsKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_STATIC_KEY || process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
 
   const handleAssignDriver = async (orderId: string, driverId: string) => {
     if (!driverId) return;
@@ -45,13 +46,12 @@ export default function DispatcherClient({ initialOrders, drivers }: DispatcherC
     setIsAssigning(orderId);
     
     try {
-      const response = await fetch('/api/orders/assign', {
+      const response = await fetch(`/api/orders/${orderId}/assign`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          orderId,
           driverId,
         }),
       });
@@ -173,6 +173,15 @@ export default function DispatcherClient({ initialOrders, drivers }: DispatcherC
                           {order.quotes?.dropoff_address || 'N/A'}
                         </div>
                       </div>
+                      {mapsKey && order.quotes?.pickup_address && order.quotes?.dropoff_address && (
+                        <div className="mt-3">
+                          <img
+                            alt="Route map"
+                            className="rounded border"
+                            src={`https://maps.googleapis.com/maps/api/staticmap?size=320x160&markers=color:green|${encodeURIComponent(order.quotes.pickup_address!)}&markers=color:red|${encodeURIComponent(order.quotes.dropoff_address!)}&key=${mapsKey}`}
+                          />
+                        </div>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-900">
