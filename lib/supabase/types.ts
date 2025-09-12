@@ -93,6 +93,7 @@ export type Database = {
           status: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id: string | null
           stripe_checkout_session_id: string | null
+          driver_id?: string | null
           created_at: string | null
           updated_at: string | null
         }
@@ -105,6 +106,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
           stripe_checkout_session_id?: string | null
+          driver_id?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -117,6 +119,7 @@ export type Database = {
           status?: Database["public"]["Enums"]["order_status"]
           stripe_payment_intent_id?: string | null
           stripe_checkout_session_id?: string | null
+          driver_id?: string | null
           created_at?: string | null
           updated_at?: string | null
         }
@@ -134,8 +137,69 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "quotes"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
+            referencedColumns: ["id"]
           }
         ]
+      }
+      drivers: {
+        Row: {
+          id: string
+          user_id: string | null
+          name: string
+          phone: string | null
+          vehicle_details: Json | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          name: string
+          phone?: string | null
+          vehicle_details?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          name?: string
+          phone?: string | null
+          vehicle_details?: Json | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      dispatchers: {
+        Row: {
+          id: string
+          user_id: string | null
+          name: string | null
+          created_at: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          name?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          name?: string | null
+          created_at?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
       }
       dispatch_events: {
         Row: {

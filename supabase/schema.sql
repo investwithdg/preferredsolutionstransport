@@ -72,8 +72,8 @@ alter table public.webhook_events enable row level security;
 -- Temporary permissive policies for Milestone 1
 -- NOTE: These will be tightened in Milestone 2 with proper authentication
 
--- Allow anonymous read access to orders for dispatcher queue
-create policy "Allow anonymous read orders" on public.orders for select using (true);
+-- Remove permissive anonymous read; tightened in M2 below
+-- (Left intentionally blank; see Drivers/Dispatchers & RLS section)
 
 -- Allow service role full access for API operations
 create policy "Allow service role full access customers" on public.customers for all using (auth.jwt() ->> 'role' = 'service_role');
@@ -214,3 +214,127 @@ $$;
 
 -- Persist checkout session id on quotes for idempotency/diagnostics
 alter table public.quotes add column if not exists stripe_checkout_session_id text;
+
+
+-- =====================================================
+-- Milestone 2: Drivers, Dispatchers & Tightened RLS
+-- =====================================================
+
+-- Drivers table (public)
+create table if not exists public.drivers (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) unique,
+  name text not null,
+  phone text,
+  vehicle_details jsonb,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.drivers enable row level security;
+
+-- Dispatchers table (auth-linked)
+create table if not exists public.dispatchers (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users(id) unique,
+  name text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.dispatchers enable row level security;
+
+-- Columns needed for M2 on orders
+alter table public.orders
+  add column if not exists driver_id uuid references public.drivers(id);
+
+-- Indexes
+create index if not exists idx_orders_driver_id on public.orders(driver_id);
+
+-- Update helper trigger for drivers/dispatchers
+drop trigger if exists update_drivers_updated_at on public.drivers;
+create trigger update_drivers_updated_at
+  before update on public.drivers
+  for each row execute function update_updated_at_column();
+
+drop trigger if exists update_dispatchers_updated_at on public.dispatchers;
+create trigger update_dispatchers_updated_at
+  before update on public.dispatchers
+  for each row execute function update_updated_at_column();
+
+-- RLS Policies
+
+-- Service role full access for new tables
+create policy if not exists "Allow service role full access drivers"
+on public.drivers for all using (auth.jwt() ->> 'role' = 'service_role');
+
+create policy if not exists "Allow service role full access dispatchers"
+on public.dispatchers for all using (auth.jwt() ->> 'role' = 'service_role');
+
+-- Drivers can view their own driver record
+create policy if not exists "Drivers can view own driver record"
+on public.drivers for select using (auth.uid() = user_id);
+
+-- Dispatchers can view all drivers
+create policy if not exists "Dispatchers can view all drivers"
+on public.drivers for select using (
+  exists (
+    select 1 from public.dispatchers d where d.user_id = auth.uid()
+  )
+);
+
+-- Dispatchers can view their own dispatcher record
+create policy if not exists "Dispatchers can view own dispatcher record"
+on public.dispatchers for select using (auth.uid() = user_id);
+
+-- Tighten orders access: remove prior anonymous read policy if present
+drop policy if exists "Allow anonymous read orders" on public.orders;
+
+-- Dispatchers may read all orders
+create policy if not exists "Dispatchers can read all orders"
+on public.orders for select using (
+  exists (
+    select 1 from public.dispatchers d where d.user_id = auth.uid()
+  )
+);
+
+-- Drivers can read orders assigned to them
+create policy if not exists "Drivers can read assigned orders"
+on public.orders for select using (
+  exists (
+    select 1 from public.drivers dr
+    where dr.user_id = auth.uid() and dr.id = orders.driver_id
+  )
+);
+
+-- Drivers can update only their assigned orders (status updates)
+create policy if not exists "Drivers can update assigned orders"
+on public.orders for update using (
+  exists (
+    select 1 from public.drivers dr
+    where dr.user_id = auth.uid() and dr.id = orders.driver_id
+  )
+);
+
+-- Dispatchers can update any order (e.g., assign driver)
+create policy if not exists "Dispatchers can update all orders"
+on public.orders for update using (
+  exists (
+    select 1 from public.dispatchers d where d.user_id = auth.uid()
+  )
+);
+
+-- Dispatchers can read all customers and quotes
+create policy if not exists "Dispatchers can read all customers"
+on public.customers for select using (
+  exists (
+    select 1 from public.dispatchers d where d.user_id = auth.uid()
+  )
+);
+
+create policy if not exists "Dispatchers can read all quotes"
+on public.quotes for select using (
+  exists (
+    select 1 from public.dispatchers d where d.user_id = auth.uid()
+  )
+);

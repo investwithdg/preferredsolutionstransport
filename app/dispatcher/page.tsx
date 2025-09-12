@@ -1,8 +1,8 @@
-import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server';
 import DispatcherClient from './DispatcherClient';
 
 export default async function DispatcherPage() {
-  const supabase = createServiceRoleClient();
+  const supabase = createServerClient();
 
   // Fetch orders ready for dispatch
   const { data: orders, error: ordersError } = await supabase
