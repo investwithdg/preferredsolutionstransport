@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { checkoutRequestSchema } from '@/lib/validations';
+import { AppError, handleApiError } from '@/lib/config';
+import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -9,8 +11,12 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 export async function POST(request: NextRequest) {
   try {
+    // Check rate limit
+    const clientId = getClientIdentifier(request);
+    await checkRateLimit(clientId, 'checkout');
+
     const body = await request.json();
-    
+
     // Validate input
     const { quoteId } = checkoutRequestSchema.parse(body);
 
@@ -26,30 +32,36 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (quoteError || !quote) {
-      console.error('Quote lookup error:', quoteError);
-      return NextResponse.json(
-        { error: 'Quote not found' },
-        { status: 404 }
-      );
+      throw new AppError('Quote not found', 404, 'QUOTE_NOT_FOUND');
     }
 
     // Check if quote is expired
     if (quote.expires_at && new Date(quote.expires_at) < new Date()) {
-      return NextResponse.json(
-        { error: 'Quote has expired' },
-        { status: 400 }
-      );
+      throw new AppError('Quote has expired', 400, 'QUOTE_EXPIRED');
+    }
+
+    // Check if quote already has a checkout session
+    if (quote.stripe_checkout_session_id) {
+      // Return existing session instead of creating a new one
+      const existingSession = await stripe.checkout.sessions.retrieve(quote.stripe_checkout_session_id);
+      return NextResponse.json({
+        url: existingSession.url,
+      });
     }
 
     // Extract pricing from quote
     const pricing = quote.pricing as any;
+    if (!pricing?.total || pricing.total <= 0) {
+      throw new AppError('Invalid quote pricing', 400, 'INVALID_PRICING');
+    }
+
     const amountInCents = Math.round(pricing.total * 100);
 
     // Determine base URL for redirects
     const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ||
       (process.env.NODE_ENV === 'development'
         ? 'http://localhost:3000'
-        : (process.env.VERCEL_URL 
+        : (process.env.VERCEL_URL
           ? `https://${process.env.VERCEL_URL}`
           : `${request.nextUrl.protocol}//${request.nextUrl.host}`));
 
@@ -81,28 +93,24 @@ export async function POST(request: NextRequest) {
     });
 
     // Persist session id on quote for diagnostics/idempotency
-    await supabase
+    const { error: updateError } = await supabase
       .from('quotes')
       .update({ stripe_checkout_session_id: session.id })
       .eq('id', quoteId);
+
+    if (updateError) {
+      console.warn('Failed to persist checkout session ID:', updateError);
+      // Don't fail the request, just log the warning
+    }
 
     return NextResponse.json({
       url: session.url,
     });
 
   } catch (error) {
-    console.error('Checkout API error:', error);
-    
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json(
-        { error: 'Invalid input data', details: error.message },
-        { status: 400 }
-      );
-    }
+    const errorResponse = handleApiError(error, 'Checkout creation');
+    const statusCode = error instanceof AppError ? error.statusCode : 500;
 
-    return NextResponse.json(
-      { error: 'Failed to create checkout session' },
-      { status: 500 }
-    );
+    return NextResponse.json(errorResponse, { status: statusCode });
   }
 }

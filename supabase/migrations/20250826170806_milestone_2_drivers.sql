@@ -1,5 +1,6 @@
--- Milestone 2: Driver Management & Actions
--- This migration adds the necessary schema for drivers and order assignments.
+-- Milestone 2: Driver Management & Actions + Security Hardening
+-- This migration adds the necessary schema for drivers and order assignments,
+-- plus security improvements and additional constraints.
 
 -- Step 1: Create the drivers table
 -- This table will store public-facing information about drivers.
@@ -81,3 +82,68 @@ USING (
 CREATE TRIGGER update_drivers_updated_at
 BEFORE UPDATE ON public.drivers
 FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+<<<<<<< Current (Your changes)
+=======
+
+-- Step 5: Security Hardening - Additional Constraints and Indexes
+
+-- Ensure customers.email uniqueness is enforced (should already exist from base schema)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM information_schema.table_constraints
+    WHERE table_schema = 'public'
+      AND table_name = 'customers'
+      AND constraint_type = 'UNIQUE'
+      AND constraint_name = 'customers_email_key'
+  ) THEN
+    ALTER TABLE public.customers ADD CONSTRAINT customers_email_key UNIQUE (email);
+  END IF;
+END $$;
+
+-- Add additional indexes for performance
+CREATE INDEX IF NOT EXISTS idx_quotes_customer_id ON public.quotes(customer_id);
+CREATE INDEX IF NOT EXISTS idx_quotes_expires_at ON public.quotes(expires_at);
+CREATE INDEX IF NOT EXISTS idx_orders_quote_id ON public.orders(quote_id);
+CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON public.orders(customer_id);
+
+-- Step 6: Additional RLS Policy Improvements
+-- These policies provide better security by being more restrictive
+
+-- Customers table: Only allow users to insert/update their own data
+-- (for future when customers have user accounts)
+DROP POLICY IF EXISTS "Anonymous insert customers" ON public.customers;
+CREATE POLICY "Service role or owner access to customers"
+  ON public.customers FOR ALL
+  USING (
+    auth.jwt() ->> 'role' = 'service_role' OR
+    auth.uid() = id
+  );
+
+-- Quotes table: More restrictive - only allow access to user's own quotes
+DROP POLICY IF EXISTS "Anonymous insert quotes" ON public.quotes;
+CREATE POLICY "Service role or customer access to quotes"
+  ON public.quotes FOR ALL
+  USING (
+    auth.jwt() ->> 'role' = 'service_role' OR
+    auth.uid()::text = customer_id::text
+  );
+
+-- Step 7: Function to clean up expired quotes (runs automatically)
+CREATE OR REPLACE FUNCTION public.cleanup_expired_quotes()
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  -- Delete expired quotes older than 30 days
+  DELETE FROM public.quotes
+  WHERE expires_at < now() - interval '30 days'
+    AND status = 'Expired';
+END $$;
+
+-- Step 8: Add comments for documentation
+COMMENT ON TABLE public.customers IS 'Customer information - email uniqueness enforced';
+COMMENT ON TABLE public.quotes IS 'Quote requests with pricing - expires after 24 hours';
+COMMENT ON TABLE public.orders IS 'Orders created after successful payment';
+COMMENT ON TABLE public.drivers IS 'Driver profiles linked to Supabase Auth users';
+COMMENT ON TABLE public.dispatch_events IS 'Audit trail for all system events - append only';
+COMMENT ON TABLE public.webhook_events IS 'Stripe webhook events for idempotency';
+>>>>>>> Incoming (Background Agent changes)

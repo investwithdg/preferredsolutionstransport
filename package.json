@@ -29,5 +29,8 @@
   },
   "devDependencies": {
     "prettier": "^3.1.0"
+  },
+  "optionalDependencies": {
+    "@sentry/nextjs": "^8.0.0"
   }
 }
