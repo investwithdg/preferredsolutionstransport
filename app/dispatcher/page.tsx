@@ -1,7 +1,14 @@
-import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createServiceRoleClient, createServerClient } from '@/lib/supabase/server';
 import DispatcherClient from './DispatcherClient';
 
 export default async function DispatcherPage() {
+  const cookieClient = createServerClient();
+  const {
+    data: { session },
+  } = await cookieClient.auth.getSession();
+  if (!session) {
+    return null;
+  }
   const supabase = createServiceRoleClient();
 
   // Fetch orders ready for dispatch
