@@ -1,9 +1,14 @@
 import DriverClient from './DriverClient';
+import { createServerClient } from '@/lib/supabase/server';
 
-export default function DriverPage() {
-  // For now, we'll create a simple driver dashboard without authentication
-  // In a production app, this would check the authenticated driver's session
-  
+export default async function DriverPage() {
+  const supabase = createServerClient();
+  const {
+    data: { session },
+  } = await supabase.auth.getSession();
+  if (!session) {
+    return null;
+  }
   return (
     <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
       <div className="bg-white shadow rounded-lg">
