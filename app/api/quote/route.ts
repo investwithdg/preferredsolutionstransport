@@ -2,12 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { quoteRequestSchema } from '@/lib/validations';
 import { calculatePrice } from '@/lib/pricing';
-import { PRICING } from '@/lib/config';
+import { PRICING, AppError, handleApiError } from '@/lib/config';
+import { checkRateLimit, getClientIdentifier } from '@/lib/rate-limit';
 
 export async function POST(request: NextRequest) {
   try {
+    // Check rate limit
+    const clientId = getClientIdentifier(request);
+    await checkRateLimit(clientId, 'quote');
+
     const body = await request.json();
-    
+
     // Validate input
     const validatedData = quoteRequestSchema.parse(body);
     const { name, email, phone, pickupAddress, dropoffAddress, distanceMi, weightLb } = validatedData;
@@ -26,15 +31,17 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceRoleClient();
 
     // First, try to find existing customer
-    const { data: existingCustomer } = await supabase
+    const { data: existingCustomer, error: customerLookupError } = await supabase
       .from('customers')
       .select()
       .eq('email', normalizedEmail)
       .single();
 
-    let customer;
-    let customerError;
+    if (customerLookupError && customerLookupError.code !== 'PGRST116') {
+      throw new AppError('Failed to lookup customer', 500, 'CUSTOMER_LOOKUP_ERROR');
+    }
 
+    let customer;
     if (existingCustomer) {
       // Update existing customer
       const { data: updatedCustomer, error: updateError } = await supabase
@@ -43,9 +50,11 @@ export async function POST(request: NextRequest) {
         .eq('email', normalizedEmail)
         .select()
         .single();
-      
+
+      if (updateError) {
+        throw new AppError('Failed to update customer record', 500, 'CUSTOMER_UPDATE_ERROR');
+      }
       customer = updatedCustomer;
-      customerError = updateError;
     } else {
       // Create new customer
       const { data: newCustomer, error: createError } = await supabase
@@ -53,17 +62,11 @@ export async function POST(request: NextRequest) {
         .insert({ email: normalizedEmail, name, phone })
         .select()
         .single();
-      
-      customer = newCustomer;
-      customerError = createError;
-    }
 
-    if (customerError) {
-      console.error('Customer upsert error:', customerError);
-      return NextResponse.json(
-        { error: 'Failed to create customer record' },
-        { status: 500 }
-      );
+      if (createError) {
+        throw new AppError('Failed to create customer record', 500, 'CUSTOMER_CREATE_ERROR');
+      }
+      customer = newCustomer;
     }
 
     // Create quote
@@ -83,11 +86,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (quoteError) {
-      console.error('Quote creation error:', quoteError);
-      return NextResponse.json(
-        { error: 'Failed to create quote' },
-        { status: 500 }
-      );
+      throw new AppError('Failed to create quote', 500, 'QUOTE_CREATE_ERROR');
     }
 
     return NextResponse.json({
@@ -96,18 +95,9 @@ export async function POST(request: NextRequest) {
     });
 
   } catch (error) {
-    console.error('Quote API error:', error);
-    
-    if (error instanceof Error && error.name === 'ZodError') {
-      return NextResponse.json(
-        { error: 'Invalid input data', details: error.message },
-        { status: 400 }
-      );
-    }
+    const errorResponse = handleApiError(error, 'Quote creation');
+    const statusCode = error instanceof AppError ? error.statusCode : 500;
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json(errorResponse, { status: statusCode });
   }
 }
