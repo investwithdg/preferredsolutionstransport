@@ -9,8 +9,8 @@ export async function middleware(req: NextRequest) {
 
   const { pathname } = req.nextUrl;
 
-  // Protect dispatcher and driver routes
-  if (pathname.startsWith('/dispatcher') || pathname.startsWith('/driver')) {
+  // Protect dispatcher, driver, and admin routes
+  if (pathname.startsWith('/dispatcher') || pathname.startsWith('/driver') || pathname.startsWith('/admin')) {
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -44,13 +44,21 @@ export async function middleware(req: NextRequest) {
         return NextResponse.redirect(url);
       }
     }
+
+    if (pathname.startsWith('/admin')) {
+      if (role !== 'admin') {
+        const url = req.nextUrl.clone();
+        url.pathname = '/dispatcher';
+        return NextResponse.redirect(url);
+      }
+    }
   }
 
   return res;
 }
 
 export const config = {
-  matcher: ['/dispatcher/:path*', '/driver/:path*'],
+  matcher: ['/dispatcher/:path*', '/driver/:path*', '/admin/:path*'],
 };
 
 

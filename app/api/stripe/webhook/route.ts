@@ -6,6 +6,12 @@ import {
   upsertHubSpotContact,
   createHubSpotDeal,
 } from '@/lib/hubspot/client';
+import { 
+  formatDealName, 
+  getDefaultCloseDate, 
+  getDealStageForStatus,
+  HUBSPOT_CONFIG 
+} from '@/lib/hubspot/config';
 import { captureWebhookError, setSentryTag } from '@/lib/sentry';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -144,13 +150,11 @@ export async function POST(request: NextRequest) {
             hubspotClient,
             {
               properties: {
-                dealname: `Delivery Order - ${order.id.slice(0, 8)}`,
+                dealname: formatDealName(order.id),
                 amount: (order.price_total || 0).toString(),
-                pipeline: 'default', // Or your specific pipeline ID
-                dealstage: 'appointmentscheduled', // Or your specific stage ID
-                closedate: new Date(
-                  Date.now() + 30 * 24 * 60 * 60 * 1000
-                ).toISOString(), // e.g., 30 days from now
+                pipeline: HUBSPOT_CONFIG.pipelineId,
+                dealstage: getDealStageForStatus(order.status),
+                closedate: getDefaultCloseDate(),
               },
             },
             contactId

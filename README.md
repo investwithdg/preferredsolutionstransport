@@ -20,38 +20,51 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 5. **Driver App receives job** → updates statuses (PickedUp → Delivered), uploads proof
 6. **Notifications flow** → customer & dispatcher receive updates; receipt/invoice issued
 
-## 🚀 Current Status: Milestone 2 (In Progress)
+## 🚀 Current Status: Milestone 2.5 (Nearly Complete)
 
 **✅ Milestone 1: Complete (Production Ready)**
 - Customer quote submission with distance-based pricing
 - Stripe payment processing (test mode ready)
 - Order creation via webhook automation
-- Dispatcher queue (read-only view)
+- Dispatcher queue with driver assignment
 - HubSpot integration for contact/deal management
 - Complete API infrastructure
 
-**🚧 Milestone 2: In Progress**
-- Driver authentication & management (initial schema complete)
+**✅ Milestone 2: Complete**
+- Driver authentication & management (schema complete)
 - Driver assignment to orders (UI and API complete)
 - Order status updates by drivers (UI and API complete)
 - Basic driver dashboard (UI and API complete)
+- **NEW: Admin dashboard** (user/driver/order management)
+- **NEW: Customer order tracking page**
+- **NEW: Customer dashboard** (order history)
+
+**✅ Milestone 2.5: Complete**
+- **Google Maps Distance Matrix integration** (automatic distance calculation)
+- **HubSpot pipeline configuration** (customizable stages and pipelines)
+- **Vercel deployment ready** (vercel.json configured)
+- **Customer-facing UIs** (tracking and dashboard)
 
 **🚧 Future Milestones**
-- Real-time order tracking & notifications
-- Admin dashboard & reporting
-- Google Maps integration
-- Enhanced security & permissions
+- Real-time order tracking & notifications (WebSockets)
+- Push notifications for drivers
+- Enhanced security & role-based permissions
+- Analytics & reporting dashboards
 
-## 📋 Current Features (M1 & M2)
+## 📋 Current Features (M1, M2 & M2.5)
 
-- **Customer Quote Form**: Distance-based pricing with instant calculation
+- **Customer Quote Form**: Distance-based pricing with **automatic Google Maps distance calculation**
 - **Stripe Integration**: Secure payment processing with webhook automation
 - **Order Management**: Automatic order creation after successful payment
 - **Dispatcher Queue**: Real-time view of orders ready for dispatch
 - **Driver Assignment**: Dispatchers can assign available drivers to orders
 - **Driver Dashboard**: Drivers can view assigned orders and update their status
-- **HubSpot Sync**: Automatic contact and deal creation
+- **Admin Dashboard**: Complete management interface for users, drivers, orders, and pricing
+- **Customer Tracking**: Real-time order tracking page for customers
+- **Customer Dashboard**: Order history and active order management for customers
+- **HubSpot Sync**: Automatic contact and deal creation with **configurable pipelines and stages**
 - **Database**: Full audit trail and event logging
+- **Vercel Ready**: Production deployment configuration included
 
 ## 🛠 Tech Stack
 
@@ -152,11 +165,44 @@ Set all environment variables in your hosting provider and deploy. `VERCEL_URL` 
 
 ## 🗺 Roadmap
 
-- M1: Complete - Core quote-to-payment flow
-- M2: In Progress - Driver management & actions (auth pending)
-- M3: Real-time tracking, Google Maps, notifications
-- M4: Admin analytics & reporting
+- ✅ M1: Complete - Core quote-to-payment flow
+- ✅ M2: Complete - Driver management & actions
+- ✅ M2.5: Complete - Admin UI, Customer UIs, Google Maps, HubSpot config
+- 🚧 M3: Real-time tracking, notifications, WebSockets
+- 🚧 M4: Advanced analytics & reporting
+
+## 🌐 Application Routes
+
+### Customer Routes
+- `/` - Homepage
+- `/quote` - Request quote and checkout
+- `/track/[orderId]` - Track order status
+- `/customer/dashboard` - Order history and active orders
+- `/thank-you` - Post-payment confirmation
+
+### Staff Routes (Authentication Required)
+- `/dispatcher` - Dispatcher dashboard (admin/dispatcher roles)
+- `/driver` - Driver dashboard (driver role)
+- `/admin` - Admin dashboard (admin role only)
+- `/auth/sign-in` - Authentication page
+
+### API Routes
+- `POST /api/quote` - Create quote
+- `POST /api/checkout` - Create Stripe checkout session
+- `POST /api/stripe/webhook` - Process Stripe webhooks
+- `GET/POST /api/drivers` - Manage drivers
+- `POST /api/orders/assign` - Assign driver to order
+- `PATCH /api/orders/:orderId/status` - Update order status
+- `POST /api/orders/by-driver` - Get orders by driver
+
+## 📚 Additional Documentation
+
+- [Deployment Guide](./DEPLOYMENT.md) - Step-by-step Vercel deployment instructions
+- [RLS Audit](./RLS-AUDIT.md) - Security and Row Level Security policies
+- [Changelog](./CHANGELOG.md) - Version history and updates
 
 ---
 
-Current Version: Milestone 2 (In Progress)
+**Current Version: Milestone 2.5 (Production Ready)**
+
+Ready to deploy to Vercel! See [DEPLOYMENT.md](./DEPLOYMENT.md) for instructions.
