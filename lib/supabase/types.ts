@@ -88,6 +88,7 @@ export type Database = {
           id: string
           quote_id: string | null
           customer_id: string | null
+          driver_id: string | null
           price_total: number
           currency: string | null
           status: Database["public"]["Enums"]["order_status"]
@@ -100,6 +101,7 @@ export type Database = {
           id?: string
           quote_id?: string | null
           customer_id?: string | null
+          driver_id?: string | null
           price_total: number
           currency?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -112,6 +114,7 @@ export type Database = {
           id?: string
           quote_id?: string | null
           customer_id?: string | null
+          driver_id?: string | null
           price_total?: number
           currency?: string | null
           status?: Database["public"]["Enums"]["order_status"]
@@ -133,6 +136,13 @@ export type Database = {
             columns: ["quote_id"]
             isOneToOne: false
             referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "orders_driver_id_fkey"
+            columns: ["driver_id"]
+            isOneToOne: false
+            referencedRelation: "drivers"
             referencedColumns: ["id"]
           }
         ]
@@ -202,6 +212,57 @@ export type Database = {
         }
         Relationships: []
       }
+      drivers: {
+        Row: {
+          id: string
+          name: string
+          phone: string
+          vehicle_details: string | null
+          user_id: string | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          name: string
+          phone: string
+          vehicle_details?: string | null
+          user_id?: string | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          name?: string
+          phone?: string
+          vehicle_details?: string | null
+          user_id?: string | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
+      users: {
+        Row: {
+          id: string
+          auth_id: string | null
+          email: string | null
+          role: Database["public"]["Enums"]["user_role"] | null
+          created_at: string | null
+        }
+        Insert: {
+          id?: string
+          auth_id?: string | null
+          email?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          created_at?: string | null
+        }
+        Update: {
+          id?: string
+          auth_id?: string | null
+          email?: string | null
+          role?: Database["public"]["Enums"]["user_role"] | null
+          created_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
@@ -211,6 +272,7 @@ export type Database = {
     }
     Enums: {
       order_status: "Draft" | "AwaitingPayment" | "ReadyForDispatch" | "Assigned" | "Accepted" | "PickedUp" | "InTransit" | "Delivered" | "Canceled"
+      user_role: "admin" | "dispatcher" | "driver" | "recipient"
     }
     CompositeTypes: {
       [_ in never]: never
