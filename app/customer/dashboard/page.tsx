@@ -25,7 +25,7 @@ export default async function CustomerDashboardPage() {
         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6">
           <h2 className="text-lg font-semibold text-yellow-900">No Orders Found</h2>
           <p className="text-yellow-700 mt-2">
-            You haven't placed any orders yet. Start by requesting a quote!
+            You haven&apos;t placed any orders yet. Start by requesting a quote!
           </p>
         </div>
       </div>
