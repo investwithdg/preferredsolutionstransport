@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { PRICING } from '@/lib/config';
 import { calculatePrice } from '@/lib/pricing';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
@@ -45,6 +46,7 @@ function GoogleMapsAutocompleteInput({ value, onChange, id, name, label, require
 }
 
 export default function QuotePage() {
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
@@ -63,6 +65,20 @@ export default function QuotePage() {
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: ['places'],
   });
+
+  // Prefill from URL params
+  useEffect(() => {
+    const pickup = searchParams.get('pickup') || '';
+    const dropoff = searchParams.get('dropoff') || '';
+    if (pickup || dropoff) {
+      setFormData(prev => ({
+        ...prev,
+        pickupAddress: pickup || prev.pickupAddress,
+        dropoffAddress: dropoff || prev.dropoffAddress,
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   // Auto-calculate distance when both addresses are filled
   useEffect(() => {

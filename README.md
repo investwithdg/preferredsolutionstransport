@@ -89,10 +89,16 @@ Fill in your **actual** environment variables in `.env.local`.
 
 Run the single consolidated schema file in your Supabase SQL editor:
 
-- Open `supabase/schema.sql`
-- Copy all contents and run it in Supabase SQL Editor
-- This file includes both the base schema and all hardening/guard functions (no separate migration file is needed)
-- If rerun, duplicate object warnings are safe to ignore
+- Open `supabase/consolidated-schema.sql`
+- Copy all contents and run it in the Supabase SQL Editor
+- This file contains the complete schema, RLS policies, indexes, triggers, monitoring functions, and rate limiting
+- Safe to re-run: it includes `IF NOT EXISTS` and `DROP POLICY IF EXISTS` guards
+
+Optional: seed initial roles and mappings after you create your auth users (via Supabase Auth > Users). Update the emails in the seed file or use your real emails, then run it:
+
+- Open `supabase/seeds/initial_roles.sql`
+- Update the sample emails to match your users (admin/dispatcher/driver/recipient)
+- Run the file in the Supabase SQL Editor to map roles and link driver/customer records
 
 ### 3. Stripe Webhook Setup
 
@@ -158,8 +164,8 @@ Set all environment variables in your hosting provider and deploy. `VERCEL_URL` 
 
 ## 🔒 Security & Best Practices
 
-- RLS enabled with permissive policies for M1
-- Service role key used for secure server-side operations
+- Row Level Security (RLS) hardened with explicit role policies (admin, dispatcher, driver, recipient)
+- Service role key used for secure server-side operations only (never expose to client)
 - Webhook signature verification
 - Input validation with Zod
 

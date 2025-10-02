@@ -260,10 +260,17 @@ CREATE POLICY "Service role full access users"
   ON public.users FOR ALL
   USING (auth.jwt() ->> 'role' = 'service_role');
 
--- Users can manage their own record
+-- Users can read their own record
 DROP POLICY IF EXISTS "Users manage own record" ON public.users;
-CREATE POLICY "Users manage own record"
-  ON public.users FOR SELECT USING (auth.uid() = auth_id)
+CREATE POLICY "Users read own record"
+  ON public.users FOR SELECT 
+  USING (auth.uid() = auth_id);
+
+-- Users can update their own record  
+DROP POLICY IF EXISTS "Users update own record" ON public.users;
+CREATE POLICY "Users update own record"
+  ON public.users FOR UPDATE
+  USING (auth.uid() = auth_id)
   WITH CHECK (auth.uid() = auth_id);
 
 -- Helper function to get current user's role
@@ -638,7 +645,9 @@ CREATE INDEX IF NOT EXISTS idx_quotes_status_created ON public.quotes(status, cr
 CREATE INDEX IF NOT EXISTS idx_orders_stripe_session ON public.orders(stripe_checkout_session_id) WHERE stripe_checkout_session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_quotes_stripe_session ON public.quotes(stripe_checkout_session_id) WHERE stripe_checkout_session_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_orders_active_status ON public.orders(status) WHERE status NOT IN ('Delivered', 'Canceled');
-CREATE INDEX IF NOT EXISTS idx_quotes_active ON public.quotes(id, status) WHERE status = 'Draft' AND expires_at > now();
+-- Note: Cannot use expires_at > now() in index predicate (now() is not IMMUTABLE)
+-- Use expires_at index separately for expiry queries
+CREATE INDEX IF NOT EXISTS idx_quotes_active ON public.quotes(id, status) WHERE status = 'Draft';
 
 -- Additional performance indexes
 CREATE INDEX IF NOT EXISTS idx_quotes_customer_id ON public.quotes(customer_id);
