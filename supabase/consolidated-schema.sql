@@ -236,6 +236,16 @@ END $$;
 -- =============================================================================
 -- ROW LEVEL SECURITY (RLS) AND POLICIES
 -- =============================================================================
+-- 
+-- USER ROLES IN THIS SYSTEM:
+-- 1. ANONYMOUS - Public users requesting quotes (not logged in)
+-- 2. RECIPIENT - Authenticated customers tracking their orders
+-- 3. DRIVER - Authenticated drivers viewing/updating assigned orders
+-- 4. DISPATCHER - Authenticated staff managing orders and assignments
+-- 5. ADMIN - Full system access for management
+-- 6. SERVICE_ROLE - Backend API operations (full access)
+--
+-- =============================================================================
 
 -- Enable RLS on all tables
 ALTER TABLE public.customers ENABLE ROW LEVEL SECURITY;
@@ -254,7 +264,9 @@ DROP POLICY IF EXISTS "Allow service role full access to drivers" ON public.driv
 DROP POLICY IF EXISTS "Allow drivers to view their own record" ON public.drivers;
 DROP POLICY IF EXISTS "Allow authenticated users to view all drivers" ON public.drivers;
 
--- Service role policies (full access for API operations)
+-- =============================================================================
+-- SERVICE ROLE POLICIES (Backend API - Full Access)
+-- =============================================================================
 CREATE POLICY "Service role full access customers" 
   ON public.customers FOR ALL 
   USING (auth.jwt() ->> 'role' = 'service_role');
@@ -279,7 +291,10 @@ CREATE POLICY "Service role full access webhook_events"
   ON public.webhook_events FOR ALL 
   USING (auth.jwt() ->> 'role' = 'service_role');
 
--- Anonymous access policies (for customer-facing operations)
+-- =============================================================================
+-- ANONYMOUS USER POLICIES (Public Quote Requests)
+-- =============================================================================
+-- Allow anonymous users to submit quote requests and create customer records
 CREATE POLICY "Anonymous insert customers" 
   ON public.customers FOR INSERT 
   WITH CHECK (true);
@@ -288,21 +303,50 @@ CREATE POLICY "Anonymous insert quotes"
   ON public.quotes FOR INSERT 
   WITH CHECK (true);
 
--- Authenticated user policies for orders
-CREATE POLICY "Authenticated read access to orders"
-  ON public.orders FOR SELECT
-  USING (auth.role() = 'authenticated');
+-- =============================================================================
+-- ADMIN & DISPATCHER POLICIES (Full Operational Access)
+-- =============================================================================
+-- Admin and Dispatcher can manage all orders, drivers, and dispatch events
 
--- Driver-specific policies
-CREATE POLICY "Drivers view their own record"
+-- Orders: Full CRUD access
+CREATE POLICY "Admin dispatcher full orders"
+  ON public.orders FOR ALL
+  USING (public.is_admin_or_dispatcher())
+  WITH CHECK (public.is_admin_or_dispatcher());
+
+-- Drivers: Full CRUD access (for managing driver accounts)
+CREATE POLICY "Admin dispatcher full drivers"
+  ON public.drivers FOR ALL
+  USING (public.is_admin_or_dispatcher())
+  WITH CHECK (public.is_admin_or_dispatcher());
+
+-- Dispatch Events: Full access to audit trail
+CREATE POLICY "Admin dispatcher full dispatch_events"
+  ON public.dispatch_events FOR ALL
+  USING (public.is_admin_or_dispatcher())
+  WITH CHECK (public.is_admin_or_dispatcher());
+
+-- =============================================================================
+-- DRIVER POLICIES (Own Profile + Assigned Orders)
+-- =============================================================================
+-- Drivers can view/update their own profile
+CREATE POLICY "Drivers manage own profile"
+  ON public.drivers FOR ALL
+  USING (auth.uid() = user_id)
+  WITH CHECK (auth.uid() = user_id);
+
+-- Drivers can view ALL driver profiles (for reference in dispatcher view)
+CREATE POLICY "Drivers view all driver profiles"
   ON public.drivers FOR SELECT
-  USING (auth.uid() = user_id);
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.drivers
+      WHERE drivers.user_id = auth.uid()
+    )
+  );
 
-CREATE POLICY "Authenticated users view all drivers"
-  ON public.drivers FOR SELECT
-  USING (auth.role() = 'authenticated');
-
-CREATE POLICY "Drivers see their assigned orders"
+-- Drivers can view orders assigned to them
+CREATE POLICY "Drivers view assigned orders"
   ON public.orders FOR SELECT
   USING (
     EXISTS (
@@ -311,12 +355,70 @@ CREATE POLICY "Drivers see their assigned orders"
     )
   );
 
-CREATE POLICY "Drivers update their assigned orders"
+-- Drivers can update status of orders assigned to them
+-- (Status transitions are validated by validate_order_transition trigger)
+CREATE POLICY "Drivers update assigned orders"
   ON public.orders FOR UPDATE
   USING (
     EXISTS (
       SELECT 1 FROM public.drivers
       WHERE drivers.user_id = auth.uid() AND drivers.id = orders.driver_id
+    )
+  )
+  WITH CHECK (
+    EXISTS (
+      SELECT 1 FROM public.drivers
+      WHERE drivers.user_id = auth.uid() AND drivers.id = orders.driver_id
+    )
+  );
+
+-- Drivers can view dispatch events for their orders
+CREATE POLICY "Drivers view own dispatch events"
+  ON public.dispatch_events FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.orders o
+      JOIN public.drivers d ON d.id = o.driver_id
+      WHERE o.id = dispatch_events.order_id AND d.user_id = auth.uid()
+    )
+  );
+
+-- =============================================================================
+-- RECIPIENT POLICIES (Customers Tracking Their Orders)
+-- =============================================================================
+-- Recipients can view their own customer record
+CREATE POLICY "Recipients view own customer record"
+  ON public.customers FOR SELECT
+  USING (auth.email() = auth_email);
+
+-- Recipients can view orders they placed
+CREATE POLICY "Recipients view own orders"
+  ON public.orders FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.customers c
+      WHERE c.id = orders.customer_id AND c.auth_email = auth.email()
+    )
+  );
+
+-- Recipients can view dispatch events for their orders
+CREATE POLICY "Recipients view own dispatch_events"
+  ON public.dispatch_events FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.orders o
+      JOIN public.customers c ON c.id = o.customer_id
+      WHERE o.id = dispatch_events.order_id AND c.auth_email = auth.email()
+    )
+  );
+
+-- Recipients can view quotes they created
+CREATE POLICY "Recipients view own quotes"
+  ON public.quotes FOR SELECT
+  USING (
+    EXISTS (
+      SELECT 1 FROM public.customers c
+      WHERE c.id = quotes.customer_id AND c.auth_email = auth.email()
     )
   );
 
@@ -381,5 +483,268 @@ BEGIN
   RAISE NOTICE '1. Test the quote → payment → dispatcher flow';
   RAISE NOTICE '2. Test driver assignment and status updates';
   RAISE NOTICE '3. Verify webhook processing is working';
+  RAISE NOTICE '=============================================================================';
+END $$;
+
+-- =============================================================================
+-- MILESTONE 2.5 ADDITIONS: Auth, Roles, and Rate Limiting
+-- =============================================================================
+
+-- Create user role enum
+DO $$ BEGIN
+  CREATE TYPE user_role AS ENUM ('admin','dispatcher','driver','recipient');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Users table for role-based access control
+CREATE TABLE IF NOT EXISTS public.users (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  auth_id uuid UNIQUE REFERENCES auth.users(id),
+  email text UNIQUE,
+  role user_role,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Enable RLS on users table
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+
+-- Service role full access to users
+DROP POLICY IF EXISTS "Service role full access users" ON public.users;
+CREATE POLICY "Service role full access users"
+  ON public.users FOR ALL
+  USING (auth.jwt() ->> 'role' = 'service_role');
+
+-- Users can manage their own record
+DROP POLICY IF EXISTS "Users manage own record" ON public.users;
+CREATE POLICY "Users manage own record"
+  ON public.users FOR SELECT USING (auth.uid() = auth_id)
+  WITH CHECK (auth.uid() = auth_id);
+
+-- Helper function to get current user's role
+CREATE OR REPLACE FUNCTION public.current_user_role()
+RETURNS user_role LANGUAGE sql STABLE SECURITY INVOKER AS $$
+  SELECT role FROM public.users WHERE auth_id = auth.uid();
+$$;
+
+-- Helper function to check if user is admin or dispatcher
+CREATE OR REPLACE FUNCTION public.is_admin_or_dispatcher()
+RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER AS $$
+  SELECT public.current_user_role() IN ('admin','dispatcher');
+$$;
+
+-- Add auth_email column to customers for recipient mapping
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS auth_email text UNIQUE;
+CREATE INDEX IF NOT EXISTS idx_customers_auth_email ON public.customers(auth_email);
+
+-- =============================================================================
+-- RATE LIMITING INFRASTRUCTURE
+-- =============================================================================
+
+-- Table to track API request counts for rate limiting
+CREATE TABLE IF NOT EXISTS public.api_rate_limits (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  identifier text NOT NULL,
+  endpoint text NOT NULL,
+  request_count integer NOT NULL DEFAULT 1,
+  window_start timestamptz NOT NULL DEFAULT now(),
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
+);
+
+-- Enable RLS on rate limits table
+ALTER TABLE public.api_rate_limits ENABLE ROW LEVEL SECURITY;
+
+-- Service role access to rate limits
+CREATE POLICY "Service role access to rate limits"
+  ON public.api_rate_limits FOR ALL
+  USING (auth.jwt() ->> 'role' = 'service_role');
+
+-- Indexes for rate limiting
+CREATE INDEX IF NOT EXISTS idx_rate_limits_identifier_endpoint ON public.api_rate_limits(identifier, endpoint);
+CREATE INDEX IF NOT EXISTS idx_rate_limits_window ON public.api_rate_limits(window_start);
+
+-- Function to clean up old rate limit records
+CREATE OR REPLACE FUNCTION public.cleanup_rate_limits()
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM public.api_rate_limits
+  WHERE window_start < now() - interval '1 hour';
+END $$;
+
+-- Function to check and update rate limits (fixed to avoid variable/column name collision)
+CREATE OR REPLACE FUNCTION public.check_rate_limit(
+  p_identifier text,
+  p_endpoint text,
+  p_limit integer DEFAULT 100,
+  p_window_minutes integer DEFAULT 60
+)
+RETURNS boolean LANGUAGE plpgsql AS $$
+DECLARE
+  v_current_count integer;
+  v_window_start timestamptz;
+BEGIN
+  v_window_start := date_trunc('minute', now()) - (p_window_minutes || ' minutes')::interval;
+
+  SELECT request_count INTO v_current_count
+  FROM public.api_rate_limits
+  WHERE identifier = p_identifier
+    AND endpoint = p_endpoint
+    AND window_start >= v_window_start;
+
+  IF v_current_count IS NULL THEN
+    INSERT INTO public.api_rate_limits (identifier, endpoint, request_count, window_start)
+    VALUES (p_identifier, p_endpoint, 1, v_window_start);
+    RETURN true;
+  ELSIF v_current_count < p_limit THEN
+    UPDATE public.api_rate_limits
+    SET request_count = request_count + 1,
+        updated_at = now()
+    WHERE identifier = p_identifier
+      AND endpoint = p_endpoint
+      AND window_start >= v_window_start;
+    RETURN true;
+  ELSE
+    RETURN false;
+  END IF;
+END $$;
+
+-- =============================================================================
+-- PRODUCTION CONSTRAINTS AND INDEXES
+-- =============================================================================
+
+-- Data quality checks for quotes
+DO $$ BEGIN
+  ALTER TABLE public.quotes
+    ADD CONSTRAINT check_positive_distance CHECK (distance_mi > 0);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.quotes
+    ADD CONSTRAINT check_positive_weight CHECK (weight_lb IS NULL OR weight_lb > 0);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+DO $$ BEGIN
+  ALTER TABLE public.quotes
+    ADD CONSTRAINT check_valid_pricing CHECK (pricing->>'total' IS NOT NULL AND (pricing->>'total')::numeric >= 0);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Data quality checks for orders
+DO $$ BEGIN
+  ALTER TABLE public.orders
+    ADD CONSTRAINT check_positive_price CHECK (price_total > 0);
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Performance indexes for production workloads
+CREATE INDEX IF NOT EXISTS idx_quotes_status_created ON public.quotes(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_orders_stripe_session ON public.orders(stripe_checkout_session_id) WHERE stripe_checkout_session_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_quotes_stripe_session ON public.quotes(stripe_checkout_session_id) WHERE stripe_checkout_session_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_orders_active_status ON public.orders(status) WHERE status NOT IN ('Delivered', 'Canceled');
+CREATE INDEX IF NOT EXISTS idx_quotes_active ON public.quotes(id, status) WHERE status = 'Draft' AND expires_at > now();
+
+-- Additional performance indexes
+CREATE INDEX IF NOT EXISTS idx_quotes_customer_id ON public.quotes(customer_id);
+CREATE INDEX IF NOT EXISTS idx_quotes_expires_at ON public.quotes(expires_at);
+CREATE INDEX IF NOT EXISTS idx_orders_quote_id ON public.orders(quote_id);
+CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON public.orders(customer_id);
+
+-- =============================================================================
+-- MONITORING FUNCTIONS
+-- =============================================================================
+
+-- Function to get system health metrics
+CREATE OR REPLACE FUNCTION public.get_system_health()
+RETURNS jsonb LANGUAGE plpgsql AS $$
+DECLARE
+  result jsonb;
+BEGIN
+  SELECT jsonb_build_object(
+    'timestamp', now(),
+    'database', jsonb_build_object(
+      'total_orders', (SELECT count(*) FROM public.orders),
+      'active_orders', (SELECT count(*) FROM public.orders WHERE status NOT IN ('Delivered', 'Canceled')),
+      'total_quotes', (SELECT count(*) FROM public.quotes),
+      'expired_quotes', (SELECT count(*) FROM public.quotes WHERE status = 'Expired'),
+      'total_customers', (SELECT count(*) FROM public.customers),
+      'total_drivers', (SELECT count(*) FROM public.drivers),
+      'webhook_events_today', (SELECT count(*) FROM public.webhook_events WHERE created_at >= CURRENT_DATE),
+      'dispatch_events_today', (SELECT count(*) FROM public.dispatch_events WHERE created_at >= CURRENT_DATE)
+    ),
+    'recent_activity', jsonb_build_object(
+      'orders_last_hour', (SELECT count(*) FROM public.orders WHERE created_at >= now() - interval '1 hour'),
+      'quotes_last_hour', (SELECT count(*) FROM public.quotes WHERE created_at >= now() - interval '1 hour')
+    )
+  ) INTO result;
+
+  RETURN result;
+END $$;
+
+-- Function to detect potential issues
+CREATE OR REPLACE FUNCTION public.get_system_alerts()
+RETURNS jsonb LANGUAGE plpgsql AS $$
+DECLARE
+  result jsonb;
+BEGIN
+  SELECT jsonb_build_object(
+    'timestamp', now(),
+    'alerts', jsonb_agg(
+      jsonb_build_object(
+        'type', alert_type,
+        'message', alert_message,
+        'count', alert_count
+      )
+    )
+  ) INTO result
+  FROM (
+    SELECT 'warning' as alert_type,
+           'Orders stuck in non-terminal states > 24h' as alert_message,
+           count(*) as alert_count
+    FROM public.orders
+    WHERE status NOT IN ('Delivered', 'Canceled')
+      AND updated_at < now() - interval '24 hours'
+
+    UNION ALL
+
+    SELECT 'error' as alert_type,
+           'Webhook events not processed' as alert_message,
+           count(*) as alert_count
+    FROM public.webhook_events
+    WHERE processed_at IS NULL
+      AND created_at < now() - interval '1 hour'
+
+    UNION ALL
+
+    SELECT 'warning' as alert_type,
+           'Potential duplicate customers' as alert_message,
+           count(*) - count(distinct email) as alert_count
+    FROM public.customers
+    WHERE email IS NOT NULL
+  ) alerts
+  WHERE alert_count > 0;
+
+  RETURN result;
+END $$;
+
+-- Add comments for documentation
+COMMENT ON FUNCTION public.get_system_health() IS 'Returns system health metrics for monitoring';
+COMMENT ON FUNCTION public.get_system_alerts() IS 'Returns potential system issues for alerting';
+COMMENT ON FUNCTION public.check_rate_limit(text, text, integer, integer) IS 'Rate limiting function for API endpoints';
+COMMENT ON TABLE public.api_rate_limits IS 'Tracks API request counts for rate limiting';
+COMMENT ON TABLE public.users IS 'User roles for access control (admin, dispatcher, driver, recipient)';
+
+-- Reload PostgREST schema cache
+NOTIFY pgrst, 'reload schema';
+
+-- =============================================================================
+-- MILESTONE 2.5 COMPLETION MESSAGE
+-- =============================================================================
+
+DO $$
+BEGIN
+  RAISE NOTICE '=============================================================================';
+  RAISE NOTICE 'MILESTONE 2.5 SCHEMA UPDATE COMPLETE!';
+  RAISE NOTICE '=============================================================================';
+  RAISE NOTICE 'Added: users table with role-based access control';
+  RAISE NOTICE 'Added: api_rate_limits table and check_rate_limit() function';
+  RAISE NOTICE 'Added: Production constraints and performance indexes';
+  RAISE NOTICE 'Added: Monitoring functions (get_system_health, get_system_alerts)';
   RAISE NOTICE '=============================================================================';
 END $$;
