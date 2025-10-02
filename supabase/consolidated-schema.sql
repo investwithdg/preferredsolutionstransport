@@ -234,6 +234,55 @@ BEGIN
 END $$;
 
 -- =============================================================================
+-- ROLE-BASED ACCESS CONTROL SETUP
+-- =============================================================================
+
+-- Create user role enum
+DO $$ BEGIN
+  CREATE TYPE user_role AS ENUM ('admin','dispatcher','driver','recipient');
+EXCEPTION WHEN duplicate_object THEN NULL; END $$;
+
+-- Users table for role-based access control
+CREATE TABLE IF NOT EXISTS public.users (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  auth_id uuid UNIQUE REFERENCES auth.users(id),
+  email text UNIQUE,
+  role user_role,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Enable RLS on users table
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+
+-- Service role full access to users
+DROP POLICY IF EXISTS "Service role full access users" ON public.users;
+CREATE POLICY "Service role full access users"
+  ON public.users FOR ALL
+  USING (auth.jwt() ->> 'role' = 'service_role');
+
+-- Users can manage their own record
+DROP POLICY IF EXISTS "Users manage own record" ON public.users;
+CREATE POLICY "Users manage own record"
+  ON public.users FOR SELECT USING (auth.uid() = auth_id)
+  WITH CHECK (auth.uid() = auth_id);
+
+-- Helper function to get current user's role
+CREATE OR REPLACE FUNCTION public.current_user_role()
+RETURNS user_role LANGUAGE sql STABLE SECURITY INVOKER AS $$
+  SELECT role FROM public.users WHERE auth_id = auth.uid();
+$$;
+
+-- Helper function to check if user is admin or dispatcher
+CREATE OR REPLACE FUNCTION public.is_admin_or_dispatcher()
+RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER AS $$
+  SELECT public.current_user_role() IN ('admin','dispatcher');
+$$;
+
+-- Add auth_email column to customers for recipient mapping
+ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS auth_email text UNIQUE;
+CREATE INDEX IF NOT EXISTS idx_customers_auth_email ON public.customers(auth_email);
+
+-- =============================================================================
 -- ROW LEVEL SECURITY (RLS) AND POLICIES
 -- =============================================================================
 -- 
@@ -487,55 +536,6 @@ BEGIN
 END $$;
 
 -- =============================================================================
--- MILESTONE 2.5 ADDITIONS: Auth, Roles, and Rate Limiting
--- =============================================================================
-
--- Create user role enum
-DO $$ BEGIN
-  CREATE TYPE user_role AS ENUM ('admin','dispatcher','driver','recipient');
-EXCEPTION WHEN duplicate_object THEN NULL; END $$;
-
--- Users table for role-based access control
-CREATE TABLE IF NOT EXISTS public.users (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  auth_id uuid UNIQUE REFERENCES auth.users(id),
-  email text UNIQUE,
-  role user_role,
-  created_at timestamptz DEFAULT now()
-);
-
--- Enable RLS on users table
-ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
-
--- Service role full access to users
-DROP POLICY IF EXISTS "Service role full access users" ON public.users;
-CREATE POLICY "Service role full access users"
-  ON public.users FOR ALL
-  USING (auth.jwt() ->> 'role' = 'service_role');
-
--- Users can manage their own record
-DROP POLICY IF EXISTS "Users manage own record" ON public.users;
-CREATE POLICY "Users manage own record"
-  ON public.users FOR SELECT USING (auth.uid() = auth_id)
-  WITH CHECK (auth.uid() = auth_id);
-
--- Helper function to get current user's role
-CREATE OR REPLACE FUNCTION public.current_user_role()
-RETURNS user_role LANGUAGE sql STABLE SECURITY INVOKER AS $$
-  SELECT role FROM public.users WHERE auth_id = auth.uid();
-$$;
-
--- Helper function to check if user is admin or dispatcher
-CREATE OR REPLACE FUNCTION public.is_admin_or_dispatcher()
-RETURNS boolean LANGUAGE sql STABLE SECURITY INVOKER AS $$
-  SELECT public.current_user_role() IN ('admin','dispatcher');
-$$;
-
--- Add auth_email column to customers for recipient mapping
-ALTER TABLE public.customers ADD COLUMN IF NOT EXISTS auth_email text UNIQUE;
-CREATE INDEX IF NOT EXISTS idx_customers_auth_email ON public.customers(auth_email);
-
--- =============================================================================
 -- RATE LIMITING INFRASTRUCTURE
 -- =============================================================================
 
@@ -734,17 +734,25 @@ COMMENT ON TABLE public.users IS 'User roles for access control (admin, dispatch
 NOTIFY pgrst, 'reload schema';
 
 -- =============================================================================
--- MILESTONE 2.5 COMPLETION MESSAGE
+-- COMPLETE SCHEMA DEPLOYMENT SUCCESS
 -- =============================================================================
 
 DO $$
 BEGIN
   RAISE NOTICE '=============================================================================';
-  RAISE NOTICE 'MILESTONE 2.5 SCHEMA UPDATE COMPLETE!';
+  RAISE NOTICE 'COMPLETE SCHEMA DEPLOYMENT SUCCESSFUL!';
   RAISE NOTICE '=============================================================================';
-  RAISE NOTICE 'Added: users table with role-based access control';
-  RAISE NOTICE 'Added: api_rate_limits table and check_rate_limit() function';
-  RAISE NOTICE 'Added: Production constraints and performance indexes';
-  RAISE NOTICE 'Added: Monitoring functions (get_system_health, get_system_alerts)';
+  RAISE NOTICE 'Core Tables: customers, quotes, orders, drivers, dispatch_events, webhook_events';
+  RAISE NOTICE 'RBAC System: users table with 4 roles (admin, dispatcher, driver, recipient)';
+  RAISE NOTICE 'Security: Row-Level Security policies for all roles';
+  RAISE NOTICE 'Rate Limiting: api_rate_limits table and check_rate_limit() function';
+  RAISE NOTICE 'Monitoring: get_system_health() and get_system_alerts() functions';
+  RAISE NOTICE 'Performance: Production-ready indexes and constraints';
+  RAISE NOTICE 'Test Data: 5 demo drivers seeded for testing';
+  RAISE NOTICE '=============================================================================';
+  RAISE NOTICE 'Next Steps:';
+  RAISE NOTICE '1. Create user accounts and assign roles in users table';
+  RAISE NOTICE '2. Test role-based access for each dashboard';
+  RAISE NOTICE '3. Verify order workflow: quote → payment → dispatch → delivery';
   RAISE NOTICE '=============================================================================';
 END $$;
