@@ -6,22 +6,44 @@ import { PRICING } from '@/lib/config';
 import { calculatePrice } from '@/lib/pricing';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { calculateDistanceClient } from '@/lib/google-maps/distance';
+import { Button } from '@/app/components/ui/button';
+import { Input } from '@/app/components/ui/input';
+import { Label } from '@/app/components/ui/label';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
+import { Separator } from '@/app/components/ui/separator';
+import { Badge } from '@/app/components/ui/badge';
+import { PageHeader } from '@/app/components/shared/PageHeader';
+import { LoadingState } from '@/app/components/shared/LoadingState';
+import { 
+  MapPin, 
+  User, 
+  Mail, 
+  Phone, 
+  Package, 
+  Calculator,
+  CheckCircle2,
+  AlertCircle,
+  Loader2,
+  CreditCard,
+  TrendingUp
+} from 'lucide-react';
 
-function GoogleMapsAutocompleteInput({ value, onChange, id, name, label, required }: {
+function GoogleMapsAutocompleteInput({ value, onChange, id, name, label, required, icon: Icon }: {
   value: string;
   onChange: (value: string) => void;
   id: string;
   name: string;
   label: string;
   required?: boolean;
+  icon?: React.ElementType;
 }) {
   const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
 
   return (
-    <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700">
-        {label} {required && '*'}
-      </label>
+    <div className="space-y-2">
+      <Label htmlFor={id}>
+        {label} {required && <span className="text-destructive">*</span>}
+      </Label>
       <Autocomplete
         onLoad={setAutocomplete}
         onPlaceChanged={() => {
@@ -31,15 +53,21 @@ function GoogleMapsAutocompleteInput({ value, onChange, id, name, label, require
           }
         }}
       >
-        <input
-          type="text"
-          id={id}
-          name={name}
-          value={value}
-          onChange={e => onChange(e.target.value)}
-          required={required}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2"
-        />
+        <div className="relative">
+          {Icon && (
+            <Icon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+          )}
+          <Input
+            type="text"
+            id={id}
+            name={name}
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            required={required}
+            className={Icon ? 'pl-10' : ''}
+            placeholder={`Enter ${label.toLowerCase()}`}
+          />
+        </div>
       </Autocomplete>
     </div>
   );
@@ -189,175 +217,290 @@ export default function QuotePage() {
     distanceMi,
   }) : null;
 
+  if (!isLoaded) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <LoadingState message="Loading Google Maps..." />
+      </div>
+    );
+  }
+
   return (
-    <div className="max-w-2xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-      <div className="bg-white shadow rounded-lg">
-        <div className="px-6 py-8">
-          <h1 className="text-2xl font-bold text-gray-900 mb-8">Get a Delivery Quote</h1>
-          {!isLoaded ? (
-            <div>Loading Google Maps...</div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-700">
-                    Name *
-                  </label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2"
-                  />
-                </div>
+    <div className="min-h-screen bg-background py-8 px-4 sm:px-6 lg:px-8">
+      <div className="container max-w-[1000px] mx-auto" data-testid="quote-page">
+        <PageHeader
+          title="Get a Delivery Quote"
+          description="Fill in your delivery details and get an instant price estimate"
+          breadcrumbs={[
+            { label: 'Home', href: '/' },
+            { label: 'Request Quote' },
+          ]}
+        />
 
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    id="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700">
-                  Phone
-                </label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <GoogleMapsAutocompleteInput
-                  id="pickupAddress"
-                  name="pickupAddress"
-                  label="Pickup Address"
-                  value={formData.pickupAddress}
-                  onChange={val => setFormData(f => ({ ...f, pickupAddress: val }))}
-                  required
-                />
-              </div>
-
-              <div>
-                <GoogleMapsAutocompleteInput
-                  id="dropoffAddress"
-                  name="dropoffAddress"
-                  label="Dropoff Address"
-                  value={formData.dropoffAddress}
-                  onChange={val => setFormData(f => ({ ...f, dropoffAddress: val }))}
-                  required
-                />
-              </div>
-
-              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-                <div>
-                  <label htmlFor="distanceMiles" className="block text-sm font-medium text-gray-700">
-                    Distance (miles) *
-                  </label>
-                  <input
-                    type="number"
-                    id="distanceMiles"
-                    name="distanceMiles"
-                    value={formData.distanceMiles}
-                    onChange={handleInputChange}
-                    min="0"
-                    step="0.1"
-                    required
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2"
-                  />
-                  {isCalculatingDistance && (
-                    <p className="mt-1 text-sm text-blue-600">
-                      Calculating distance...
-                    </p>
-                  )}
-                  {distanceError && (
-                    <p className="mt-1 text-sm text-yellow-600">
-                      {distanceError}
-                    </p>
-                  )}
-                  {!isCalculatingDistance && !distanceError && formData.distanceMiles && (
-                    <p className="mt-1 text-sm text-green-600">
-                      ✓ Distance calculated automatically
-                    </p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="weight" className="block text-sm font-medium text-gray-700">
-                    Weight (lbs)
-                  </label>
-                  <input
-                    type="number"
-                    id="weight"
-                    name="weight"
-                    value={formData.weight}
-                    onChange={handleInputChange}
-                    min="0"
-                    step="0.1"
-                    className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm border px-3 py-2"
-                  />
-                </div>
-              </div>
-
-              {pricing && (
-                <div className="bg-gray-50 rounded-lg p-4">
-                  <h3 className="text-lg font-medium text-gray-900 mb-3">Price Breakdown</h3>
-                  <div className="space-y-2 text-sm">
-                    <div className="flex justify-between">
-                      <span>Base fee:</span>
-                      <span>${pricing.baseFee.toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Mileage ({pricing.distanceMi} mi @ ${pricing.perMileRate}/mi):</span>
-                      <span>${(pricing.perMileRate * pricing.distanceMi).toFixed(2)}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Fuel surcharge ({(pricing.fuelPct * 100).toFixed(0)}%):</span>
-                      <span>${pricing.fuel.toFixed(2)}</span>
-                    </div>
-                    <div className="border-t pt-2 flex justify-between font-medium">
-                      <span>Total:</span>
-                      <span>${pricing.total.toFixed(2)}</span>
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Main Form */}
+            <div className="lg:col-span-2 space-y-6">
+              {/* Customer Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5 text-accent" />
+                    Customer Information
+                  </CardTitle>
+                  <CardDescription>
+                    Provide your contact details for order updates
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor="name">
+                      Full Name <span className="text-destructive">*</span>
+                    </Label>
+                    <div className="relative mt-2">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="text"
+                        id="name"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        required
+                        className="pl-10"
+                        placeholder="John Doe"
+                      />
                     </div>
                   </div>
-                </div>
-              )}
 
-              {error && (
-                <div className="bg-red-50 border border-red-200 rounded-md p-4">
-                  <p className="text-red-700 text-sm">{error}</p>
-                </div>
-              )}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="email">
+                        Email <span className="text-destructive">*</span>
+                      </Label>
+                      <div className="relative mt-2">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="email"
+                          id="email"
+                          name="email"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          required
+                          className="pl-10"
+                          placeholder="john@example.com"
+                        />
+                      </div>
+                    </div>
 
-              <div>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? 'Processing...' : 'Continue to Payment'}
-                </button>
-              </div>
-            </form>
+                    <div>
+                      <Label htmlFor="phone">Phone (Optional)</Label>
+                      <div className="relative mt-2">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="tel"
+                          id="phone"
+                          name="phone"
+                          value={formData.phone}
+                          onChange={handleInputChange}
+                          className="pl-10"
+                          placeholder="(555) 123-4567"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Delivery Details */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-accent" />
+                    Delivery Details
+                  </CardTitle>
+                  <CardDescription>
+                    Enter pickup and dropoff locations
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <GoogleMapsAutocompleteInput
+                    id="pickupAddress"
+                    name="pickupAddress"
+                    label="Pickup Address"
+                    value={formData.pickupAddress}
+                    onChange={val => setFormData(f => ({ ...f, pickupAddress: val, distanceMiles: '' }))}
+                    required
+                    icon={MapPin}
+                  />
+
+                  <GoogleMapsAutocompleteInput
+                    id="dropoffAddress"
+                    name="dropoffAddress"
+                    label="Dropoff Address"
+                    value={formData.dropoffAddress}
+                    onChange={val => setFormData(f => ({ ...f, dropoffAddress: val, distanceMiles: '' }))}
+                    required
+                    icon={MapPin}
+                  />
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="distanceMiles">
+                        Distance (miles) <span className="text-destructive">*</span>
+                      </Label>
+                      <div className="relative mt-2">
+                        <TrendingUp className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="number"
+                          id="distanceMiles"
+                          name="distanceMiles"
+                          value={formData.distanceMiles}
+                          onChange={handleInputChange}
+                          min="0"
+                          step="0.1"
+                          required
+                          className="pl-10"
+                          placeholder="0.0"
+                        />
+                      </div>
+                      {isCalculatingDistance && (
+                        <p className="mt-1.5 text-xs text-accent flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Calculating distance...
+                        </p>
+                      )}
+                      {distanceError && (
+                        <p className="mt-1.5 text-xs text-warning flex items-center gap-1">
+                          <AlertCircle className="h-3 w-3" />
+                          {distanceError}
+                        </p>
+                      )}
+                      {!isCalculatingDistance && !distanceError && formData.distanceMiles && (
+                        <p className="mt-1.5 text-xs text-success flex items-center gap-1">
+                          <CheckCircle2 className="h-3 w-3" />
+                          Distance calculated automatically
+                        </p>
+                      )}
+                    </div>
+
+                    <div>
+                      <Label htmlFor="weight">Weight (lbs) <span className="text-muted-foreground text-xs">(Optional)</span></Label>
+                      <div className="relative mt-2">
+                        <Package className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="number"
+                          id="weight"
+                          name="weight"
+                          value={formData.weight}
+                          onChange={handleInputChange}
+                          min="0"
+                          step="0.1"
+                          className="pl-10"
+                          placeholder="0.0"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Pricing Summary Sidebar */}
+            <div className="lg:col-span-1">
+              <Card className="sticky top-8">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calculator className="h-5 w-5 text-accent" />
+                    Price Breakdown
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {pricing ? (
+                    <div className="space-y-4">
+                      <div className="space-y-3">
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">Base fee</span>
+                          <span className="font-medium">${pricing.baseFee.toFixed(2)}</span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Mileage ({pricing.distanceMi} mi)
+                          </span>
+                          <span className="font-medium">
+                            ${(pricing.perMileRate * pricing.distanceMi).toFixed(2)}
+                          </span>
+                        </div>
+                        <div className="flex justify-between text-sm">
+                          <span className="text-muted-foreground">
+                            Fuel surcharge ({(pricing.fuelPct * 100).toFixed(0)}%)
+                          </span>
+                          <span className="font-medium">${pricing.fuel.toFixed(2)}</span>
+                        </div>
+                      </div>
+
+                      <Separator />
+
+                      <div className="flex justify-between items-center">
+                        <span className="text-lg font-semibold">Total</span>
+                        <span className="text-2xl font-bold text-accent">
+                          ${pricing.total.toFixed(2)}
+                        </span>
+                      </div>
+
+                      <Button
+                        type="submit"
+                        variant="accent"
+                        size="lg"
+                        className="w-full"
+                        disabled={isSubmitting}
+                      >
+                        {isSubmitting ? (
+                          <>
+                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                            Processing...
+                          </>
+                        ) : (
+                          <>
+                            <CreditCard className="h-4 w-4 mr-2" />
+                            Continue to Payment
+                          </>
+                        )}
+                      </Button>
+
+                      <p className="text-xs text-muted-foreground text-center">
+                        Secure payment powered by Stripe
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="rounded-full bg-muted p-4 inline-flex mb-3">
+                        <Calculator className="h-6 w-6 text-muted-foreground" />
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        Fill in the delivery details to see pricing
+                      </p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </div>
+          </div>
+
+          {/* Error Display */}
+          {error && (
+            <Card className="border-destructive/50 bg-destructive/5">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-3">
+                  <AlertCircle className="h-5 w-5 text-destructive flex-shrink-0 mt-0.5" />
+                  <div>
+                    <h4 className="text-sm font-medium text-destructive mb-1">Error</h4>
+                    <p className="text-sm text-destructive/90">{error}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
           )}
-        </div>
+        </form>
       </div>
     </div>
   );
