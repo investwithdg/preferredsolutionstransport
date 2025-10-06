@@ -1,6 +1,21 @@
 'use client';
 
 import Link from 'next/link';
+import { PageHeader } from '@/app/components/shared/PageHeader';
+import { OrderCard } from '@/app/components/shared/OrderCard';
+import { EmptyState } from '@/app/components/shared/EmptyState';
+import { Button } from '@/app/components/ui/button';
+import { Card, CardContent } from '@/app/components/ui/card';
+import { StatusBadge } from '@/app/components/shared/StatusBadge';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/app/components/ui/table';
+import { Package, Plus, Eye, TruckIcon } from 'lucide-react';
 
 type Customer = {
   id: string;
@@ -35,32 +50,85 @@ export default function CustomerDashboardClient({ customer, orders }: Props) {
   const pastOrders = orders.filter(o => ['Delivered', 'Canceled'].includes(o.status));
 
   return (
-    <div className="max-w-7xl mx-auto py-8 px-4 sm:px-6 lg:px-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold text-gray-900">My Orders</h1>
-        <p className="mt-2 text-sm text-gray-600">
-          Welcome back, {customer.name}!
-        </p>
-      </div>
+    <div className="container max-w-[1200px] mx-auto py-8 px-4 sm:px-6 lg:px-8" data-testid="customer-dashboard">
+      <PageHeader
+        title={`Welcome back, ${customer.name}!`}
+        description="Track your deliveries and request new quotes"
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'My Orders' },
+        ]}
+        action={
+          <Button asChild variant="accent" size="lg">
+            <Link href="/quote">
+              <Plus className="h-4 w-4 mr-2" />
+              Request New Quote
+            </Link>
+          </Button>
+        }
+      />
 
-      {/* Quick Actions */}
-      <div className="mb-8">
-        <Link
-          href="/quote"
-          className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-        >
-          Request New Quote
-        </Link>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Active Orders</p>
+                <p className="text-2xl font-bold text-foreground mt-1">{activeOrders.length}</p>
+              </div>
+              <div className="rounded-full bg-accent/10 p-3">
+                <TruckIcon className="h-6 w-6 text-accent" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Completed</p>
+                <p className="text-2xl font-bold text-foreground mt-1">
+                  {pastOrders.filter(o => o.status === 'Delivered').length}
+                </p>
+              </div>
+              <div className="rounded-full bg-success/10 p-3">
+                <Package className="h-6 w-6 text-success" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-muted-foreground">Total Orders</p>
+                <p className="text-2xl font-bold text-foreground mt-1">{orders.length}</p>
+              </div>
+              <div className="rounded-full bg-secondary p-3">
+                <Package className="h-6 w-6 text-muted-foreground" />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Active Orders */}
       {activeOrders.length > 0 && (
         <div className="mb-8">
-          <h2 className="text-xl font-semibold mb-4">Active Orders</h2>
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <h2 className="text-heading-lg font-semibold mb-4">
+            Active Orders ({activeOrders.length})
+          </h2>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {activeOrders.map(order => (
-              <OrderCard key={order.id} order={order} />
+              <OrderCard
+                key={order.id}
+                order={order}
+                href={`/track/${order.id}`}
+                testId={`order-card-${order.id}`}
+              />
             ))}
           </div>
         </div>
@@ -68,137 +136,92 @@ export default function CustomerDashboardClient({ customer, orders }: Props) {
 
       {/* Past Orders */}
       <div>
-        <h2 className="text-xl font-semibold mb-4">
-          {activeOrders.length > 0 ? 'Past Orders' : 'Order History'}
+        <h2 className="text-heading-lg font-semibold mb-4">
+          {activeOrders.length > 0 ? 'Order History' : 'Order History'}
         </h2>
         {pastOrders.length > 0 ? (
-          <div className="bg-white shadow rounded-lg overflow-hidden">
-            <table className="min-w-full divide-y divide-gray-200">
-              <thead className="bg-gray-50">
-                <tr>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Order ID
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Route
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Status
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Amount
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Date
-                  </th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                    Actions
-                  </th>
-                </tr>
-              </thead>
-              <tbody className="bg-white divide-y divide-gray-200">
-                {pastOrders.map(order => (
-                  <tr key={order.id}>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-900">
-                      {order.id.slice(0, 8)}
-                    </td>
-                    <td className="px-6 py-4 text-sm text-gray-900">
-                      <div className="max-w-xs truncate">
-                        {order.quotes?.pickup_address.split(',')[0]} → {order.quotes?.dropoff_address.split(',')[0]}
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <StatusBadge status={order.status} />
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                      ${order.price_total.toFixed(2)}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {new Date(order.created_at).toLocaleDateString()}
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap text-sm">
-                      <Link
-                        href={`/track/${order.id}`}
-                        className="text-blue-600 hover:text-blue-900"
-                      >
-                        View Details
-                      </Link>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+          <Card>
+            <CardContent className="p-0">
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Order ID</TableHead>
+                      <TableHead>Route</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Date</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pastOrders.map(order => (
+                      <TableRow key={order.id}>
+                        <TableCell>
+                          <span className="font-mono text-sm">
+                            #{order.id.slice(0, 8)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="max-w-xs">
+                            <div className="text-sm truncate">
+                              {order.quotes?.pickup_address?.split(',')[0]} → {order.quotes?.dropoff_address?.split(',')[0]}
+                            </div>
+                            {order.quotes?.distance_mi && (
+                              <div className="text-xs text-muted-foreground">
+                                {order.quotes.distance_mi} miles
+                              </div>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <StatusBadge status={order.status} />
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-medium">
+                            ${order.price_total.toFixed(2)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <span className="text-sm text-muted-foreground">
+                            {new Date(order.created_at).toLocaleDateString()}
+                          </span>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="sm"
+                          >
+                            <Link href={`/track/${order.id}`}>
+                              <Eye className="h-4 w-4 mr-2" />
+                              View
+                            </Link>
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </CardContent>
+          </Card>
         ) : (
-          <div className="bg-gray-50 border border-gray-200 rounded-lg p-8 text-center">
-            <p className="text-gray-500">No past orders found</p>
-          </div>
+          <EmptyState
+            icon={Package}
+            title={activeOrders.length > 0 ? "No completed orders yet" : "No orders yet"}
+            description="You haven't placed any orders. Start by requesting a quote for your delivery."
+            action={
+              <Button asChild variant="accent">
+                <Link href="/quote">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Request Your First Quote
+                </Link>
+              </Button>
+            }
+          />
         )}
       </div>
     </div>
-  );
-}
-
-function OrderCard({ order }: { order: Order }) {
-  return (
-    <div className="bg-white shadow rounded-lg p-6">
-      <div className="flex items-center justify-between mb-4">
-        <span className="text-xs font-mono text-gray-500">
-          #{order.id.slice(0, 8)}
-        </span>
-        <StatusBadge status={order.status} />
-      </div>
-
-      <div className="space-y-2 mb-4">
-        <div>
-          <p className="text-xs text-gray-500">From</p>
-          <p className="text-sm font-medium text-gray-900 truncate">
-            {order.quotes?.pickup_address.split(',')[0]}
-          </p>
-        </div>
-        <div>
-          <p className="text-xs text-gray-500">To</p>
-          <p className="text-sm font-medium text-gray-900 truncate">
-            {order.quotes?.dropoff_address.split(',')[0]}
-          </p>
-        </div>
-        {order.drivers && (
-          <div>
-            <p className="text-xs text-gray-500">Driver</p>
-            <p className="text-sm font-medium text-gray-900">
-              {order.drivers.name}
-            </p>
-          </div>
-        )}
-      </div>
-
-      <div className="flex items-center justify-between pt-4 border-t border-gray-200">
-        <span className="text-lg font-bold text-gray-900">
-          ${order.price_total.toFixed(2)}
-        </span>
-        <Link
-          href={`/track/${order.id}`}
-          className="text-sm text-blue-600 hover:text-blue-900 font-medium"
-        >
-          Track Order →
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const colors: Record<string, string> = {
-    ReadyForDispatch: 'bg-yellow-100 text-yellow-800',
-    Assigned: 'bg-blue-100 text-blue-800',
-    PickedUp: 'bg-purple-100 text-purple-800',
-    Delivered: 'bg-green-100 text-green-800',
-    Canceled: 'bg-red-100 text-red-800',
-  };
-
-  return (
-    <span className={`px-2 py-1 text-xs rounded-full font-medium ${colors[status] || 'bg-gray-100 text-gray-800'}`}>
-      {status}
-    </span>
   );
 }

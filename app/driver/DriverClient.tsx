@@ -1,6 +1,31 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { PageHeader } from '@/app/components/shared/PageHeader';
+import { EmptyState } from '@/app/components/shared/EmptyState';
+import { LoadingState } from '@/app/components/shared/LoadingState';
+import { Button } from '@/app/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
+import { StatusBadge } from '@/app/components/shared/StatusBadge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select';
+import { Badge } from '@/app/components/ui/badge';
+import { Separator } from '@/app/components/ui/separator';
+import { 
+  Package, 
+  MapPin, 
+  User, 
+  Phone, 
+  DollarSign, 
+  Clock,
+  CheckCircle,
+  TruckIcon
+} from 'lucide-react';
 
 interface Order {
   id: string;
@@ -69,8 +94,6 @@ export default function DriverClient() {
   const fetchOrdersForDriver = async (driverId: string) => {
     setIsLoading(true);
     try {
-      // For demo purposes, we'll fetch all orders and filter by driver_id
-      // In production, this would be handled by RLS policies
       const response = await fetch('/api/orders/by-driver', {
         method: 'POST',
         headers: {
@@ -110,7 +133,6 @@ export default function DriverClient() {
         setOrders(orders.map(order => 
           order.id === orderId ? data.order : order
         ));
-        alert(`Order status updated to ${newStatus}`);
       } else {
         throw new Error('Failed to update status');
       }
@@ -119,18 +141,6 @@ export default function DriverClient() {
       alert('Failed to update order status. Please try again.');
     } finally {
       setIsUpdating(null);
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'Assigned': return 'bg-yellow-100 text-yellow-800';
-      case 'Accepted': return 'bg-blue-100 text-blue-800';
-      case 'PickedUp': return 'bg-purple-100 text-purple-800';
-      case 'InTransit': return 'bg-orange-100 text-orange-800';
-      case 'Delivered': return 'bg-green-100 text-green-800';
-      case 'Canceled': return 'bg-red-100 text-red-800';
-      default: return 'bg-gray-100 text-gray-800';
     }
   };
 
@@ -144,123 +154,237 @@ export default function DriverClient() {
     }
   };
 
+  const getNextStatusLabel = (currentStatus: string) => {
+    const next = getNextStatus(currentStatus);
+    switch (next) {
+      case 'Accepted': return 'Accept Order';
+      case 'PickedUp': return 'Mark Picked Up';
+      case 'InTransit': return 'Start Transit';
+      case 'Delivered': return 'Mark Delivered';
+      default: return null;
+    }
+  };
+
+  const activeOrders = orders.filter(o => !['Delivered', 'Canceled'].includes(o.status));
+  const completedOrders = orders.filter(o => ['Delivered', 'Canceled'].includes(o.status));
+
   return (
-    <div className="space-y-6">
-      {/* Driver Selection */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <label htmlFor="driver-select" className="block text-sm font-medium text-gray-700 mb-2">
-          Select Driver (Demo Mode)
-        </label>
-        <select
-          id="driver-select"
-          value={selectedDriverId}
-          onChange={(e) => setSelectedDriverId(e.target.value)}
-          className="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-        >
-          <option value="">Choose a driver...</option>
-          {drivers.map((driver) => (
-            <option key={driver.id} value={driver.id}>
-              {driver.name} ({driver.active_orders_count} active orders)
-            </option>
-          ))}
-        </select>
-      </div>
+    <div className="container max-w-[1200px] mx-auto py-8 px-4 sm:px-6 lg:px-8" data-testid="driver-dashboard">
+      <PageHeader
+        title="Driver Dashboard"
+        description="Manage your assigned deliveries with quick status updates"
+        breadcrumbs={[
+          { label: 'Home', href: '/' },
+          { label: 'Driver' },
+        ]}
+      />
 
-      {/* Orders List */}
-      {selectedDriverId && (
-        <div>
-          <h2 className="text-lg font-medium text-gray-900 mb-4">
-            Assigned Orders {isLoading && '(Loading...)'}
-          </h2>
-
-          {orders.length === 0 && !isLoading ? (
-            <div className="text-center py-8">
-              <div className="mx-auto h-12 w-12 text-gray-400">
-                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2 2v-5m16 0h-2M4 13h2m13-8l-4 4m0 0l-4-4m4 4V3" />
-                </svg>
-              </div>
-              <h3 className="mt-2 text-sm font-medium text-gray-900">No orders assigned</h3>
-              <p className="mt-1 text-sm text-gray-500">
-                This driver has no orders assigned to them.
-              </p>
+      {/* Driver Selection (Demo Mode) */}
+      <Card className="mb-8 bg-muted/50 border-2 border-dashed">
+        <CardContent className="p-6">
+          <div className="flex items-center gap-4">
+            <div className="rounded-full bg-background p-3">
+              <TruckIcon className="h-6 w-6 text-muted-foreground" />
             </div>
-          ) : (
-            <div className="space-y-4">
-              {orders.map((order) => {
-                const nextStatus = getNextStatus(order.status);
-                return (
-                  <div key={order.id} className="bg-white border border-gray-200 rounded-lg p-6">
-                    <div className="flex items-start justify-between">
-                      <div className="flex-1">
-                        <div className="flex items-center space-x-3 mb-3">
-                          <h3 className="text-lg font-medium text-gray-900">
-                            Order #{order.id.slice(-8)}
-                          </h3>
-                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(order.status)}`}>
-                            {order.status}
-                          </span>
-                        </div>
+            <div className="flex-1">
+              <label htmlFor="driver-select" className="text-sm font-medium text-foreground mb-2 block">
+                Select Driver (Demo Mode)
+              </label>
+              <Select
+                value={selectedDriverId}
+                onValueChange={setSelectedDriverId}
+              >
+                <SelectTrigger id="driver-select" className="w-full max-w-md">
+                  <SelectValue placeholder="Choose a driver..." />
+                </SelectTrigger>
+                <SelectContent>
+                  {drivers.map((driver) => (
+                    <SelectItem key={driver.id} value={driver.id}>
+                      {driver.name} ({driver.active_orders_count} active orders)
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+      {/* Orders Section */}
+      {selectedDriverId && (
+        <>
+          {/* Active Orders */}
+          {activeOrders.length > 0 && (
+            <div className="mb-8">
+              <h2 className="text-heading-lg font-semibold mb-4">
+                Active Orders ({activeOrders.length})
+              </h2>
+              <div className="space-y-4">
+                {activeOrders.map((order) => {
+                  const nextStatus = getNextStatus(order.status);
+                  const nextLabel = getNextStatusLabel(order.status);
+                  
+                  return (
+                    <Card key={order.id} className="overflow-hidden" data-testid={`order-${order.id}`}>
+                      <CardHeader className="bg-muted/30 pb-4">
+                        <div className="flex items-start justify-between">
                           <div>
-                            <h4 className="text-sm font-medium text-gray-900 mb-2">Customer</h4>
-                            <p className="text-sm text-gray-600">{order.customers?.name}</p>
-                            <p className="text-sm text-gray-600">{order.customers?.email}</p>
-                            {order.customers?.phone && (
-                              <p className="text-sm text-gray-600">{order.customers.phone}</p>
-                            )}
+                            <CardTitle className="text-base font-mono">
+                              Order #{order.id.slice(-8)}
+                            </CardTitle>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              Created {new Date(order.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          <StatusBadge status={order.status} />
+                        </div>
+                      </CardHeader>
+                      <CardContent className="p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                          {/* Customer Info */}
+                          <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                              <User className="h-4 w-4" />
+                              Customer Details
+                            </h4>
+                            <div className="space-y-2 text-sm">
+                              <div>
+                                <span className="text-muted-foreground">Name:</span>
+                                <span className="ml-2 font-medium">{order.customers?.name}</span>
+                              </div>
+                              <div>
+                                <span className="text-muted-foreground">Email:</span>
+                                <span className="ml-2">{order.customers?.email}</span>
+                              </div>
+                              {order.customers?.phone && (
+                                <div className="flex items-center gap-2">
+                                  <Phone className="h-3 w-3 text-muted-foreground" />
+                                  <a href={`tel:${order.customers.phone}`} className="text-accent hover:underline">
+                                    {order.customers.phone}
+                                  </a>
+                                </div>
+                              )}
+                            </div>
                           </div>
 
-                          <div>
-                            <h4 className="text-sm font-medium text-gray-900 mb-2">Delivery Details</h4>
-                            <p className="text-sm text-gray-600">
-                              <span className="font-medium">From:</span> {order.quotes?.pickup_address}
-                            </p>
-                            <p className="text-sm text-gray-600">
-                              <span className="font-medium">To:</span> {order.quotes?.dropoff_address}
-                            </p>
-                            {order.quotes?.distance_mi && (
-                              <p className="text-sm text-gray-600">
-                                <span className="font-medium">Distance:</span> {order.quotes.distance_mi} miles
-                              </p>
-                            )}
-                            <p className="text-sm text-gray-600">
-                              <span className="font-medium">Total:</span> ${order.price_total.toFixed(2)} {order.currency.toUpperCase()}
-                            </p>
+                          {/* Delivery Details */}
+                          <div className="space-y-3">
+                            <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
+                              <Package className="h-4 w-4" />
+                              Delivery Details
+                            </h4>
+                            <div className="space-y-3 text-sm">
+                              <div className="flex items-start gap-2">
+                                <MapPin className="h-4 w-4 text-success flex-shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="text-muted-foreground block">Pickup:</span>
+                                  <span className="font-medium">{order.quotes?.pickup_address}</span>
+                                </div>
+                              </div>
+                              <div className="flex items-start gap-2">
+                                <MapPin className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                                <div>
+                                  <span className="text-muted-foreground block">Dropoff:</span>
+                                  <span className="font-medium">{order.quotes?.dropoff_address}</span>
+                                </div>
+                              </div>
+                              {order.quotes?.distance_mi && (
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="secondary">
+                                    {order.quotes.distance_mi} miles
+                                  </Badge>
+                                  <Badge variant="secondary">
+                                    <DollarSign className="h-3 w-3 mr-1" />
+                                    {order.price_total.toFixed(2)} {order.currency.toUpperCase()}
+                                  </Badge>
+                                </div>
+                              )}
+                            </div>
                           </div>
                         </div>
 
-                        <div className="text-xs text-gray-500">
-                          Created: {new Date(order.created_at).toLocaleString()} | 
-                          Updated: {new Date(order.updated_at).toLocaleString()}
-                        </div>
-                      </div>
+                        <Separator className="mb-4" />
 
-                      <div className="ml-4">
-                        {nextStatus && order.status !== 'Delivered' && order.status !== 'Canceled' && (
-                          <button
-                            onClick={() => updateOrderStatus(order.id, nextStatus)}
-                            disabled={isUpdating === order.id}
-                            className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {isUpdating === order.id ? 'Updating...' : `Mark as ${nextStatus}`}
-                          </button>
-                        )}
-                        
-                        {(order.status === 'Delivered' || order.status === 'Canceled') && (
-                          <span className="inline-flex items-center px-4 py-2 text-sm font-medium text-gray-500">
-                            Order Complete
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
+                        {/* Action Buttons */}
+                        <div className="flex items-center justify-between">
+                          <div className="text-xs text-muted-foreground flex items-center gap-2">
+                            <Clock className="h-3 w-3" />
+                            Updated {new Date(order.updated_at).toLocaleString()}
+                          </div>
+                          {nextStatus && nextLabel && (
+                            <Button
+                              variant="accent"
+                              size="lg"
+                              onClick={() => updateOrderStatus(order.id, nextStatus)}
+                              disabled={isUpdating === order.id}
+                              className="min-w-[180px]"
+                              data-testid={`update-status-${order.id}`}
+                            >
+                              {isUpdating === order.id ? (
+                                'Updating...'
+                              ) : (
+                                <>
+                                  <CheckCircle className="h-4 w-4 mr-2" />
+                                  {nextLabel}
+                                </>
+                              )}
+                            </Button>
+                          )}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                })}
+              </div>
             </div>
           )}
-        </div>
+
+          {/* Completed Orders */}
+          {completedOrders.length > 0 && (
+            <div>
+              <h2 className="text-heading-lg font-semibold mb-4">
+                Completed Orders ({completedOrders.length})
+              </h2>
+              <div className="space-y-3">
+                {completedOrders.map((order) => (
+                  <Card key={order.id} className="bg-muted/20">
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div>
+                            <div className="font-mono text-sm font-medium">
+                              #{order.id.slice(-8)}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {order.quotes?.pickup_address?.split(',')[0]} → {order.quotes?.dropoff_address?.split(',')[0]}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <div className="text-sm font-medium">
+                            ${order.price_total.toFixed(2)}
+                          </div>
+                          <StatusBadge status={order.status} />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Empty State */}
+          {isLoading ? (
+            <LoadingState message="Loading orders..." />
+          ) : orders.length === 0 ? (
+            <EmptyState
+              icon={Package}
+              title="No orders assigned"
+              description="This driver has no orders assigned to them. Orders will appear here once assigned by a dispatcher."
+            />
+          ) : null}
+        </>
       )}
     </div>
   );
