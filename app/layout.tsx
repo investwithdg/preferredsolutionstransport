@@ -3,12 +3,13 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import Link from 'next/link';
 import { createServerClient } from '@/lib/supabase/server';
+import { Toaster } from '@/app/components/ui/sonner';
 
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'Delivery Platform',
-  description: 'Fast and reliable delivery service',
+  title: 'Preferred Solutions Transport - Professional Delivery Services',
+  description: 'Fast, reliable delivery service with real-time tracking and secure payment processing',
 };
 
 export default async function RootLayout({
@@ -34,19 +35,19 @@ export default async function RootLayout({
   return (
     <html lang="en">
       <body className={inter.className}>
-        <div className="min-h-screen bg-gray-50">
-          <nav className="bg-white shadow-sm border-b">
+        <div className="min-h-screen bg-background">
+          <nav className="bg-card shadow-soft-md border-b border-border sticky top-0 z-50">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
               <div className="flex justify-between h-16">
                 <div className="flex items-center">
-                  <Link href="/" className="text-xl font-bold text-gray-900">
-                    Delivery Platform
+                  <Link href="/" className="text-xl font-bold text-foreground hover:text-accent transition-colors">
+                    Preferred Solutions Transport
                   </Link>
                 </div>
-                <div className="flex items-center space-x-6">
+                <div className="flex items-center space-x-2">
                   <Link 
                     href="/quote" 
-                    className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                    className="text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
                   >
                     Get a Quote
                   </Link>
@@ -54,7 +55,7 @@ export default async function RootLayout({
                   {!session && (
                     <Link
                       href="/auth/sign-in"
-                      className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                      className="text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
                     >
                       Sign in
                     </Link>
@@ -65,7 +66,7 @@ export default async function RootLayout({
                       {(role === 'admin') && (
                         <Link
                           href="/admin"
-                          className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                          className="text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
                         >
                           Admin
                         </Link>
@@ -73,7 +74,7 @@ export default async function RootLayout({
                       {(role === 'admin' || role === 'dispatcher') && (
                         <Link
                           href="/dispatcher"
-                          className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                          className="text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
                         >
                           Dispatcher
                         </Link>
@@ -81,15 +82,23 @@ export default async function RootLayout({
                       {(role === 'driver' || role === 'dispatcher' || role === 'admin') && (
                         <Link
                           href="/driver"
-                          className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                          className="text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
                         >
                           Driver
                         </Link>
                       )}
-                      <form action="/auth/sign-out" method="post">
+                      {(role === 'recipient') && (
+                        <Link
+                          href="/customer/dashboard"
+                          className="text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
+                        >
+                          My Orders
+                        </Link>
+                      )}
+                      <form action="/auth/sign-out" method="post" className="inline">
                         <button
                           type="submit"
-                          className="text-gray-700 hover:text-gray-900 px-3 py-2 rounded-md text-sm font-medium"
+                          className="text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
                         >
                           Sign out
                         </button>
@@ -103,6 +112,7 @@ export default async function RootLayout({
           <main>
             {children}
           </main>
+          <Toaster position="top-right" />
         </div>
       </body>
     </html>

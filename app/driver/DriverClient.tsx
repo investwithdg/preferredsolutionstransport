@@ -14,8 +14,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/app/components/ui/alert-dialog';
 import { Badge } from '@/app/components/ui/badge';
 import { Separator } from '@/app/components/ui/separator';
+import { toast } from 'sonner';
 import { 
   Package, 
   MapPin, 
@@ -24,7 +36,9 @@ import {
   DollarSign, 
   Clock,
   CheckCircle,
-  TruckIcon
+  TruckIcon,
+  Navigation,
+  AlertCircle
 } from 'lucide-react';
 
 interface Order {
@@ -67,12 +81,10 @@ export default function DriverClient() {
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
 
-  // Fetch drivers on component mount
   useEffect(() => {
     fetchDrivers();
   }, []);
 
-  // Fetch orders when driver is selected
   useEffect(() => {
     if (selectedDriverId) {
       fetchOrdersForDriver(selectedDriverId);
@@ -88,6 +100,7 @@ export default function DriverClient() {
       setDrivers(data.drivers || []);
     } catch (error) {
       console.error('Error fetching drivers:', error);
+      toast.error('Failed to load drivers');
     }
   };
 
@@ -108,6 +121,7 @@ export default function DriverClient() {
       }
     } catch (error) {
       console.error('Error fetching orders:', error);
+      toast.error('Failed to load orders');
     } finally {
       setIsLoading(false);
     }
@@ -129,16 +143,20 @@ export default function DriverClient() {
 
       if (response.ok) {
         const data = await response.json();
-        // Update the local orders state
         setOrders(orders.map(order => 
           order.id === orderId ? data.order : order
         ));
+        toast.success('Status updated!', {
+          description: `Order marked as ${newStatus}`,
+        });
       } else {
         throw new Error('Failed to update status');
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      alert('Failed to update order status. Please try again.');
+      toast.error('Failed to update status', {
+        description: 'Please try again',
+      });
     } finally {
       setIsUpdating(null);
     }
@@ -154,13 +172,12 @@ export default function DriverClient() {
     }
   };
 
-  const getNextStatusLabel = (currentStatus: string) => {
-    const next = getNextStatus(currentStatus);
-    switch (next) {
-      case 'Accepted': return 'Accept Order';
-      case 'PickedUp': return 'Mark Picked Up';
-      case 'InTransit': return 'Start Transit';
-      case 'Delivered': return 'Mark Delivered';
+  const getStatusActionLabel = (currentStatus: string) => {
+    switch (currentStatus) {
+      case 'Assigned': return { label: 'Accept Order', icon: CheckCircle };
+      case 'Accepted': return { label: 'Mark Picked Up', icon: Package };
+      case 'PickedUp': return { label: 'Start Transit', icon: Navigation };
+      case 'InTransit': return { label: 'Mark Delivered', icon: CheckCircle };
       default: return null;
     }
   };
@@ -216,16 +233,23 @@ export default function DriverClient() {
           {/* Active Orders */}
           {activeOrders.length > 0 && (
             <div className="mb-8">
-              <h2 className="text-heading-lg font-semibold mb-4">
-                Active Orders ({activeOrders.length})
-              </h2>
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-heading-lg font-semibold">
+                  Active Orders ({activeOrders.length})
+                </h2>
+                <Badge variant="accent" className="text-sm">
+                  <TruckIcon className="h-3 w-3 mr-1" />
+                  {activeOrders.length} in progress
+                </Badge>
+              </div>
               <div className="space-y-4">
                 {activeOrders.map((order) => {
                   const nextStatus = getNextStatus(order.status);
-                  const nextLabel = getNextStatusLabel(order.status);
+                  const actionData = getStatusActionLabel(order.status);
+                  const ActionIcon = actionData?.icon;
                   
                   return (
-                    <Card key={order.id} className="overflow-hidden" data-testid={`order-${order.id}`}>
+                    <Card key={order.id} className="overflow-hidden hover:shadow-soft-lg transition-shadow" data-testid={`order-${order.id}`}>
                       <CardHeader className="bg-muted/30 pb-4">
                         <div className="flex items-start justify-between">
                           <div>
@@ -259,7 +283,7 @@ export default function DriverClient() {
                               {order.customers?.phone && (
                                 <div className="flex items-center gap-2">
                                   <Phone className="h-3 w-3 text-muted-foreground" />
-                                  <a href={`tel:${order.customers.phone}`} className="text-accent hover:underline">
+                                  <a href={`tel:${order.customers.phone}`} className="text-accent hover:underline font-medium">
                                     {order.customers.phone}
                                   </a>
                                 </div>
@@ -311,24 +335,48 @@ export default function DriverClient() {
                             <Clock className="h-3 w-3" />
                             Updated {new Date(order.updated_at).toLocaleString()}
                           </div>
-                          {nextStatus && nextLabel && (
-                            <Button
-                              variant="accent"
-                              size="lg"
-                              onClick={() => updateOrderStatus(order.id, nextStatus)}
-                              disabled={isUpdating === order.id}
-                              className="min-w-[180px]"
-                              data-testid={`update-status-${order.id}`}
-                            >
-                              {isUpdating === order.id ? (
-                                'Updating...'
-                              ) : (
-                                <>
-                                  <CheckCircle className="h-4 w-4 mr-2" />
-                                  {nextLabel}
-                                </>
-                              )}
-                            </Button>
+                          {nextStatus && actionData && (
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button
+                                  variant="accent"
+                                  size="lg"
+                                  disabled={isUpdating === order.id}
+                                  className="min-w-[180px]"
+                                  data-testid={`update-status-${order.id}`}
+                                >
+                                  {isUpdating === order.id ? (
+                                    'Updating...'
+                                  ) : (
+                                    <>
+                                      {ActionIcon && <ActionIcon className="h-4 w-4 mr-2" />}
+                                      {actionData.label}
+                                    </>
+                                  )}
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle className="flex items-center gap-2">
+                                    {ActionIcon && <ActionIcon className="h-5 w-5 text-accent" />}
+                                    {actionData.label}?
+                                  </AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Are you sure you want to update the order status to <strong>{nextStatus}</strong>? 
+                                    This will notify the customer and dispatcher.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                  <AlertDialogAction
+                                    onClick={() => updateOrderStatus(order.id, nextStatus)}
+                                    className="bg-accent hover:bg-accent/90"
+                                  >
+                                    Confirm
+                                  </AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
                           )}
                         </div>
                       </CardContent>
@@ -385,6 +433,26 @@ export default function DriverClient() {
             />
           ) : null}
         </>
+      )}
+
+      {/* Offline Support Message */}
+      {selectedDriverId && orders.length > 0 && (
+        <Card className="mt-6 border-accent/20 bg-accent/5">
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-sm font-medium text-foreground mb-1">
+                  Background Sync Ready
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Your status updates will sync automatically when you're back online. 
+                  Changes are saved locally for offline reliability.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
     </div>
   );
