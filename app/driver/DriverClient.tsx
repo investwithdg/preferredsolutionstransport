@@ -30,6 +30,7 @@ import { Badge } from '@/app/components/ui/badge';
 import { Separator } from '@/app/components/ui/separator';
 import { toast } from 'sonner';
 import { watchLocation, clearWatch } from '@/lib/google-maps/tracking';
+import { usePushNotifications } from '@/app/hooks/usePushNotifications';
 import { 
   Package, 
   MapPin, 
@@ -40,7 +41,9 @@ import {
   CheckCircle,
   TruckIcon,
   Navigation,
-  AlertCircle
+  AlertCircle,
+  Bell,
+  BellOff
 } from 'lucide-react';
 
 interface Order {
@@ -85,6 +88,11 @@ export default function DriverClient() {
   const [isLocationTracking, setIsLocationTracking] = useState(false);
   const locationWatchIdRef = useRef<number | null>(null);
   const lastLocationUpdateRef = useRef<number>(0);
+  
+  // Push notification hook
+  const pushNotifications = usePushNotifications({ 
+    driverId: selectedDriverId 
+  });
 
   useEffect(() => {
     fetchDrivers();
@@ -299,6 +307,46 @@ export default function DriverClient() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Push Notification Settings */}
+      {selectedDriverId && pushNotifications.isSupported && (
+        <Card className="mb-8">
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="rounded-full bg-accent/10 p-3">
+                  {pushNotifications.isSubscribed ? (
+                    <Bell className="h-6 w-6 text-accent" />
+                  ) : (
+                    <BellOff className="h-6 w-6 text-muted-foreground" />
+                  )}
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-foreground">
+                    Push Notifications
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {pushNotifications.isSubscribed 
+                      ? 'You will receive alerts for new order assignments' 
+                      : 'Enable to receive instant alerts for new deliveries'}
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant={pushNotifications.isSubscribed ? "secondary" : "accent"}
+                size="sm"
+                onClick={pushNotifications.isSubscribed 
+                  ? pushNotifications.unsubscribe 
+                  : pushNotifications.subscribe}
+                disabled={pushNotifications.isLoading}
+              >
+                {pushNotifications.isLoading ? 'Loading...' : 
+                 pushNotifications.isSubscribed ? 'Disable' : 'Enable'}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Orders Section */}
       {selectedDriverId && (

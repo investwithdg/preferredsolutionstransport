@@ -22,7 +22,8 @@ import {
   TableRow,
 } from '@/app/components/ui/table';
 import { Badge } from '@/app/components/ui/badge';
-import { Truck, Package, CheckCircle2, AlertCircle } from 'lucide-react';
+import { OrderRouteModal } from '@/app/components/modals/OrderRouteModal';
+import { Truck, Package, CheckCircle2, AlertCircle, Map } from 'lucide-react';
 
 interface Driver {
   id: string;
@@ -60,6 +61,7 @@ export default function DispatcherClient({ initialOrders, drivers }: DispatcherC
   const [orders, setOrders] = useState(initialOrders);
   const [isAssigning, setIsAssigning] = useState<string | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<{ [orderId: string]: string }>({});
+  const [selectedOrderForMap, setSelectedOrderForMap] = useState<Order | null>(null);
 
   const availableDrivers = drivers.filter(d => d.is_available);
   const busyDrivers = drivers.filter(d => !d.is_available);
@@ -259,6 +261,14 @@ export default function DispatcherClient({ initialOrders, drivers }: DispatcherC
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setSelectedOrderForMap(order)}
+                            title="View route on map"
+                          >
+                            <Map className="h-4 w-4" />
+                          </Button>
                           <Select
                             value={selectedDriver[order.id] || ''}
                             onValueChange={(value) => handleDriverSelect(order.id, value)}
@@ -305,6 +315,18 @@ export default function DispatcherClient({ initialOrders, drivers }: DispatcherC
           )}
         </CardContent>
       </Card>
+
+      {/* Order Route Modal */}
+      {selectedOrderForMap && (
+        <OrderRouteModal
+          isOpen={!!selectedOrderForMap}
+          onClose={() => setSelectedOrderForMap(null)}
+          orderId={selectedOrderForMap.id}
+          pickupAddress={selectedOrderForMap.quotes?.pickup_address || ''}
+          dropoffAddress={selectedOrderForMap.quotes?.dropoff_address || ''}
+          distance={selectedOrderForMap.quotes?.distance_mi}
+        />
+      )}
     </div>
   );
 }

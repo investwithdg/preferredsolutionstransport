@@ -220,6 +220,7 @@ export type Database = {
           vehicle_details: string | null
           user_id: string | null
           created_at: string | null
+          push_subscription: any | null
         }
         Insert: {
           id?: string
@@ -228,6 +229,7 @@ export type Database = {
           vehicle_details?: string | null
           user_id?: string | null
           created_at?: string | null
+          push_subscription?: any | null
         }
         Update: {
           id?: string
@@ -236,6 +238,7 @@ export type Database = {
           vehicle_details?: string | null
           user_id?: string | null
           created_at?: string | null
+          push_subscription?: any | null
         }
         Relationships: []
       }

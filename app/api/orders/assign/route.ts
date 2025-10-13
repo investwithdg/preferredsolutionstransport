@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { createHubSpotClient, sendHubSpotEmail } from '@/lib/hubspot/client';
 import { driverAssignedEmail } from '@/lib/hubspot/emails';
+import { sendPushNotification, type PushSubscription } from '@/lib/webpush/config';
 import { z } from 'zod';
 
 const assignDriverSchema = z.object({
@@ -42,10 +43,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Verify the driver exists
+    // Verify the driver exists and get push subscription
     const { data: driver, error: driverError } = await supabase
       .from('drivers')
-      .select('id, name')
+      .select('id, name, push_subscription')
       .eq('id', driverId)
       .single();
 
@@ -102,6 +103,45 @@ export async function POST(request: NextRequest) {
     if (eventError) {
       // Log the error but don't fail the request
       console.error('Failed to log assignment event:', eventError);
+    }
+
+    // Send push notification to driver
+    if (driver.push_subscription) {
+      try {
+        const subscription = driver.push_subscription as PushSubscription;
+        const quotes = updatedOrder.quotes as any;
+        
+        await sendPushNotification(subscription, {
+          title: '🚚 New Delivery Assignment',
+          body: `Order #${orderId.slice(-8)} - ${quotes?.pickup_address || 'Pickup'} to ${quotes?.dropoff_address || 'Dropoff'}`,
+          icon: '/icon-192x192.png',
+          badge: '/icon-192x192.png',
+          tag: `order-${orderId}`,
+          url: '/driver',
+          data: {
+            orderId,
+            type: 'order_assigned'
+          }
+        });
+
+        // Log push notification event
+        await supabase
+          .from('dispatch_events')
+          .insert({
+            order_id: orderId,
+            actor: 'system',
+            event_type: 'push_notification_sent',
+            payload: {
+              notification_type: 'driver_assigned',
+              driver_id: driverId,
+            },
+            source: 'webpush',
+            event_id: `push_${orderId}_driver_assigned_${Date.now()}`,
+          });
+      } catch (pushError) {
+        // Log error but don't fail the request
+        console.error('Failed to send push notification:', pushError);
+      }
     }
 
     // Send driver assignment email to customer
