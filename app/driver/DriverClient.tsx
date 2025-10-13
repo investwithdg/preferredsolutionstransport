@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
+import dynamic from 'next/dynamic';
 import { PageHeader } from '@/app/components/shared/PageHeader';
 import { EmptyState } from '@/app/components/shared/EmptyState';
 import { LoadingState } from '@/app/components/shared/LoadingState';
@@ -28,6 +29,7 @@ import {
 import { Badge } from '@/app/components/ui/badge';
 import { Separator } from '@/app/components/ui/separator';
 import { toast } from 'sonner';
+import { watchLocation, clearWatch } from '@/lib/google-maps/tracking';
 import { 
   Package, 
   MapPin, 
@@ -80,6 +82,9 @@ export default function DriverClient() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
+  const [isLocationTracking, setIsLocationTracking] = useState(false);
+  const locationWatchIdRef = useRef<number | null>(null);
+  const lastLocationUpdateRef = useRef<number>(0);
 
   useEffect(() => {
     fetchDrivers();
@@ -184,6 +189,74 @@ export default function DriverClient() {
 
   const activeOrders = orders.filter(o => !['Delivered', 'Canceled'].includes(o.status));
   const completedOrders = orders.filter(o => ['Delivered', 'Canceled'].includes(o.status));
+
+  // Start location tracking for active orders
+  useEffect(() => {
+    if (!selectedDriverId || activeOrders.length === 0) {
+      // Stop tracking if no driver selected or no active orders
+      if (locationWatchIdRef.current !== null) {
+        clearWatch(locationWatchIdRef.current);
+        locationWatchIdRef.current = null;
+        setIsLocationTracking(false);
+      }
+      return;
+    }
+
+    // Start tracking location
+    try {
+      const watchId = watchLocation(
+        (position) => {
+          const now = Date.now();
+          // Throttle updates to every 30 seconds
+          if (now - lastLocationUpdateRef.current < 30000) {
+            return;
+          }
+          lastLocationUpdateRef.current = now;
+
+          // Send location update for each active order
+          activeOrders.forEach(async (order) => {
+            try {
+              await fetch('/api/drivers/location', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  driverId: selectedDriverId,
+                  orderId: order.id,
+                  latitude: position.coords.latitude,
+                  longitude: position.coords.longitude,
+                  accuracy: position.coords.accuracy,
+                  heading: position.coords.heading || undefined,
+                  speed: position.coords.speed || undefined,
+                }),
+              });
+            } catch (err) {
+              console.error('Failed to update location:', err);
+            }
+          });
+
+          setIsLocationTracking(true);
+        },
+        (error) => {
+          console.error('Location tracking error:', error);
+          toast.error('Location tracking unavailable', {
+            description: 'Please enable location services in your browser',
+          });
+          setIsLocationTracking(false);
+        }
+      );
+
+      locationWatchIdRef.current = watchId;
+
+      return () => {
+        if (watchId) {
+          clearWatch(watchId);
+        }
+      };
+    } catch (err) {
+      console.error('Failed to start location tracking:', err);
+      toast.error('Location tracking not supported');
+    }
+  }, [selectedDriverId, activeOrders.length]);
 
   return (
     <div className="container max-w-[1200px] mx-auto py-8 px-4 sm:px-6 lg:px-8" data-testid="driver-dashboard">
@@ -433,6 +506,28 @@ export default function DriverClient() {
             />
           ) : null}
         </>
+      )}
+
+      {/* Location Tracking Status */}
+      {selectedDriverId && activeOrders.length > 0 && (
+        <Card className={`mt-6 ${isLocationTracking ? 'border-success/20 bg-success/5' : 'border-warning/20 bg-warning/5'}`}>
+          <CardContent className="p-4">
+            <div className="flex items-start gap-3">
+              <Navigation className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isLocationTracking ? 'text-success' : 'text-warning'}`} />
+              <div>
+                <p className="text-sm font-medium text-foreground mb-1">
+                  {isLocationTracking ? '📍 Location Tracking Active' : '⚠️ Location Tracking'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {isLocationTracking 
+                    ? 'Your location is being shared with customers for real-time tracking. Updates every 30 seconds.'
+                    : 'Please enable location services to allow customers to track your delivery in real-time.'
+                  }
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       )}
 
       {/* Offline Support Message */}

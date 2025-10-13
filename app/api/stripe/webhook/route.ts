@@ -5,6 +5,7 @@ import {
   createHubSpotClient,
   upsertHubSpotContact,
   createHubSpotDeal,
+  sendHubSpotEmail,
 } from '@/lib/hubspot/client';
 import { 
   formatDealName, 
@@ -12,6 +13,7 @@ import {
   getDealStageForStatus,
   HUBSPOT_CONFIG 
 } from '@/lib/hubspot/config';
+import { orderConfirmationEmail } from '@/lib/hubspot/emails';
 import { captureWebhookError, setSentryTag } from '@/lib/sentry';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
@@ -36,7 +38,7 @@ export async function POST(request: NextRequest) {
       event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
     } catch (err) {
       console.error('Webhook signature verification failed:', err);
-      captureWebhookError(err, 'signature_verification', event?.id);
+      captureWebhookError(err, 'signature_verification', undefined);
       return NextResponse.json(
         { error: 'Invalid signature' },
         { status: 400 }
@@ -82,10 +84,10 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Get the quote details
+      // Get the quote details with customer information
       const { data: quote, error: quoteError } = await supabase
         .from('quotes')
-        .select('*')
+        .select('*, customers (*)')
         .eq('id', quoteId)
         .single();
 
@@ -139,10 +141,11 @@ export async function POST(request: NextRequest) {
       // HubSpot Integration: Create contact and deal
       const hubspotClient = createHubSpotClient();
       if (hubspotClient && quote.customers) {
+        const customer = quote.customers as any;
         const contactId = await upsertHubSpotContact(hubspotClient, {
-          email: quote.customers.email,
-          name: quote.customers.name || undefined,
-          phone: quote.customers.phone || undefined,
+          email: customer.email,
+          name: customer.name || undefined,
+          phone: customer.phone || undefined,
         });
 
         if (contactId) {
@@ -159,6 +162,44 @@ export async function POST(request: NextRequest) {
             },
             contactId
           );
+        }
+
+        // Send order confirmation email
+        const trackingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/track/${order.id}`;
+        const emailTemplate = orderConfirmationEmail({
+          orderId: order.id,
+          customerName: customer.name || 'Customer',
+          customerEmail: customer.email,
+          pickupAddress: quote.pickup_address || 'N/A',
+          dropoffAddress: quote.dropoff_address || 'N/A',
+          distance: quote.distance_mi || 0,
+          priceTotal: order.price_total || 0,
+          currency: order.currency || 'usd',
+          trackingUrl,
+          createdAt: new Date(order.created_at || new Date().toISOString()),
+        });
+
+        const emailSent = await sendHubSpotEmail(hubspotClient, {
+          to: customer.email,
+          subject: emailTemplate.subject,
+          htmlContent: emailTemplate.html,
+        });
+
+        // Log email event
+        if (emailSent) {
+          await supabase
+            .from('dispatch_events')
+            .insert({
+              order_id: order.id,
+              actor: 'system',
+              event_type: 'email_sent',
+              payload: {
+                email_type: 'order_confirmation',
+                recipient: customer.email,
+              },
+              source: 'hubspot_email',
+              event_id: `email_${order.id}_confirmation_${Date.now()}`,
+            });
         }
       }
     }

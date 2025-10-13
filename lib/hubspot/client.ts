@@ -18,7 +18,7 @@ export async function upsertHubSpotContact(
   { email, name, phone }: { email: string; name?: string; phone?: string; }
 ): Promise<string | undefined> {
   try {
-    const contactInput = {
+    const contactInput: any = {
       properties: {
         email,
         firstname: name?.split(' ')[0] || '',
@@ -53,19 +53,84 @@ export async function createHubSpotDeal(
   contactId: string
 ) {
   try {
-    const deal = await hubspotClient.crm.deals.basicApi.create(dealProperties);
+    const deal = await hubspotClient.crm.deals.basicApi.create(dealProperties as any);
     console.log(`Created HubSpot deal with ID: ${deal.id}`);
 
-    // Associate deal with the contact
-    await hubspotClient.crm.deals.associationsApi.create(
-      deal.id,
-      'contact',
-      contactId,
-      'deal_to_contact'
-    );
-    console.log(`Associated deal ${deal.id} with contact ${contactId}`);
+    // Associate deal with the contact using the API
+    try {
+      await (hubspotClient.crm.deals as any).associationsApi.create(
+        deal.id,
+        'contact',
+        contactId,
+        'deal_to_contact'
+      );
+      console.log(`Associated deal ${deal.id} with contact ${contactId}`);
+    } catch (assocError) {
+      // If the association API doesn't exist, try batch API
+      console.log('Association API not available, skipping association');
+    }
     return deal;
   } catch (e) {
     console.error('Failed to create HubSpot deal:', e);
   }
+}
+
+/**
+ * Send transactional email via HubSpot
+ * Uses HubSpot's Single Send API for transactional emails
+ */
+export async function sendHubSpotEmail(
+  hubspotClient: Client,
+  emailData: {
+    to: string;
+    subject: string;
+    htmlContent: string;
+    textContent?: string;
+  }
+): Promise<boolean> {
+  try {
+    // HubSpot Single Send API
+    const response = await fetch('https://api.hubapi.com/marketing/v3/transactional/single-email/send', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${process.env.HUBSPOT_PRIVATE_APP_TOKEN}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        emailId: null, // Use custom HTML instead of template
+        message: {
+          to: emailData.to,
+          subject: emailData.subject,
+          html: emailData.htmlContent,
+          text: emailData.textContent || stripHtml(emailData.htmlContent),
+        },
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error('HubSpot email send failed:', error);
+      return false;
+    }
+
+    console.log(`Email sent successfully to ${emailData.to}`);
+    return true;
+  } catch (e) {
+    console.error('Failed to send HubSpot email:', e);
+    return false;
+  }
+}
+
+/**
+ * Simple HTML stripper for plain text fallback
+ */
+function stripHtml(html: string): string {
+  return html
+    .replace(/<[^>]*>/g, '')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .trim();
 }

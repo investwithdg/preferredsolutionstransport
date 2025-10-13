@@ -1,5 +1,6 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { StatusBadge } from '@/app/components/shared/StatusBadge';
 import { Badge } from '@/app/components/ui/badge';
@@ -19,6 +20,11 @@ import {
   Navigation
 } from 'lucide-react';
 
+const LiveTrackingMap = dynamic(
+  () => import('@/app/components/maps/LiveTrackingMap'),
+  { ssr: false }
+);
+
 type Order = {
   id: string;
   status: string;
@@ -36,6 +42,7 @@ type Order = {
     distance_mi: number;
   } | null;
   drivers: {
+    id: string;
     name: string;
     phone: string;
   } | null;
@@ -370,19 +377,19 @@ export default function TrackingClient({ order, events }: Props) {
           </CardContent>
         </Card>
 
-        {/* Map Integration Placeholder - For Milestone 3 */}
-        <Card className="mt-6 border-dashed border-2">
-          <CardContent className="p-8 text-center">
-            <div className="rounded-full bg-muted p-4 inline-flex mb-4">
-              <MapPin className="h-8 w-8 text-muted-foreground" />
-            </div>
-            <h3 className="text-heading-md font-semibold mb-2">Live Map Tracking</h3>
-            <p className="text-sm text-muted-foreground mb-4">
-              Real-time driver location tracking will be available in Milestone 3
-            </p>
-            <Badge variant="secondary">Coming Soon</Badge>
-          </CardContent>
-        </Card>
+        {/* Live Map Tracking */}
+        {order.drivers && ['Assigned', 'Accepted', 'PickedUp', 'InTransit'].includes(order.status) && (
+          <div className="mt-6">
+            <h2 className="text-heading-lg font-semibold mb-4">Live Tracking</h2>
+            <LiveTrackingMap
+              orderId={order.id}
+              driverId={order.drivers.id}
+              pickupAddress={order.quotes?.pickup_address || ''}
+              dropoffAddress={order.quotes?.dropoff_address || ''}
+              orderStatus={order.status}
+            />
+          </div>
+        )}
       </div>
     </div>
   );

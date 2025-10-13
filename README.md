@@ -58,12 +58,17 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - Comprehensive loading/empty/error states
 - Professional branding throughout
 
-**🚧 Milestone 3: Real-Time & Notifications**
-- WebSocket integration for live updates
-- Push notifications for drivers
-- SMS notifications for customers
-- Email receipts and invoices
-- Real-time map tracking
+**✅ Milestone 3: Real-Time & Notifications (Phases 1-3 Complete)**
+- ✅ Email notifications via HubSpot (order confirmation, driver assignment, status updates)
+- ✅ Live driver location tracking with Google Maps
+- ✅ Real-time map on customer tracking page (pickup, dropoff, driver location with ETA)
+- ✅ Background location tracking for drivers
+- ✅ PWA support (installable app, offline functionality)
+- ✅ Service worker with background sync
+- ✅ Admin logs viewer with CSV export
+- ⏳ Push notifications for drivers (ready, needs VAPID keys)
+- ⏳ Supabase Realtime integration (planned)
+- ❌ SMS notifications (future - requires Twilio setup)
 
 **🚧 Milestone 4: Analytics & Optimization**
 - Revenue analytics dashboard
@@ -80,24 +85,33 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - Multi-stop deliveries
 - Fleet management tools
 
-## 📋 Current Features (M1, M2 & M2.5)
+## 📋 Current Features (M1, M2, M2.5 & M3)
 
+### Core Features
 - **Customer Quote Form**: Distance-based pricing with **automatic Google Maps distance calculation**
 - **Stripe Integration**: Secure payment processing with webhook automation
 - **Order Management**: Automatic order creation after successful payment
 - **Dispatcher Queue**: Real-time view of orders ready for dispatch
 - **Driver Assignment**: Dispatchers can assign available drivers to orders
 - **Driver Dashboard**: Drivers can view assigned orders and update their status
-- **Admin Dashboard**: Complete management interface for users, drivers, orders, and pricing
-- **Customer Tracking**: Real-time order tracking page for customers
+- **Admin Dashboard**: Complete management interface for users, drivers, orders, pricing, and logs
+- **Customer Tracking**: **Live map tracking** with driver location and ETA
 - **Customer Dashboard**: Order history and active order management for customers
 - **HubSpot Sync**: Automatic contact and deal creation with **configurable pipelines and stages**
 - **Database**: Full audit trail and event logging
 - **Vercel Ready**: Production deployment configuration included
 
+### NEW: Notifications & Tracking (Phase 1-3)
+- **📧 Email Notifications**: Automated emails via HubSpot for order confirmation, driver assignment, and status updates
+- **🗺️ Live Driver Tracking**: Real-time Google Maps integration showing driver location with automatic ETA calculation
+- **📍 Background Location**: Automatic location updates every 30 seconds for active deliveries
+- **📱 PWA Support**: Installable mobile app with offline capabilities and background sync
+- **📊 Admin Logs & Reports**: Event log viewer with filtering and CSV export for orders and logs
+- **🔄 Offline Mode**: Service worker caches data and syncs updates when connection restored
+
 ## 🛠 Tech Stack
 
-- **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS
+- **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS + PWA
 - **UI Components**: shadcn/ui (Radix UI primitives)
 - **Design System**: Custom design tokens with CSS variables
 - **Forms**: react-hook-form + @hookform/resolvers
@@ -118,11 +132,17 @@ cp env.example .env.local
 ```
 
 **Critical Environment Variables:**
-- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` - Required for quote form (app will appear blank without this)
+- `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` - Required for quote form AND live tracking maps
 - `NEXT_PUBLIC_SUPABASE_URL` & `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Database connection
 - `SUPABASE_SERVICE_ROLE_KEY` - Server-side database operations
 - `STRIPE_SECRET_KEY` & `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Payment processing
-- `HUBSPOT_PRIVATE_APP_TOKEN` - CRM integration
+- `HUBSPOT_PRIVATE_APP_TOKEN` - CRM integration + email notifications
+- `NEXT_PUBLIC_APP_URL` - Your app URL (for email tracking links, default: http://localhost:3000)
+
+**NEW for Phase 1-3:**
+- Google Maps now requires **Maps JavaScript API, Geocoding API, and Geometry Library** enabled
+- HubSpot token needs transactional email scope for notifications
+- Database migration required: run `supabase/migrations/001_add_driver_locations.sql`
 
 ### 2. Database Setup
 

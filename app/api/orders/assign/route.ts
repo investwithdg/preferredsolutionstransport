@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createHubSpotClient, sendHubSpotEmail } from '@/lib/hubspot/client';
+import { driverAssignedEmail } from '@/lib/hubspot/emails';
 import { z } from 'zod';
 
 const assignDriverSchema = z.object({
@@ -66,7 +68,7 @@ export async function POST(request: NextRequest) {
       .eq('id', orderId)
       .select(`
         *,
-        drivers (id, name, phone),
+        drivers (id, name, phone, vehicle_details),
         customers (id, name, email),
         quotes (pickup_address, dropoff_address, distance_mi)
       `)
@@ -100,6 +102,60 @@ export async function POST(request: NextRequest) {
     if (eventError) {
       // Log the error but don't fail the request
       console.error('Failed to log assignment event:', eventError);
+    }
+
+    // Send driver assignment email to customer
+    const hubspotClient = createHubSpotClient();
+    if (hubspotClient && updatedOrder.customers?.email && updatedOrder.drivers) {
+      const customer = updatedOrder.customers as any;
+      const driver = updatedOrder.drivers as any;
+      const quotes = updatedOrder.quotes as any;
+      
+      const trackingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/track/${orderId}`;
+      const emailTemplate = driverAssignedEmail(
+        {
+          orderId: updatedOrder.id,
+          customerName: customer.name || 'Customer',
+          customerEmail: customer.email,
+          pickupAddress: quotes?.pickup_address || 'N/A',
+          dropoffAddress: quotes?.dropoff_address || 'N/A',
+          distance: quotes?.distance_mi || 0,
+          priceTotal: updatedOrder.price_total || 0,
+          currency: updatedOrder.currency || 'usd',
+          trackingUrl,
+          createdAt: new Date(updatedOrder.created_at || new Date().toISOString()),
+        },
+        {
+          name: driver.name,
+          phone: driver.phone || 'N/A',
+          vehicleDetails: driver.vehicle_details 
+            ? JSON.stringify(driver.vehicle_details) 
+            : undefined,
+        }
+      );
+
+      const emailSent = await sendHubSpotEmail(hubspotClient, {
+        to: customer.email,
+        subject: emailTemplate.subject,
+        htmlContent: emailTemplate.html,
+      });
+
+      // Log email event
+      if (emailSent) {
+        await supabase
+          .from('dispatch_events')
+          .insert({
+            order_id: orderId,
+            actor: 'system',
+            event_type: 'email_sent',
+            payload: {
+              email_type: 'driver_assigned',
+              recipient: customer.email,
+            },
+            source: 'hubspot_email',
+            event_id: `email_${orderId}_driver_assigned_${Date.now()}`,
+          });
+      }
     }
 
     return NextResponse.json({

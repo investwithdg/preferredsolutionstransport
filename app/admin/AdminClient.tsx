@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { PageHeader } from '@/app/components/shared/PageHeader';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
@@ -27,7 +27,10 @@ import {
   Edit,
   Trash2,
   Settings,
-  AlertCircle
+  AlertCircle,
+  FileText,
+  Download,
+  Filter
 } from 'lucide-react';
 
 type User = {
@@ -70,10 +73,18 @@ type Props = {
   stats: Stats;
 };
 
-type Tab = 'overview' | 'users' | 'drivers' | 'orders' | 'pricing';
+type Tab = 'overview' | 'users' | 'drivers' | 'orders' | 'pricing' | 'logs';
 
 export default function AdminClient({ initialUsers, initialDrivers, initialOrders, stats }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
+  const [logs, setLogs] = useState<any[]>([]);
+  const [isLoadingLogs, setIsLoadingLogs] = useState(false);
+  const [logFilter, setLogFilter] = useState({
+    eventType: '',
+    orderId: '',
+    dateFrom: '',
+    dateTo: '',
+  });
 
   const tabs = [
     { id: 'overview' as Tab, name: 'Overview', icon: LayoutDashboard },
@@ -81,7 +92,90 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
     { id: 'drivers' as Tab, name: 'Drivers', icon: TruckIcon },
     { id: 'orders' as Tab, name: 'Orders', icon: Package },
     { id: 'pricing' as Tab, name: 'Pricing', icon: DollarSign },
+    { id: 'logs' as Tab, name: 'Logs & Reports', icon: FileText },
   ];
+
+  // Fetch logs from API
+  const fetchLogs = async () => {
+    setIsLoadingLogs(true);
+    try {
+      const params = new URLSearchParams();
+      if (logFilter.eventType) params.append('eventType', logFilter.eventType);
+      if (logFilter.orderId) params.append('orderId', logFilter.orderId);
+      if (logFilter.dateFrom) params.append('dateFrom', logFilter.dateFrom);
+      if (logFilter.dateTo) params.append('dateTo', logFilter.dateTo);
+      
+      const response = await fetch(`/api/admin/logs?${params.toString()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setLogs(data.logs || []);
+      }
+    } catch (error) {
+      console.error('Error fetching logs:', error);
+    } finally {
+      setIsLoadingLogs(false);
+    }
+  };
+
+  // Load logs when logs tab becomes active
+  const handleTabChange = (tabId: Tab) => {
+    setActiveTab(tabId);
+    if (tabId === 'logs' && logs.length === 0) {
+      fetchLogs();
+    }
+  };
+
+  // Export orders to CSV
+  const exportOrdersCSV = () => {
+    const headers = ['Order ID', 'Customer', 'Driver', 'Status', 'Amount', 'Created At'];
+    const rows = initialOrders.map(order => [
+      order.id.slice(0, 8),
+      order.customers?.name || 'N/A',
+      order.drivers?.name || 'Unassigned',
+      order.status,
+      `$${order.price_total?.toFixed(2) || '0.00'}`,
+      new Date(order.created_at).toLocaleDateString(),
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `orders-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+
+  // Export logs to CSV
+  const exportLogsCSV = () => {
+    const headers = ['Event ID', 'Order ID', 'Event Type', 'Actor', 'Source', 'Created At'];
+    const rows = logs.map(log => [
+      log.event_id || log.id.slice(0, 8),
+      log.order_id?.slice(0, 8) || 'N/A',
+      log.event_type,
+      log.actor,
+      log.source,
+      new Date(log.created_at).toLocaleString(),
+    ]);
+    
+    const csvContent = [
+      headers.join(','),
+      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+    ].join('\n');
+    
+    const blob = new Blob([csvContent], { type: 'text/csv' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `logs-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <div className="container max-w-[1600px] mx-auto py-8 px-4 sm:px-6 lg:px-8" data-testid="admin-dashboard">
@@ -102,7 +196,7 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabChange(tab.id)}
                 className={`
                   flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap
                   border-b-2 -mb-[1px]
@@ -471,6 +565,155 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Logs & Reports Tab */}
+        {activeTab === 'logs' && (
+          <div className="space-y-6">
+            {/* Export Buttons */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>Export Reports</CardTitle>
+                    <CardDescription>Download data for analysis and record keeping</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="flex gap-4">
+                <Button onClick={exportOrdersCSV} variant="outline" className="gap-2">
+                  <Download className="h-4 w-4" />
+                  Export Orders (CSV)
+                </Button>
+                <Button 
+                  onClick={exportLogsCSV} 
+                  variant="outline" 
+                  className="gap-2"
+                  disabled={logs.length === 0}
+                >
+                  <Download className="h-4 w-4" />
+                  Export Logs (CSV)
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Logs Viewer */}
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>System Event Logs</CardTitle>
+                    <CardDescription>View and filter all system events and activities</CardDescription>
+                  </div>
+                  <Button onClick={fetchLogs} variant="accent" size="sm" className="gap-2">
+                    <Filter className="h-4 w-4" />
+                    Refresh Logs
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {/* Filters */}
+                <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="event-type-filter">Event Type</Label>
+                    <Input
+                      id="event-type-filter"
+                      placeholder="e.g. email_sent"
+                      value={logFilter.eventType}
+                      onChange={(e) => setLogFilter(prev => ({ ...prev, eventType: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="order-id-filter">Order ID</Label>
+                    <Input
+                      id="order-id-filter"
+                      placeholder="Enter order ID"
+                      value={logFilter.orderId}
+                      onChange={(e) => setLogFilter(prev => ({ ...prev, orderId: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="date-from-filter">Date From</Label>
+                    <Input
+                      id="date-from-filter"
+                      type="date"
+                      value={logFilter.dateFrom}
+                      onChange={(e) => setLogFilter(prev => ({ ...prev, dateFrom: e.target.value }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="date-to-filter">Date To</Label>
+                    <Input
+                      id="date-to-filter"
+                      type="date"
+                      value={logFilter.dateTo}
+                      onChange={(e) => setLogFilter(prev => ({ ...prev, dateTo: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Logs Table */}
+                {isLoadingLogs ? (
+                  <div className="text-center py-12">
+                    <p className="text-muted-foreground">Loading logs...</p>
+                  </div>
+                ) : logs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                    <p className="text-muted-foreground">No logs found. Click "Refresh Logs" to load system events.</p>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Event Type</TableHead>
+                          <TableHead>Order ID</TableHead>
+                          <TableHead>Actor</TableHead>
+                          <TableHead>Source</TableHead>
+                          <TableHead>Details</TableHead>
+                          <TableHead>Created At</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {logs.map((log) => (
+                          <TableRow key={log.id}>
+                            <TableCell>
+                              <Badge variant="secondary" className="font-mono text-xs">
+                                {log.event_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="font-mono text-sm">
+                              {log.order_id ? `#${log.order_id.slice(0, 8)}` : 'N/A'}
+                            </TableCell>
+                            <TableCell className="text-sm">{log.actor}</TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className="text-xs">
+                                {log.source}
+                              </Badge>
+                            </TableCell>
+                            <TableCell className="max-w-xs">
+                              <details className="text-xs text-muted-foreground">
+                                <summary className="cursor-pointer hover:text-foreground">
+                                  View Payload
+                                </summary>
+                                <pre className="mt-2 p-2 bg-muted rounded text-xs overflow-auto max-h-32">
+                                  {JSON.stringify(log.payload, null, 2)}
+                                </pre>
+                              </details>
+                            </TableCell>
+                            <TableCell className="text-sm text-muted-foreground">
+                              {new Date(log.created_at).toLocaleString()}
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
         )}
       </div>
     </div>

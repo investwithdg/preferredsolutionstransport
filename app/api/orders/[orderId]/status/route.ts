@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createHubSpotClient, sendHubSpotEmail } from '@/lib/hubspot/client';
+import { statusUpdateEmail, formatStatusDisplay } from '@/lib/hubspot/emails';
 import { z } from 'zod';
 
 const updateStatusSchema = z.object({
@@ -89,6 +91,65 @@ export async function PATCH(
     if (eventError) {
       // Log the error but don't fail the request
       console.error('Failed to log status change event:', eventError);
+    }
+
+    // Send status update email for key status changes
+    const emailStatuses = ['PickedUp', 'InTransit', 'Delivered'];
+    const hubspotClient = createHubSpotClient();
+    
+    if (hubspotClient && emailStatuses.includes(status) && updatedOrder.customers?.email) {
+      const customer = updatedOrder.customers as any;
+      const quotes = updatedOrder.quotes as any;
+      const driver = updatedOrder.drivers as any;
+      
+      const trackingUrl = `${process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'}/track/${orderId}`;
+      const emailTemplate = statusUpdateEmail(
+        {
+          orderId: updatedOrder.id,
+          customerName: customer.name || 'Customer',
+          customerEmail: customer.email,
+          pickupAddress: quotes?.pickup_address || 'N/A',
+          dropoffAddress: quotes?.dropoff_address || 'N/A',
+          distance: quotes?.distance_mi || 0,
+          priceTotal: updatedOrder.price_total || 0,
+          currency: updatedOrder.currency || 'usd',
+          trackingUrl,
+          createdAt: new Date(updatedOrder.created_at || new Date().toISOString()),
+        },
+        {
+          status,
+          statusDisplay: formatStatusDisplay(status),
+          timestamp: new Date(),
+        },
+        driver ? {
+          name: driver.name,
+          phone: driver.phone || 'N/A',
+        } : undefined
+      );
+
+      const emailSent = await sendHubSpotEmail(hubspotClient, {
+        to: customer.email,
+        subject: emailTemplate.subject,
+        htmlContent: emailTemplate.html,
+      });
+
+      // Log email event
+      if (emailSent) {
+        await supabase
+          .from('dispatch_events')
+          .insert({
+            order_id: orderId,
+            actor: 'system',
+            event_type: 'email_sent',
+            payload: {
+              email_type: 'status_update',
+              status,
+              recipient: customer.email,
+            },
+            source: 'hubspot_email',
+            event_id: `email_${orderId}_status_${status}_${Date.now()}`,
+          });
+      }
     }
 
     return NextResponse.json({
