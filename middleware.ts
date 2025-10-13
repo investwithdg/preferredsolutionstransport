@@ -9,8 +9,8 @@ export async function middleware(req: NextRequest) {
 
   const { pathname } = req.nextUrl;
   
-  // Check if demo mode is enabled
-  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+  // Check if demo mode is enabled via cookie
+  const isDemoMode = req.cookies.get('demo-mode')?.value === 'true';
 
   // Protect dispatcher, driver, customer, and admin routes
   if (pathname.startsWith('/dispatcher') || pathname.startsWith('/driver') || pathname.startsWith('/admin') || pathname.startsWith('/customer')) {

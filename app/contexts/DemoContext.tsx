@@ -35,6 +35,15 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   const [currentRole, setCurrentRole] = useState<DemoRole>('customer');
   const [currentDriverId, setCurrentDriverId] = useState<string | null>(null);
 
+  // Set demo mode cookie for middleware
+  useEffect(() => {
+    if (isDemoMode) {
+      document.cookie = 'demo-mode=true; path=/';
+    } else {
+      document.cookie = 'demo-mode=; path=/; expires=Thu, 01 Jan 1970 00:00:00 UTC';
+    }
+  }, [isDemoMode]);
+
   // Load saved demo state from localStorage
   useEffect(() => {
     if (!isDemoMode) return;

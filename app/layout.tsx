@@ -4,8 +4,7 @@ import './globals.css';
 import Link from 'next/link';
 import { createServerClient } from '@/lib/supabase/server';
 import { Toaster } from '@/app/components/ui/sonner';
-import { DemoProvider } from '@/app/contexts/DemoContext';
-import { DemoRoleSwitcher } from '@/app/components/demo/DemoRoleSwitcher';
+import { ClientLayout } from '@/app/components/ClientLayout';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -133,12 +132,11 @@ export default async function RootLayout({
               </div>
             </div>
           </nav>
-          <DemoProvider>
+          <ClientLayout>
             <main>
               {children}
             </main>
-            <DemoRoleSwitcher />
-          </DemoProvider>
+          </ClientLayout>
           <Toaster position="top-right" />
         </div>
         <script
