@@ -3,10 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
+import { AlertCircle } from 'lucide-react';
 
 export default function HomeHero() {
   const router = useRouter();
-  const { isLoaded } = useLoadScript({
+  const { isLoaded, loadError } = useLoadScript({
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: ['places'],
   });
@@ -32,12 +33,18 @@ export default function HomeHero() {
             Book a delivery in seconds
           </h1>
           <p className="mt-4 text-lg text-blue-100">
-            Start with pickup and dropoff. We’ll calculate the distance and pricing instantly.
+            Start with pickup and dropoff. We'll calculate the distance and pricing instantly.
           </p>
 
           <form onSubmit={onSubmit} className="mt-8 bg-white/95 backdrop-blur rounded-xl p-4 shadow-lg">
-            {!isLoaded ? (
-              <div className="text-gray-600 text-sm">Loading map…</div>) : (
+            {loadError ? (
+              <div className="text-red-600 text-sm flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                <span>Failed to load Google Maps. Please check your API key configuration.</span>
+              </div>
+            ) : !isLoaded ? (
+              <div className="text-gray-600 text-sm">Loading map…</div>
+            ) : (
               <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
                 <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-gray-700 mb-1">Pickup</label>
