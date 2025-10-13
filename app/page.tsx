@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import dynamic from 'next/dynamic';
 
-const HomeHero = dynamic(() => import('./components/HomeHero'), { ssr: false });
+const HomeHero = dynamic(() => import('@/app/components/HomeHero'), { ssr: false });
 
 export default function HomePage() {
   return (

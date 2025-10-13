@@ -31,6 +31,7 @@ import { Separator } from '@/app/components/ui/separator';
 import { toast } from 'sonner';
 import { watchLocation, clearWatch } from '@/lib/google-maps/tracking';
 import { usePushNotifications } from '@/app/hooks/usePushNotifications';
+import { useDemo } from '@/app/contexts/DemoContext';
 import { 
   Package, 
   MapPin, 
@@ -80,6 +81,7 @@ interface Driver {
 }
 
 export default function DriverClient() {
+  const { isDemoMode, currentDriverId, demoDrivers } = useDemo();
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [orders, setOrders] = useState<Order[]>([]);
@@ -95,8 +97,26 @@ export default function DriverClient() {
   });
 
   useEffect(() => {
-    fetchDrivers();
-  }, []);
+    if (isDemoMode) {
+      // In demo mode, use demo drivers
+      const demoDriverList = demoDrivers.map(driver => ({
+        id: driver.id,
+        name: driver.name,
+        phone: '(555) 123-4567',
+        vehicle_details: { type: 'Van', plate: 'DEMO-123' },
+        active_orders_count: 0,
+        is_available: true,
+      }));
+      setDrivers(demoDriverList);
+      
+      // Auto-select the current demo driver
+      if (currentDriverId) {
+        setSelectedDriverId(currentDriverId);
+      }
+    } else {
+      fetchDrivers();
+    }
+  }, [isDemoMode, currentDriverId, demoDrivers]);
 
   useEffect(() => {
     if (selectedDriverId) {

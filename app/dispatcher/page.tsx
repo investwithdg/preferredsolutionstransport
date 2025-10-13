@@ -1,7 +1,20 @@
 import { createServiceRoleClient, createServerClient } from '@/lib/supabase/server';
-import DispatcherClient from './DispatcherClient';
+import DispatcherWrapper from './DispatcherWrapper';
 
 export default async function DispatcherPage() {
+  // Check if demo mode is enabled
+  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+  
+  if (isDemoMode) {
+    // In demo mode, skip auth and return wrapper with empty data
+    return (
+      <DispatcherWrapper 
+        initialOrders={[]} 
+        drivers={[]} 
+      />
+    );
+  }
+  
   const cookieClient = createServerClient();
   const {
     data: { session },
@@ -60,7 +73,7 @@ export default async function DispatcherPage() {
   }
 
   return (
-    <DispatcherClient 
+    <DispatcherWrapper 
       initialOrders={orders || []} 
       drivers={drivers} 
     />

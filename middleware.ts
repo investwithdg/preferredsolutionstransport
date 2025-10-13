@@ -8,9 +8,17 @@ export async function middleware(req: NextRequest) {
   await supabase.auth.getSession();
 
   const { pathname } = req.nextUrl;
+  
+  // Check if demo mode is enabled
+  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
   // Protect dispatcher, driver, customer, and admin routes
   if (pathname.startsWith('/dispatcher') || pathname.startsWith('/driver') || pathname.startsWith('/admin') || pathname.startsWith('/customer')) {
+    
+    // Skip auth check in demo mode
+    if (isDemoMode) {
+      return res;
+    }
     const {
       data: { session },
     } = await supabase.auth.getSession();
