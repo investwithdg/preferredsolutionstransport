@@ -10,14 +10,14 @@
     "typecheck": "tsc --noEmit",
     "depcheck": "npx depcheck --ignores=@sentry/nextjs",
     "tsprune": "npx ts-prune",
-    "analyze": "ANALYZE=true next build"
+    "analyze": "ANALYZE=true next build",
+    "sweep": "npm run typecheck && npm run lint && npm run depcheck && npm run tsprune"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@hubspot/api-client": "^10.0.0",
     "@radix-ui/react-alert-dialog": "^1.1.15",
     "@radix-ui/react-dialog": "^1.1.15",
-    "@radix-ui/react-dropdown-menu": "^2.1.16",
     "@radix-ui/react-label": "^2.1.7",
     "@radix-ui/react-select": "^2.2.6",
     "@radix-ui/react-separator": "^1.1.7",
@@ -36,7 +36,6 @@
     "eslint-config-next": "14.0.4",
     "lucide-react": "^0.545.0",
     "next": "14.0.4",
-    "next-themes": "^0.4.6",
     "postcss": "^8",
     "react": "^18",
     "react-dom": "^18",

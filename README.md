@@ -138,6 +138,7 @@ cp env.example .env.local
 - `STRIPE_SECRET_KEY` & `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Payment processing
 - `HUBSPOT_PRIVATE_APP_TOKEN` - CRM integration + email notifications
 - `NEXT_PUBLIC_APP_URL` - Your app URL (for email tracking links, default: http://localhost:3000)
+ - `NEXT_PUBLIC_DEMO_MODE` - Enable demo UI (role switcher, demo data). Keep false in production
 
 **NEW for Phase 1-3:**
 - Google Maps now requires **Maps JavaScript API, Geocoding API, and Geometry Library** enabled
@@ -184,6 +185,27 @@ npm run dev
 ```
 
 Open http://localhost:3000 in your browser.
+
+### Demo Mode
+
+Set `NEXT_PUBLIC_DEMO_MODE=true` in `.env.local` to enable demo features:
+
+- Floating role switcher
+- Demo drivers and demo dispatcher data
+- Middleware bypasses auth in demo via `demo-mode` cookie
+
+In production, leave `NEXT_PUBLIC_DEMO_MODE` unset/false to disable all demo surfaces.
+
+### Sweep & Checks
+
+Useful scripts:
+
+```bash
+npm run typecheck
+npm run depcheck
+npm run tsprune
+npm run analyze
+```
 
 ## 🧪 Testing the Complete Flow
 

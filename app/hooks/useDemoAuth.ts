@@ -1,4 +1,4 @@
-import { useDemo } from '@/app/contexts/DemoContext';
+import { useDemo } from '@/app/demo/DemoContext';
 
 interface DemoUser {
   id: string;

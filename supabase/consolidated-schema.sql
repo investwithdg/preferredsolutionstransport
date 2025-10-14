@@ -1,6 +1,8 @@
 -- =============================================================================
 -- Preferred Solutions Transport - Complete Database Schema
 -- Consolidated schema for Milestones 1 & 2
+-- NOTE: This file is the canonical source of truth for the database.
+--       Prefer edits here over individual migrations; ensure PRs update this.
 -- =============================================================================
 -- 
 -- This file contains the complete database schema including:

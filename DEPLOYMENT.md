@@ -74,9 +74,21 @@ NEXT_PUBLIC_SENTRY_DSN=https://...@sentry.io/...
 # Feature Flags
 FEATURE_WEBHOOK_DEDUPE=true
 FEATURE_RATE_LIMITING=true
+
+# Demo Mode (for local demos only; keep false in production)
+NEXT_PUBLIC_DEMO_MODE=false
 ```
 
-### 5. Configure Stripe Webhook
+### 5. Database Schema (Canonical)
+
+The canonical schema is `supabase/consolidated-schema.sql`.
+
+1. Open Supabase Dashboard → SQL Editor
+2. Paste the contents of `supabase/consolidated-schema.sql`
+3. Execute and verify the completion notices
+4. Avoid applying legacy migrations that duplicate objects
+
+### 6. Configure Stripe Webhook
 
 After deployment, you need to update your Stripe webhook:
 
@@ -89,7 +101,7 @@ After deployment, you need to update your Stripe webhook:
 6. Update `STRIPE_WEBHOOK_SECRET` in Vercel environment variables
 7. Redeploy your app
 
-### 6. Update Supabase URL Allowlist
+### 7. Update Supabase URL Allowlist
 
 In your Supabase project:
 1. Go to Authentication > URL Configuration
@@ -97,7 +109,7 @@ In your Supabase project:
    - `https://your-app.vercel.app/**`
    - `https://your-app.vercel.app/auth/callback`
 
-### 7. Test Your Deployment
+### 8. Test Your Deployment
 
 1. Visit your Vercel URL
 2. Test the quote flow:

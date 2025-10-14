@@ -31,7 +31,7 @@ import { Separator } from '@/app/components/ui/separator';
 import { toast } from 'sonner';
 import { watchLocation, clearWatch } from '@/lib/google-maps/tracking';
 import { usePushNotifications } from '@/app/hooks/usePushNotifications';
-import { useDemo } from '@/app/contexts/DemoContext';
+import { useDemo } from '@/app/demo/DemoContext';
 import { 
   Package, 
   MapPin, 

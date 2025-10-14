@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useDemo, type DemoRole } from '@/app/contexts/DemoContext';
+import { useDemo, type DemoRole } from '@/app/demo/DemoContext';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import {
@@ -22,7 +22,6 @@ import {
   ChevronDown,
   Zap,
   AlertTriangle,
-  X
 } from 'lucide-react';
 
 const roleConfig = {
@@ -43,7 +42,6 @@ export function DemoRoleSwitcher() {
 
   return (
     <>
-      {/* Demo Mode Banner */}
       <div className="fixed top-0 left-0 right-0 bg-warning/90 backdrop-blur-sm text-warning-foreground py-2 px-4 text-center text-sm font-medium z-50 border-b border-warning">
         <div className="flex items-center justify-center gap-2">
           <AlertTriangle className="h-4 w-4" />
@@ -52,7 +50,6 @@ export function DemoRoleSwitcher() {
         </div>
       </div>
 
-      {/* Floating Role Switcher */}
       <div className="fixed bottom-6 right-6 z-40">
         <Card className={`shadow-lg transition-all duration-300 ${isExpanded ? 'w-80' : 'w-auto'}`}>
           <CardHeader className="p-4 pb-2">
@@ -81,7 +78,6 @@ export function DemoRoleSwitcher() {
           
           {isExpanded && (
             <CardContent className="p-4 pt-2">
-              {/* Role Selector */}
               <div className="space-y-3">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground">Switch Role</label>
@@ -108,7 +104,6 @@ export function DemoRoleSwitcher() {
                   </Select>
                 </div>
 
-                {/* Driver Selection (only shown when driver role is selected) */}
                 {currentRole === 'driver' && (
                   <div>
                     <label className="text-xs font-medium text-muted-foreground">Select Driver</label>
@@ -131,112 +126,6 @@ export function DemoRoleSwitcher() {
                 )}
 
                 <Separator />
-
-                {/* Quick Actions */}
-                <div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="w-full"
-                    onClick={() => setShowQuickActions(!showQuickActions)}
-                  >
-                    <Zap className="h-4 w-4 mr-2" />
-                    Quick Actions
-                  </Button>
-                  
-                  {showQuickActions && (
-                    <div className="mt-2 space-y-2">
-                      <p className="text-xs font-medium text-muted-foreground">Demo Flows:</p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start text-xs"
-                        onClick={() => {
-                          setRole('customer');
-                          window.location.href = '/quote';
-                        }}
-                      >
-                        1. Start as Customer → Quote
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start text-xs"
-                        onClick={() => {
-                          setRole('dispatcher');
-                          window.location.href = '/dispatcher';
-                        }}
-                      >
-                        2. View as Dispatcher → Assign
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start text-xs"
-                        onClick={() => {
-                          setRole('driver');
-                          if (!currentDriverId) {
-                            setDriverId('demo-driver-1');
-                          }
-                          window.location.href = '/driver';
-                        }}
-                      >
-                        3. View as Driver → Update Status
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start text-xs"
-                        onClick={() => {
-                          setRole('admin');
-                          window.location.href = '/admin';
-                        }}
-                      >
-                        4. View as Admin → Manage
-                      </Button>
-                      <Separator className="my-2" />
-                      <p className="text-xs font-medium text-muted-foreground">Quick Actions:</p>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start text-xs"
-                        onClick={() => {
-                          // Create a test order by adding to localStorage
-                          const testOrders = JSON.parse(localStorage.getItem('demo-test-orders') || '[]');
-                          testOrders.push({
-                            id: `test-order-${Date.now()}`,
-                            createdAt: new Date().toISOString(),
-                          });
-                          localStorage.setItem('demo-test-orders', JSON.stringify(testOrders));
-                          window.location.reload();
-                        }}
-                      >
-                        Create Test Order
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="w-full justify-start text-xs"
-                        onClick={() => {
-                          localStorage.clear();
-                          window.location.reload();
-                        }}
-                      >
-                        Reset All Demo Data
-                      </Button>
-                    </div>
-                  )}
-                </div>
-
-                {/* Current Context Info */}
-                <div className="pt-2 border-t">
-                  <p className="text-xs text-muted-foreground">
-                    Demo ID: demo-{currentRole}
-                    {currentRole === 'driver' && currentDriverId && (
-                      <span className="block">Driver: {currentDriverId}</span>
-                    )}
-                  </p>
-                </div>
               </div>
             </CardContent>
           )}
@@ -245,3 +134,5 @@ export function DemoRoleSwitcher() {
     </>
   );
 }
+
+

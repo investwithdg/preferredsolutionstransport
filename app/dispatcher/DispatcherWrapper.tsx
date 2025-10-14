@@ -1,6 +1,6 @@
 'use client';
 
-import { useDemo } from '@/app/contexts/DemoContext';
+import { useDemo } from '@/app/demo/DemoContext';
 import DispatcherClient from './DispatcherClient';
 import { useEffect, useState } from 'react';
 
@@ -25,7 +25,7 @@ export default function DispatcherWrapper({ initialOrders, drivers }: Dispatcher
   useEffect(() => {
     if (isDemoMode) {
       (async () => {
-        const { generateDemoOrders, createTestOrder } = await import('@/app/lib/demo/demoData');
+        const { generateDemoOrders, createTestOrder } = await import('@/app/demo/demoData');
         // Generate demo orders
         let orders = generateDemoOrders();
 

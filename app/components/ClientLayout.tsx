@@ -6,11 +6,11 @@ import type { ComponentType, ReactNode } from 'react';
 const isDemoEnabled = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
 const DemoProviderLazy = isDemoEnabled
-  ? dynamic(() => import('@/app/contexts/DemoContext').then(m => m.DemoProvider), { ssr: false })
+  ? dynamic(() => import('@/app/demo/DemoContext').then(m => m.DemoProvider), { ssr: false })
   : null;
 
 const DemoRoleSwitcherLazy = isDemoEnabled
-  ? dynamic(() => import('@/app/components/demo/DemoRoleSwitcher').then(m => m.DemoRoleSwitcher), { ssr: false })
+  ? dynamic(() => import('@/app/demo/DemoRoleSwitcher').then(m => m.DemoRoleSwitcher), { ssr: false })
   : null;
 
 export function ClientLayout({ children }: { children: ReactNode }) {

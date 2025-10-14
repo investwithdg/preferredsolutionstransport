@@ -63,14 +63,13 @@ export function generateDemoOrders(): DemoOrder[] {
   const now = new Date();
   const orders: DemoOrder[] = [];
   
-  // Generate 5 orders with different statuses
   const statuses = ['ReadyForDispatch', 'ReadyForDispatch', 'Assigned', 'PickedUp', 'Delivered'];
   
   statuses.forEach((status, index) => {
     const address = NYC_ADDRESSES[index];
     const customer = DEMO_CUSTOMERS[index];
     const pricing = calculatePricing(address.distance);
-    const createdAt = new Date(now.getTime() - (index * 3600000)); // 1 hour apart
+    const createdAt = new Date(now.getTime() - (index * 3600000));
     
     const order: DemoOrder = {
       id: `demo-order-${index + 1}`,
@@ -101,7 +100,6 @@ export function generateDemoOrders(): DemoOrder[] {
   return orders;
 }
 
-// Generate a new demo order for testing
 export function createTestOrder(): DemoOrder {
   const randomIndex = Math.floor(Math.random() * NYC_ADDRESSES.length);
   const address = NYC_ADDRESSES[randomIndex];
@@ -131,3 +129,5 @@ export function createTestOrder(): DemoOrder {
     },
   };
 }
+
+

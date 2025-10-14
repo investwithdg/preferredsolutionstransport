@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { isDemoEnabled } from '@/lib/config';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
@@ -9,8 +10,8 @@ export async function middleware(req: NextRequest) {
 
   const { pathname } = req.nextUrl;
   
-  // Check if demo mode is enabled via cookie
-  const isDemoMode = req.cookies.get('demo-mode')?.value === 'true';
+  // Check if demo mode is enabled via env and cookie
+  const isDemoMode = isDemoEnabled() && req.cookies.get('demo-mode')?.value === 'true';
 
   // Protect dispatcher, driver, customer, and admin routes
   if (pathname.startsWith('/dispatcher') || pathname.startsWith('/driver') || pathname.startsWith('/admin') || pathname.startsWith('/customer')) {

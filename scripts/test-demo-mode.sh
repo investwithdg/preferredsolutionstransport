@@ -76,13 +76,13 @@ check_component_files() {
     echo ""
     echo "Verifying demo component files exist..."
     
-    if [ -f "app/contexts/DemoContext.tsx" ]; then
+    if [ -f "app/demo/DemoContext.tsx" ]; then
         test_result 0 "DemoContext.tsx exists"
     else
         test_result 1 "DemoContext.tsx NOT found"
     fi
     
-    if [ -f "app/components/demo/DemoRoleSwitcher.tsx" ]; then
+    if [ -f "app/demo/DemoRoleSwitcher.tsx" ]; then
         test_result 0 "DemoRoleSwitcher.tsx exists"
     else
         test_result 1 "DemoRoleSwitcher.tsx NOT found"
@@ -94,7 +94,7 @@ check_component_files() {
         test_result 1 "useDemoAuth.ts NOT found"
     fi
     
-    if [ -f "app/lib/demo/demoData.ts" ]; then
+    if [ -f "app/demo/demoData.ts" ]; then
         test_result 0 "demoData.ts exists"
     else
         test_result 1 "demoData.ts NOT found"
@@ -113,34 +113,34 @@ check_code_structure() {
     echo "Verifying code structure..."
     
     # Check DemoContext exports
-    if grep -q "export type DemoRole" "app/contexts/DemoContext.tsx"; then
+    if grep -q "export type DemoRole" "app/demo/DemoContext.tsx"; then
         test_result 0 "DemoRole type is exported"
     else
         test_result 1 "DemoRole type NOT exported"
     fi
     
-    if grep -q "export function useDemo" "app/contexts/DemoContext.tsx"; then
+    if grep -q "export function useDemo" "app/demo/DemoContext.tsx"; then
         test_result 0 "useDemo hook is exported"
     else
         test_result 1 "useDemo hook NOT exported"
     fi
     
     # Check demo drivers
-    if grep -q "DEMO_DRIVERS" "app/contexts/DemoContext.tsx"; then
+    if grep -q "DEMO_DRIVERS" "app/demo/DemoContext.tsx"; then
         test_result 0 "Demo drivers array is defined"
     else
         test_result 1 "Demo drivers array NOT found"
     fi
     
     # Check role configuration
-    if grep -q "roleConfig" "app/components/demo/DemoRoleSwitcher.tsx"; then
+    if grep -q "roleConfig" "app/demo/DemoRoleSwitcher.tsx"; then
         test_result 0 "Role configuration is defined"
     else
         test_result 1 "Role configuration NOT found"
     fi
     
     # Check demo data generation
-    if grep -q "generateDemoOrders" "app/lib/demo/demoData.ts"; then
+    if grep -q "generateDemoOrders" "app/demo/demoData.ts"; then
         test_result 0 "generateDemoOrders function is defined"
     else
         test_result 1 "generateDemoOrders function NOT found"
@@ -269,26 +269,26 @@ check_ui_components() {
     echo "Verifying UI components..."
     
     # Check icons
-    if grep -q "import.*lucide-react" "app/components/demo/DemoRoleSwitcher.tsx"; then
+    if grep -q "import.*lucide-react" "app/demo/DemoRoleSwitcher.tsx"; then
         test_result 0 "Lucide icons are imported"
     else
         test_result 1 "Lucide icons NOT imported"
     fi
     
     # Check UI components
-    if grep -q "from '@/app/components/ui/button'" "app/components/demo/DemoRoleSwitcher.tsx"; then
+    if grep -q "from '@/app/components/ui/button'" "app/demo/DemoRoleSwitcher.tsx"; then
         test_result 0 "Button component is imported"
     else
         test_result 1 "Button component NOT imported"
     fi
     
-    if grep -q "from '@/app/components/ui/card'" "app/components/demo/DemoRoleSwitcher.tsx"; then
+    if grep -q "from '@/app/components/ui/card'" "app/demo/DemoRoleSwitcher.tsx"; then
         test_result 0 "Card component is imported"
     else
         test_result 1 "Card component NOT imported"
     fi
     
-    if grep -q "from '@/app/components/ui/select'" "app/components/demo/DemoRoleSwitcher.tsx"; then
+    if grep -q "from '@/app/components/ui/select'" "app/demo/DemoRoleSwitcher.tsx"; then
         test_result 0 "Select component is imported"
     else
         test_result 1 "Select component NOT imported"
@@ -300,19 +300,19 @@ check_warning_banner() {
     echo ""
     echo "Verifying warning banner..."
     
-    if grep -q "DEMO MODE.*testing only" "app/components/demo/DemoRoleSwitcher.tsx"; then
+    if grep -q "DEMO MODE.*testing only" "app/demo/DemoRoleSwitcher.tsx"; then
         test_result 0 "Warning banner text is correct"
     else
         test_result 1 "Warning banner text NOT found"
     fi
     
-    if grep -q "AlertTriangle" "app/components/demo/DemoRoleSwitcher.tsx"; then
+    if grep -q "AlertTriangle" "app/demo/DemoRoleSwitcher.tsx"; then
         test_result 0 "Warning icons are used"
     else
         test_result 1 "Warning icons NOT found"
     fi
     
-    if grep -q "fixed top-0" "app/components/demo/DemoRoleSwitcher.tsx"; then
+    if grep -q "fixed top-0" "app/demo/DemoRoleSwitcher.tsx"; then
         test_result 0 "Banner is fixed to top"
     else
         test_result 1 "Banner positioning NOT found"
