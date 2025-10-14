@@ -76,6 +76,15 @@ export function handleApiError(error: unknown, operation: string) {
   };
 }
 
+// Demo mode helpers
+export const isDemoEnabled = (): boolean => process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+export function requireDemoEnabled(): void {
+  if (!isDemoEnabled()) {
+    throw new AppError('Demo feature is disabled', 404, 'DEMO_DISABLED');
+  }
+}
+
 // Pricing configuration for Milestone 1
 // TODO: Move to database configuration in later milestones
 export const PRICING = {

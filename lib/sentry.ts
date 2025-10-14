@@ -42,7 +42,9 @@ export function initSentry() {
   });
 
   isInitialized = true;
-  console.log('Sentry initialized');
+  if (process.env.NODE_ENV !== 'production') {
+    console.log('Sentry initialized');
+  }
 }
 
 // Error capture helpers

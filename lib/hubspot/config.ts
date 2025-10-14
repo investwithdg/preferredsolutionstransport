@@ -1,6 +1,14 @@
 /**
  * HubSpot CRM Configuration
  * Maps order statuses to HubSpot pipeline stages
+ * 
+ * Note: Custom property mappings have been moved to property-mappings.ts
+ * This file now focuses on pipeline and stage configuration.
+ * 
+ * For property management, see:
+ * - lib/hubspot/property-mappings.ts - Property mapping definitions
+ * - lib/hubspot/schemas.ts - Property schema fetching and caching
+ * - lib/hubspot/validator.ts - Property validation
  */
 
 export const HUBSPOT_CONFIG = {

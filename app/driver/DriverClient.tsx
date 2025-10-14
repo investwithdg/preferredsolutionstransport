@@ -114,7 +114,11 @@ export default function DriverClient() {
         setSelectedDriverId(currentDriverId);
       }
     } else {
-      fetchDrivers();
+      // In non-demo mode, only fetch if a driver is selected (avoid unnecessary load)
+      setDrivers([]);
+      if (selectedDriverId) {
+        fetchDrivers();
+      }
     }
   }, [isDemoMode, currentDriverId, demoDrivers]);
 
@@ -298,6 +302,7 @@ export default function DriverClient() {
       />
 
       {/* Driver Selection (Demo Mode) */}
+      {isDemoMode && (
       <Card className="mb-8 bg-muted/50 border-2 border-dashed">
         <CardContent className="p-6">
           <div className="flex items-center gap-4">
@@ -327,6 +332,7 @@ export default function DriverClient() {
           </div>
         </CardContent>
       </Card>
+      )}
 
       {/* Push Notification Settings */}
       {selectedDriverId && pushNotifications.isSupported && (

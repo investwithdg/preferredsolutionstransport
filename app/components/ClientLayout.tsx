@@ -1,9 +1,26 @@
 'use client';
 
-import { DemoProvider } from '@/app/contexts/DemoContext';
-import { DemoRoleSwitcher } from '@/app/components/demo/DemoRoleSwitcher';
+import dynamic from 'next/dynamic';
+import type { ComponentType, ReactNode } from 'react';
 
-export function ClientLayout({ children }: { children: React.ReactNode }) {
+const isDemoEnabled = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+
+const DemoProviderLazy = isDemoEnabled
+  ? dynamic(() => import('@/app/contexts/DemoContext').then(m => m.DemoProvider), { ssr: false })
+  : null;
+
+const DemoRoleSwitcherLazy = isDemoEnabled
+  ? dynamic(() => import('@/app/components/demo/DemoRoleSwitcher').then(m => m.DemoRoleSwitcher), { ssr: false })
+  : null;
+
+export function ClientLayout({ children }: { children: ReactNode }) {
+  if (!isDemoEnabled) {
+    return <>{children}</>;
+  }
+
+  const DemoProvider = DemoProviderLazy as unknown as ComponentType<{ children: ReactNode }>;
+  const DemoRoleSwitcher = DemoRoleSwitcherLazy as unknown as ComponentType<{}>;
+
   return (
     <DemoProvider>
       {children}

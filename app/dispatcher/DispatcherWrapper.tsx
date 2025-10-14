@@ -1,7 +1,6 @@
 'use client';
 
 import { useDemo } from '@/app/contexts/DemoContext';
-import { generateDemoOrders, createTestOrder } from '@/app/lib/demo/demoData';
 import DispatcherClient from './DispatcherClient';
 import { useEffect, useState } from 'react';
 
@@ -25,22 +24,25 @@ export default function DispatcherWrapper({ initialOrders, drivers }: Dispatcher
 
   useEffect(() => {
     if (isDemoMode) {
-      // Generate demo orders
-      let orders = generateDemoOrders();
-      
-      // Check for additional test orders from quick actions
-      const testOrders = JSON.parse(localStorage.getItem('demo-test-orders') || '[]');
-      if (testOrders.length > 0) {
-        // Add test orders to the list
-        testOrders.forEach((test: any, index: number) => {
-          const newOrder = createTestOrder();
-          newOrder.id = test.id;
-          newOrder.created_at = test.createdAt;
-          orders.unshift(newOrder);
-        });
-      }
-      
-      setDemoOrders(orders);
+      (async () => {
+        const { generateDemoOrders, createTestOrder } = await import('@/app/lib/demo/demoData');
+        // Generate demo orders
+        let orders = generateDemoOrders();
+
+        // Check for additional test orders from quick actions
+        const testOrders = JSON.parse(localStorage.getItem('demo-test-orders') || '[]');
+        if (testOrders.length > 0) {
+          // Add test orders to the list
+          testOrders.forEach((test: any) => {
+            const newOrder = createTestOrder();
+            newOrder.id = test.id;
+            newOrder.created_at = test.createdAt;
+            orders.unshift(newOrder);
+          });
+        }
+
+        setDemoOrders(orders);
+      })();
     }
   }, [isDemoMode]);
 

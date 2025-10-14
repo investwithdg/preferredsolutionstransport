@@ -1,5 +1,9 @@
 import { Client } from '@hubspot/api-client';
 import type { SimplePublicObjectInput } from '@hubspot/api-client/lib/codegen/crm/deals';
+import type { ContactProperties, DealProperties, OrderSyncData, SyncResult } from './types';
+import { getCachedContactProperties, getCachedDealProperties } from './schemas';
+import { validateProperties, filterValidProperties, formatValidationErrors } from './validator';
+import { mapOrderToContactProperties, mapOrderToDealProperties } from './property-mappings';
 
 export function createHubSpotClient() {
   if (!process.env.HUBSPOT_PRIVATE_APP_TOKEN) {
@@ -118,6 +122,218 @@ export async function sendHubSpotEmail(
   } catch (e) {
     console.error('Failed to send HubSpot email:', e);
     return false;
+  }
+}
+
+/**
+ * Update an existing contact in HubSpot
+ */
+export async function updateHubSpotContact(
+  hubspotClient: Client,
+  contactId: string,
+  properties: ContactProperties
+): Promise<boolean> {
+  try {
+    // Fetch and validate properties
+    const propertyDefinitions = await getCachedContactProperties(hubspotClient);
+    const validatedProperties = filterValidProperties(properties, propertyDefinitions);
+
+    if (Object.keys(validatedProperties).length === 0) {
+      console.warn('No valid properties to update for contact');
+      return false;
+    }
+
+    await hubspotClient.crm.contacts.basicApi.update(contactId, {
+      properties: validatedProperties,
+    } as any);
+
+    console.log(`Updated HubSpot contact ${contactId}`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to update HubSpot contact ${contactId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Update an existing deal in HubSpot
+ */
+export async function updateHubSpotDeal(
+  hubspotClient: Client,
+  dealId: string,
+  properties: DealProperties
+): Promise<boolean> {
+  try {
+    // Fetch and validate properties
+    const propertyDefinitions = await getCachedDealProperties(hubspotClient);
+    const validatedProperties = filterValidProperties(properties, propertyDefinitions);
+
+    if (Object.keys(validatedProperties).length === 0) {
+      console.warn('No valid properties to update for deal');
+      return false;
+    }
+
+    await hubspotClient.crm.deals.basicApi.update(dealId, {
+      properties: validatedProperties,
+    } as any);
+
+    console.log(`Updated HubSpot deal ${dealId}`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to update HubSpot deal ${dealId}:`, error);
+    return false;
+  }
+}
+
+/**
+ * Main sync function: creates/updates contact and deal atomically
+ */
+export async function syncOrderToHubSpot(
+  hubspotClient: Client,
+  orderData: OrderSyncData,
+  existingDealId?: string
+): Promise<SyncResult> {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  try {
+    // Step 1: Map order data to contact properties
+    const contactProperties = mapOrderToContactProperties(orderData);
+
+    // Step 2: Validate contact properties
+    let validatedContactProps: Record<string, any>;
+    try {
+      const contactDefinitions = await getCachedContactProperties(hubspotClient);
+      const validation = validateProperties(contactProperties, contactDefinitions);
+      
+      if (!validation.valid) {
+        console.warn('Contact validation warnings:', formatValidationErrors(validation.errors));
+        warnings.push(...validation.errors.map(e => e.message));
+      }
+      
+      if (validation.warnings) {
+        warnings.push(...validation.warnings);
+      }
+
+      validatedContactProps = filterValidProperties(contactProperties, contactDefinitions);
+    } catch (schemaError) {
+      console.warn('Failed to fetch contact schema, using properties as-is:', schemaError);
+      validatedContactProps = contactProperties;
+      warnings.push('Contact properties not validated against schema');
+    }
+
+    // Step 3: Upsert contact
+    const contactId = await upsertHubSpotContact(hubspotClient, {
+      email: orderData.customerEmail,
+      name: orderData.customerName,
+      phone: orderData.customerPhone,
+    });
+
+    if (!contactId) {
+      errors.push('Failed to create/update contact');
+      return { success: false, errors, warnings };
+    }
+
+    // Step 4: Map order data to deal properties
+    const dealProperties = mapOrderToDealProperties(orderData);
+
+    // Step 5: Validate deal properties
+    let validatedDealProps: Record<string, any>;
+    try {
+      const dealDefinitions = await getCachedDealProperties(hubspotClient);
+      const validation = validateProperties(dealProperties, dealDefinitions);
+      
+      if (!validation.valid) {
+        console.warn('Deal validation errors:', formatValidationErrors(validation.errors));
+        // Don't fail on validation errors, just filter invalid properties
+        warnings.push(...validation.errors.map(e => e.message));
+      }
+      
+      if (validation.warnings) {
+        warnings.push(...validation.warnings);
+      }
+
+      validatedDealProps = filterValidProperties(dealProperties, dealDefinitions);
+    } catch (schemaError) {
+      console.warn('Failed to fetch deal schema, using properties as-is:', schemaError);
+      validatedDealProps = dealProperties;
+      warnings.push('Deal properties not validated against schema');
+    }
+
+    // Step 6: Create or update deal
+    let dealId = existingDealId;
+
+    if (existingDealId) {
+      // Update existing deal
+      const updated = await updateHubSpotDeal(hubspotClient, existingDealId, validatedDealProps);
+      if (!updated) {
+        errors.push('Failed to update existing deal');
+      }
+    } else {
+      // Create new deal
+      const deal = await createHubSpotDeal(
+        hubspotClient,
+        { properties: validatedDealProps } as SimplePublicObjectInput,
+        contactId
+      );
+      
+      if (deal?.id) {
+        dealId = deal.id;
+      } else {
+        errors.push('Failed to create deal');
+      }
+    }
+
+    const success = errors.length === 0;
+    
+    return {
+      success,
+      contactId,
+      dealId,
+      errors: errors.length > 0 ? errors : undefined,
+      warnings: warnings.length > 0 ? warnings : undefined,
+    };
+  } catch (error) {
+    console.error('Failed to sync order to HubSpot:', error);
+    errors.push(`Unexpected error: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    return { success: false, errors, warnings };
+  }
+}
+
+/**
+ * Find deal by order ID custom property
+ */
+export async function findDealByOrderId(
+  hubspotClient: Client,
+  orderId: string
+): Promise<string | undefined> {
+  try {
+    const orderIdProp = process.env.HUBSPOT_PROP_ORDER_ID || 'order_id';
+    
+    const searchResponse = await hubspotClient.crm.deals.searchApi.doSearch({
+      filterGroups: [
+        {
+          filters: [
+            {
+              propertyName: orderIdProp,
+              operator: 'EQ',
+              value: orderId,
+            },
+          ],
+        },
+      ],
+      properties: ['hs_object_id'],
+      limit: 1,
+    });
+
+    if (searchResponse.results.length > 0) {
+      return searchResponse.results[0].id;
+    }
+
+    return undefined;
+  } catch (error) {
+    console.error('Failed to search for deal by order ID:', error);
+    return undefined;
   }
 }
 

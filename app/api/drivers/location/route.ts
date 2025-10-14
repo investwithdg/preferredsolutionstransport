@@ -1,16 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
+import { http } from '@/lib/utils';
 import { z } from 'zod';
+import { driverLocationUpdateSchema } from '@/lib/validations';
 
-const locationUpdateSchema = z.object({
-  driverId: z.string().uuid(),
-  orderId: z.string().uuid().optional(),
-  latitude: z.number().min(-90).max(90),
-  longitude: z.number().min(-180).max(180),
-  accuracy: z.number().optional(),
-  heading: z.number().min(0).max(360).optional(),
-  speed: z.number().optional(),
-});
+const locationUpdateSchema = driverLocationUpdateSchema;
 
 export async function POST(request: NextRequest) {
   try {
@@ -29,10 +23,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (driverError || !driver) {
-      return NextResponse.json(
-        { error: 'Driver not found' },
-        { status: 404 }
-      );
+      const { body, init } = http.notFound('Driver not found');
+      return NextResponse.json(body, init);
     }
 
     // If orderId is provided, verify it exists and is assigned to this driver
@@ -44,17 +36,12 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (orderError || !order) {
-        return NextResponse.json(
-          { error: 'Order not found' },
-          { status: 404 }
-        );
+        const { body, init } = http.notFound('Order not found');
+        return NextResponse.json(body, init);
       }
 
       if (order.driver_id !== locationData.driverId) {
-        return NextResponse.json(
-          { error: 'Order not assigned to this driver' },
-          { status: 403 }
-        );
+        return NextResponse.json({ error: 'Order not assigned to this driver' }, { status: 403 });
       }
     }
 
@@ -75,31 +62,23 @@ export async function POST(request: NextRequest) {
 
     if (locationError) {
       console.error('Error inserting driver location:', locationError);
-      return NextResponse.json(
-        { error: 'Failed to record location' },
-        { status: 500 }
-      );
+      const { body, init } = http.serverError('Failed to record location');
+      return NextResponse.json(body, init);
     }
 
-    return NextResponse.json({
-      message: 'Location recorded successfully',
-      location
-    });
+    const { body, init } = http.ok({ message: 'Location recorded successfully', location });
+    return NextResponse.json(body, init);
 
   } catch (error) {
     console.error('Driver location API error:', error);
     
     if (error instanceof z.ZodError) {
-      return NextResponse.json(
-        { error: 'Invalid input data', details: error.errors },
-        { status: 400 }
-      );
+      const { body, init } = http.badRequest('Invalid input data', error.errors);
+      return NextResponse.json(body, init);
     }
 
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    const { body, init } = http.serverError();
+    return NextResponse.json(body, init);
   }
 }
 
@@ -113,10 +92,8 @@ export async function GET(request: NextRequest) {
     const orderId = searchParams.get('orderId');
 
     if (!driverId) {
-      return NextResponse.json(
-        { error: 'driverId is required' },
-        { status: 400 }
-      );
+      const { body, init } = http.badRequest('driverId is required');
+      return NextResponse.json(body, init);
     }
 
     const supabase = createServiceRoleClient();
@@ -138,26 +115,20 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error('Error fetching driver location:', error);
-      return NextResponse.json(
-        { error: 'Failed to fetch location' },
-        { status: 500 }
-      );
+      const { body, init } = http.serverError('Failed to fetch location');
+      return NextResponse.json(body, init);
     }
 
     if (!locations || locations.length === 0) {
-      return NextResponse.json(
-        { location: null, message: 'No location data available' }
-      );
+      return NextResponse.json({ location: null, message: 'No location data available' });
     }
 
     return NextResponse.json({ location: locations[0] });
 
   } catch (error) {
     console.error('Driver location GET API error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    const { body, init } = http.serverError();
+    return NextResponse.json(body, init);
   }
 }
 

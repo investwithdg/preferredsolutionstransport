@@ -1,8 +1,15 @@
 /** @type {import('next').NextConfig} */
+const withBundleAnalyzer = process.env.ANALYZE === 'true' ? require('@next/bundle-analyzer')({ enabled: true }) : (config => config)
+
 const nextConfig = {
-  // Disable Sentry's automatic webpack injection since it's not configured
-  webpack: (config, { isServer }) => {
-    // Disable Sentry webpack plugin if it tries to auto-inject
+  experimental: {
+    modularizeImports: {
+      'lucide-react': {
+        transform: 'lucide-react/icons/{{member}}',
+      },
+    },
+  },
+  webpack: (config) => {
     if (config.plugins) {
       config.plugins = config.plugins.filter(
         plugin => plugin.constructor.name !== 'SentryWebpackPlugin'
@@ -12,4 +19,4 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+module.exports = withBundleAnalyzer(nextConfig)

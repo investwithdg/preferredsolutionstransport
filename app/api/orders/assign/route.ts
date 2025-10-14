@@ -1,21 +1,21 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { createHubSpotClient, sendHubSpotEmail } from '@/lib/hubspot/client';
+import { createHubSpotClient, sendHubSpotEmail, findDealByOrderId, updateHubSpotDeal } from '@/lib/hubspot/client';
 import { driverAssignedEmail } from '@/lib/hubspot/emails';
 import { sendPushNotification, type PushSubscription } from '@/lib/webpush/config';
+import { mapOrderToDealProperties } from '@/lib/hubspot/property-mappings';
+import type { OrderSyncData } from '@/lib/hubspot/types';
 import { z } from 'zod';
+import { assignDriverSchema } from '@/lib/validations';
 
-const assignDriverSchema = z.object({
-  orderId: z.string().uuid(),
-  driverId: z.string().uuid(),
-});
+const assignDriverSchemaLocal = assignDriverSchema;
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     
     // Validate input
-    const { orderId, driverId } = assignDriverSchema.parse(body);
+    const { orderId, driverId } = assignDriverSchemaLocal.parse(body);
 
     // Create Supabase client with service role
     const supabase = createServiceRoleClient();
@@ -144,8 +144,57 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // Send driver assignment email to customer
+    // Update HubSpot deal with driver assignment
     const hubspotClient = createHubSpotClient();
+    if (hubspotClient) {
+      try {
+        // Find the deal by order ID
+        const dealId = await findDealByOrderId(hubspotClient, orderId);
+        
+        if (dealId) {
+          const driver = updatedOrder.drivers as any;
+          const customer = updatedOrder.customers as any;
+          const quotes = updatedOrder.quotes as any;
+          
+          // Create order sync data for property mapping
+          const orderSyncData: OrderSyncData = {
+            orderId: updatedOrder.id,
+            customerId: updatedOrder.customer_id,
+            customerEmail: customer?.email || '',
+            customerName: customer?.name || undefined,
+            customerPhone: customer?.phone || undefined,
+            priceTotal: updatedOrder.price_total || 0,
+            currency: updatedOrder.currency || 'usd',
+            status: updatedOrder.status,
+            pickupAddress: quotes?.pickup_address || undefined,
+            dropoffAddress: quotes?.dropoff_address || undefined,
+            distanceMiles: quotes?.distance_mi || undefined,
+            driverId: updatedOrder.driver_id || undefined,
+            driverName: driver?.name || undefined,
+            driverPhone: driver?.phone || undefined,
+            createdAt: new Date(updatedOrder.created_at || new Date().toISOString()),
+            updatedAt: new Date(updatedOrder.updated_at || new Date().toISOString()),
+          };
+          
+          // Map to deal properties and update
+          const dealProperties = mapOrderToDealProperties(orderSyncData);
+          const updated = await updateHubSpotDeal(hubspotClient, dealId, dealProperties);
+          
+          if (updated) {
+            console.log(`Updated HubSpot deal ${dealId} with driver assignment`);
+          } else {
+            console.warn(`Failed to update HubSpot deal ${dealId}`);
+          }
+        } else {
+          console.warn(`No HubSpot deal found for order ${orderId}`);
+        }
+      } catch (hubspotError) {
+        console.error('Failed to update HubSpot deal:', hubspotError);
+        // Don't fail the request if HubSpot update fails
+      }
+    }
+
+    // Send driver assignment email to customer
     if (hubspotClient && updatedOrder.customers?.email && updatedOrder.drivers) {
       const customer = updatedOrder.customers as any;
       const driver = updatedOrder.drivers as any;

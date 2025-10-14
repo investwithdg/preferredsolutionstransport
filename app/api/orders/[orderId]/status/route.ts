@@ -1,13 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
-import { createHubSpotClient, sendHubSpotEmail } from '@/lib/hubspot/client';
+import { createHubSpotClient, sendHubSpotEmail, findDealByOrderId, updateHubSpotDeal } from '@/lib/hubspot/client';
 import { statusUpdateEmail, formatStatusDisplay } from '@/lib/hubspot/emails';
+import { mapOrderToDealProperties } from '@/lib/hubspot/property-mappings';
+import type { OrderSyncData } from '@/lib/hubspot/types';
 import { z } from 'zod';
+import { updateOrderStatusSchema } from '@/lib/validations';
 
-const updateStatusSchema = z.object({
-  status: z.enum(['Accepted', 'PickedUp', 'InTransit', 'Delivered', 'Canceled']),
-  notes: z.string().optional(),
-});
+const updateStatusSchema = updateOrderStatusSchema;
 
 export async function PATCH(
   request: NextRequest,
@@ -93,9 +93,58 @@ export async function PATCH(
       console.error('Failed to log status change event:', eventError);
     }
 
+    // Update HubSpot deal with new status
+    const hubspotClient = createHubSpotClient();
+    if (hubspotClient) {
+      try {
+        // Find the deal by order ID
+        const dealId = await findDealByOrderId(hubspotClient, orderId);
+        
+        if (dealId) {
+          const customer = updatedOrder.customers as any;
+          const quotes = updatedOrder.quotes as any;
+          const driver = updatedOrder.drivers as any;
+          
+          // Create order sync data for property mapping
+          const orderSyncData: OrderSyncData = {
+            orderId: updatedOrder.id,
+            customerId: updatedOrder.customer_id,
+            customerEmail: customer?.email || '',
+            customerName: customer?.name || undefined,
+            customerPhone: customer?.phone || undefined,
+            priceTotal: updatedOrder.price_total || 0,
+            currency: updatedOrder.currency || 'usd',
+            status: updatedOrder.status,
+            pickupAddress: quotes?.pickup_address || undefined,
+            dropoffAddress: quotes?.dropoff_address || undefined,
+            distanceMiles: quotes?.distance_mi || undefined,
+            driverId: updatedOrder.driver_id || undefined,
+            driverName: driver?.name || undefined,
+            driverPhone: driver?.phone || undefined,
+            createdAt: new Date(updatedOrder.created_at || new Date().toISOString()),
+            updatedAt: new Date(updatedOrder.updated_at || new Date().toISOString()),
+          };
+          
+          // Map to deal properties and update
+          const dealProperties = mapOrderToDealProperties(orderSyncData);
+          const updated = await updateHubSpotDeal(hubspotClient, dealId, dealProperties);
+          
+          if (updated) {
+            console.log(`Updated HubSpot deal ${dealId} with status change to ${status}`);
+          } else {
+            console.warn(`Failed to update HubSpot deal ${dealId}`);
+          }
+        } else {
+          console.warn(`No HubSpot deal found for order ${orderId}`);
+        }
+      } catch (hubspotError) {
+        console.error('Failed to update HubSpot deal:', hubspotError);
+        // Don't fail the request if HubSpot update fails
+      }
+    }
+
     // Send status update email for key status changes
     const emailStatuses = ['PickedUp', 'InTransit', 'Delivered'];
-    const hubspotClient = createHubSpotClient();
     
     if (hubspotClient && emailStatuses.includes(status) && updatedOrder.customers?.email) {
       const customer = updatedOrder.customers as any;

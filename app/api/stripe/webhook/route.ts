@@ -3,16 +3,10 @@ import Stripe from 'stripe';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import {
   createHubSpotClient,
-  upsertHubSpotContact,
-  createHubSpotDeal,
+  syncOrderToHubSpot,
   sendHubSpotEmail,
 } from '@/lib/hubspot/client';
-import { 
-  formatDealName, 
-  getDefaultCloseDate, 
-  getDealStageForStatus,
-  HUBSPOT_CONFIG 
-} from '@/lib/hubspot/config';
+import type { OrderSyncData } from '@/lib/hubspot/types';
 import { orderConfirmationEmail } from '@/lib/hubspot/emails';
 import { captureWebhookError, setSentryTag } from '@/lib/sentry';
 
@@ -138,30 +132,38 @@ export async function POST(request: NextRequest) {
 
       console.log('Order created successfully:', order.id);
 
-      // HubSpot Integration: Create contact and deal
+      // HubSpot Integration: Sync order to HubSpot with full property mapping
       const hubspotClient = createHubSpotClient();
       if (hubspotClient && quote.customers) {
         const customer = quote.customers as any;
-        const contactId = await upsertHubSpotContact(hubspotClient, {
-          email: customer.email,
-          name: customer.name || undefined,
-          phone: customer.phone || undefined,
-        });
+        
+        const orderSyncData: OrderSyncData = {
+          orderId: order.id,
+          customerId: customerId,
+          customerEmail: customer.email,
+          customerName: customer.name || undefined,
+          customerPhone: customer.phone || undefined,
+          priceTotal: order.price_total || 0,
+          currency: order.currency || 'usd',
+          status: order.status,
+          pickupAddress: quote.pickup_address || undefined,
+          dropoffAddress: quote.dropoff_address || undefined,
+          distanceMiles: quote.distance_mi || undefined,
+          createdAt: new Date(order.created_at || new Date().toISOString()),
+        };
 
-        if (contactId) {
-          await createHubSpotDeal(
-            hubspotClient,
-            {
-              properties: {
-                dealname: formatDealName(order.id),
-                amount: (order.price_total || 0).toString(),
-                pipeline: HUBSPOT_CONFIG.pipelineId,
-                dealstage: getDealStageForStatus(order.status),
-                closedate: getDefaultCloseDate(),
-              },
-            },
-            contactId
-          );
+        const syncResult = await syncOrderToHubSpot(hubspotClient, orderSyncData);
+        
+        if (!syncResult.success) {
+          console.error('HubSpot sync errors:', syncResult.errors);
+        }
+        
+        if (syncResult.warnings && syncResult.warnings.length > 0) {
+          console.warn('HubSpot sync warnings:', syncResult.warnings);
+        }
+        
+        if (syncResult.success) {
+          console.log(`Successfully synced order to HubSpot. Contact: ${syncResult.contactId}, Deal: ${syncResult.dealId}`);
         }
 
         // Send order confirmation email

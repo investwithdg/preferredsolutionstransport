@@ -142,18 +142,22 @@ export default async function RootLayout({
         <script
           dangerouslySetInnerHTML={{
             __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js').then(
-                    function(registration) {
-                      console.log('SW registered:', registration.scope);
-                    },
-                    function(err) {
-                      console.log('SW registration failed:', err);
-                    }
-                  );
-                });
-              }
+              (function(){
+                var vapid = ${JSON.stringify(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '')};
+                if (!vapid) return;
+                if ('serviceWorker' in navigator) {
+                  window.addEventListener('load', function() {
+                    navigator.serviceWorker.register('/sw.js').then(
+                      function(registration) {
+                        console.log('SW registered:', registration.scope);
+                      },
+                      function(err) {
+                        console.log('SW registration failed:', err);
+                      }
+                    );
+                  });
+                }
+              })();
             `,
           }}
         />
