@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { NextResponse } from 'next/server';
 import { getOrdersByDriverId } from '@/lib/services/orders';
 import { http } from '@/lib/utils';
 import { byDriverSchema } from '@/lib/validations';

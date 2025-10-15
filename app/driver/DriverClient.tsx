@@ -167,15 +167,18 @@ export default function DriverClient() {
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     setIsUpdating(orderId);
     try {
+      const requestBody = {
+        status: newStatus,
+        notes: `Status updated by driver via dashboard`
+      };
+
+      // Attempt online first
       const response = await fetch(`/api/orders/${orderId}/status`, {
         method: 'PATCH',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          status: newStatus,
-          notes: `Status updated by driver via dashboard`
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (response.ok) {
@@ -191,9 +194,34 @@ export default function DriverClient() {
       }
     } catch (error) {
       console.error('Error updating status:', error);
-      toast.error('Failed to update status', {
-        description: 'Please try again',
-      });
+      try {
+        // Queue for background sync via service worker cache
+        if ('serviceWorker' in navigator && 'caches' in window) {
+          const cache = await caches.open('pending-updates');
+          const request = new Request(`/api/orders/${orderId}/status`, { method: 'PATCH' });
+          await cache.put(request, new Response(JSON.stringify({
+            status: newStatus,
+            notes: `Status updated by driver via dashboard`
+          }), { headers: { 'Content-Type': 'application/json' } }));
+
+          // Register background sync
+          const registration = await navigator.serviceWorker.ready;
+          if ('sync' in registration) {
+            await registration.sync.register('sync-status-updates');
+          }
+
+          toast.success('Offline: update queued', {
+            description: 'We will sync this change when back online',
+          });
+        } else {
+          throw new Error('Background sync not supported');
+        }
+      } catch (queueErr) {
+        console.error('Failed to queue update for sync:', queueErr);
+        toast.error('Failed to update status', {
+          description: 'Please try again',
+        });
+      }
     } finally {
       setIsUpdating(null);
     }
@@ -248,21 +276,38 @@ export default function DriverClient() {
           // Send location update for each active order
           activeOrders.forEach(async (order) => {
             try {
-              await fetch('/api/drivers/location', {
+              const payload = {
+                driverId: selectedDriverId,
+                orderId: order.id,
+                latitude: position.coords.latitude,
+                longitude: position.coords.longitude,
+                accuracy: position.coords.accuracy,
+                heading: position.coords.heading || undefined,
+                speed: position.coords.speed || undefined,
+              };
+
+              const res = await fetch('/api/drivers/location', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  driverId: selectedDriverId,
-                  orderId: order.id,
-                  latitude: position.coords.latitude,
-                  longitude: position.coords.longitude,
-                  accuracy: position.coords.accuracy,
-                  heading: position.coords.heading || undefined,
-                  speed: position.coords.speed || undefined,
-                }),
+                body: JSON.stringify(payload),
               });
+
+              if (!res.ok) throw new Error('Network error');
             } catch (err) {
               console.error('Failed to update location:', err);
+              try {
+                if ('serviceWorker' in navigator && 'caches' in window) {
+                  const cache = await caches.open('pending-updates');
+                  const req = new Request('/api/drivers/location', { method: 'POST' });
+                  await cache.put(req, new Response(JSON.stringify({ ...payload }), { headers: { 'Content-Type': 'application/json' } }));
+                  const registration = await navigator.serviceWorker.ready;
+                  if ('sync' in registration) {
+                    await registration.sync.register('sync-location-updates');
+                  }
+                }
+              } catch (queueErr) {
+                console.error('Failed to queue location for sync:', queueErr);
+              }
             }
           });
 

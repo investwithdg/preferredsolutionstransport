@@ -143,8 +143,6 @@ export default async function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               (function(){
-                var vapid = ${JSON.stringify(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '')};
-                if (!vapid) return;
                 if ('serviceWorker' in navigator) {
                   window.addEventListener('load', function() {
                     navigator.serviceWorker.register('/sw.js').then(

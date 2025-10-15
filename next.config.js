@@ -2,11 +2,9 @@
 const withBundleAnalyzer = process.env.ANALYZE === 'true' ? require('@next/bundle-analyzer')({ enabled: true }) : (config => config)
 
 const nextConfig = {
-  experimental: {
-    modularizeImports: {
-      'lucide-react': {
-        transform: 'lucide-react/icons/{{member}}',
-      },
+  modularizeImports: {
+    'lucide-react': {
+      transform: 'lucide-react/icons/{{member}}',
     },
   },
   webpack: (config) => {
