@@ -150,6 +150,30 @@ export async function POST(request: NextRequest) {
           dropoffAddress: quote.dropoff_address || undefined,
           distanceMiles: quote.distance_mi || undefined,
           createdAt: new Date(order.created_at || new Date().toISOString()),
+          
+          // Delivery detail properties
+          deliveryRoute: quote.pickup_address && quote.dropoff_address 
+            ? `${quote.pickup_address} → ${quote.dropoff_address}`
+            : undefined,
+          deliveryLocation: quote.dropoff_address || undefined,
+          deliveryType: 'standard', // Default, could be derived from order data
+          weightBracket: 'medium', // Default, could be derived from package weight
+          specialDeliveryInstructions: (quote as any).special_instructions || undefined,
+          
+          // Quote properties (since they paid, quote was sent and accepted)
+          quoteSent: true,
+          quoteStatus: 'accepted',
+          quoteSource: 'website', // Default, could track actual source
+          servicesProposed: 'standard_delivery', // Default, could be from quote
+          rushRequested: false, // Could be derived from order urgency
+          
+          // Time properties (if available in quote)
+          scheduledPickupTime: (quote as any).scheduled_pickup_time 
+            ? new Date((quote as any).scheduled_pickup_time)
+            : undefined,
+          scheduledDeliveryTime: (quote as any).scheduled_delivery_time
+            ? new Date((quote as any).scheduled_delivery_time)
+            : undefined,
         };
 
         const syncResult = await syncOrderToHubSpot(hubspotClient, orderSyncData);

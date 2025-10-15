@@ -123,6 +123,26 @@ export async function PATCH(
             driverPhone: driver?.phone || undefined,
             createdAt: new Date(updatedOrder.created_at || new Date().toISOString()),
             updatedAt: new Date(updatedOrder.updated_at || new Date().toISOString()),
+            
+            // Driver/Vehicle properties
+            vehicleType: driver?.vehicle_details?.type || 'van',
+            
+            // Preserve delivery details
+            deliveryRoute: quotes?.pickup_address && quotes?.dropoff_address 
+              ? `${quotes.pickup_address} → ${quotes.dropoff_address}`
+              : undefined,
+            deliveryLocation: quotes?.dropoff_address || undefined,
+            quoteSent: true,
+            quoteStatus: 'accepted',
+            
+            // Set actual times based on status
+            actualPickupTime: status === 'PickedUp' ? new Date() : undefined,
+            actualDeliveryTime: status === 'Delivered' ? new Date() : undefined,
+            
+            // Handle exception data if provided in notes
+            deliveryExceptionType: status === 'Canceled' ? 'customer_canceled' : undefined,
+            deliveryExceptionNotes: status === 'Canceled' && notes ? notes : undefined,
+            deliveryResolutionStatus: status === 'Canceled' ? 'unresolved' : undefined,
           };
           
           // Map to deal properties and update

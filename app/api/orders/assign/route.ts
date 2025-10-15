@@ -174,6 +174,19 @@ export async function POST(request: NextRequest) {
             driverPhone: driver?.phone || undefined,
             createdAt: new Date(updatedOrder.created_at || new Date().toISOString()),
             updatedAt: new Date(updatedOrder.updated_at || new Date().toISOString()),
+            
+            // Driver/Vehicle properties
+            vehicleType: driver?.vehicle_details?.type || 'van', // Default to van if not specified
+            
+            // Preserve delivery details from original order
+            deliveryRoute: quotes?.pickup_address && quotes?.dropoff_address 
+              ? `${quotes.pickup_address} → ${quotes.dropoff_address}`
+              : undefined,
+            deliveryLocation: quotes?.dropoff_address || undefined,
+            
+            // Quote properties remain the same
+            quoteSent: true,
+            quoteStatus: 'accepted',
           };
           
           // Map to deal properties and update

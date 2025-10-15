@@ -149,6 +149,36 @@ export interface OrderSyncData {
   driverPhone?: string;
   createdAt: Date;
   updatedAt?: Date;
+  
+  // Time properties
+  actualDeliveryTime?: Date;
+  actualPickupTime?: Date;
+  scheduledDeliveryTime?: Date;
+  scheduledPickupTime?: Date;
+  
+  // Vehicle properties
+  vehicleType?: string;
+  
+  // Delivery detail properties
+  deliveryLocation?: string;
+  deliveryRoute?: string;
+  deliveryType?: string;
+  weightBracket?: string;
+  specialDeliveryInstructions?: string;
+  
+  // Exception properties
+  deliveryExceptionNotes?: string;
+  deliveryExceptionType?: string;
+  deliveryResolutionStatus?: string;
+  
+  // Quote properties
+  quoteSent?: boolean;
+  quoteSource?: string;
+  quoteStatus?: string;
+  recurringFrequency?: string;
+  rushRequested?: boolean;
+  servicesProposed?: string;
+  snapshotAuditSent?: string;
 }
 
 /**

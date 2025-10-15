@@ -60,13 +60,48 @@ function logInfo(message) {
 const expectedContactProps = [];
 
 const expectedDealProps = [
+  // Core tracking
+  process.env.HUBSPOT_PROP_DEAL_PIPELINE || 'deal_pipeline',
+  process.env.HUBSPOT_PROP_DELIVERY_STATUS || 'delivery_status',
+  
+  // Original properties
   process.env.HUBSPOT_PROP_ORDER_ID || 'order_id',
   process.env.HUBSPOT_PROP_PICKUP_ADDRESS || 'pickup_address',
   process.env.HUBSPOT_PROP_DROPOFF_ADDRESS || 'dropoff_address',
   process.env.HUBSPOT_PROP_DISTANCE_MILES || 'distance_miles',
-  process.env.HUBSPOT_PROP_PIPELINE_FLOW || 'pipeline_flow',
   process.env.HUBSPOT_PROP_DRIVER_NAME || 'driver_name',
   process.env.HUBSPOT_PROP_DRIVER_PHONE || 'driver_phone',
+  
+  // Time properties
+  process.env.HUBSPOT_PROP_ACTUAL_DELIVERY_TIME || 'actual_delivery_time',
+  process.env.HUBSPOT_PROP_ACTUAL_PICKUP_TIME || 'actual_pickup_time',
+  process.env.HUBSPOT_PROP_SCHEDULED_DELIVERY_TIME || 'scheduled_delivery_time',
+  process.env.HUBSPOT_PROP_SCHEDULED_PICKUP_TIME || 'scheduled_pickup_time',
+  
+  // Driver/Vehicle
+  process.env.HUBSPOT_PROP_ASSIGNED_DRIVER || 'assigned_driver',
+  process.env.HUBSPOT_PROP_VEHICLE_TYPE || 'vehicle_type',
+  
+  // Delivery details
+  process.env.HUBSPOT_PROP_DELIVERY_LOCATION || 'delivery_location',
+  process.env.HUBSPOT_PROP_DELIVERY_ROUTE || 'delivery_route',
+  process.env.HUBSPOT_PROP_DELIVERY_TYPE || 'delivery_type',
+  process.env.HUBSPOT_PROP_WEIGHT_BRACKET || 'weight_bracket',
+  process.env.HUBSPOT_PROP_SPECIAL_DELIVERY_INSTRUCTIONS || 'special_delivery_instructions',
+  
+  // Exceptions
+  process.env.HUBSPOT_PROP_DELIVERY_EXCEPTION_NOTES || 'delivery_exception_notes',
+  process.env.HUBSPOT_PROP_DELIVERY_EXCEPTION_TYPE || 'delivery_exception_type',
+  process.env.HUBSPOT_PROP_DELIVERY_RESOLUTION_STATUS || 'delivery_resolution_status',
+  
+  // Quote properties
+  process.env.HUBSPOT_PROP_QUOTE_SENT || 'quote_sent',
+  process.env.HUBSPOT_PROP_QUOTE_SOURCE || 'quote_source',
+  process.env.HUBSPOT_PROP_QUOTE_STATUS || 'quote_status',
+  process.env.HUBSPOT_PROP_RECURRING_FREQUENCY || 'recurring_frequency',
+  process.env.HUBSPOT_PROP_RUSH_REQUESTED || 'rush_requested',
+  process.env.HUBSPOT_PROP_SERVICES_PROPOSED || 'services_proposed',
+  process.env.HUBSPOT_PROP_SNAPSHOT_AUDIT_SENT || 'snapshot_audit_sent',
 ];
 
 async function fetchProperties(hubspotClient, objectType) {
@@ -113,6 +148,88 @@ function validateProperties(properties, expectedProps, objectType) {
   return results;
 }
 
+function validateEnumOptions(properties) {
+  const enumValidations = {
+    'deal_pipeline': {
+      expectedOptions: ['Quote Sent', 'Paid', 'Assigned', 'Delivered', 'Completed'],
+      critical: true,
+    },
+    'delivery_status': {
+      expectedOptions: ['pending', 'assigned', 'in_transit', 'delivered', 'exception'],
+      critical: true,
+    },
+    'delivery_exception_type': {
+      expectedOptions: ['weather', 'address_issue', 'delay', 'customer_unavailable', 'customer_canceled', 'other'],
+      critical: false,
+    },
+    'delivery_resolution_status': {
+      expectedOptions: ['resolved', 'unresolved', 'escalated', 'refunded', 'reattempt'],
+      critical: false,
+    },
+    'vehicle_type': {
+      expectedOptions: ['car', 'van', 'box_truck', 'cargo_van', 'bike', 'scooter'],
+      critical: false,
+    },
+    'weight_bracket': {
+      expectedOptions: ['light', 'medium', 'heavy', 'oversized'],
+      critical: false,
+    },
+    'quote_status': {
+      expectedOptions: ['sent', 'pending', 'accepted', 'declined', 'expired'],
+      critical: false,
+    },
+    'quote_source': {
+      expectedOptions: ['website', 'phone', 'email', 'referral', 'partner', 'other'],
+      critical: false,
+    },
+    'recurring_frequency': {
+      expectedOptions: ['ad_hoc', 'daily', 'weekly', 'biweekly', 'monthly'],
+      critical: false,
+    },
+    'delivery_type': {
+      expectedOptions: ['standard', 'express', 'same_day', 'scheduled'],
+      critical: false,
+    },
+  };
+
+  const enumWarnings = [];
+  
+  properties.forEach(prop => {
+    if (prop.type === 'enumeration' && enumValidations[prop.name]) {
+      const validation = enumValidations[prop.name];
+      const actualOptions = prop.options || [];
+      const actualValues = actualOptions.map(o => o.value);
+      
+      const missing = validation.expectedOptions.filter(opt => !actualValues.includes(opt));
+      const extra = actualValues.filter(val => !validation.expectedOptions.includes(val));
+      
+      if (missing.length > 0) {
+        enumWarnings.push({
+          property: prop.name,
+          type: 'missing_options',
+          critical: validation.critical,
+          message: `Property '${prop.name}' is missing expected options: ${missing.join(', ')}`,
+          actual: actualValues,
+          expected: validation.expectedOptions,
+        });
+      }
+      
+      if (extra.length > 0 && validation.critical) {
+        enumWarnings.push({
+          property: prop.name,
+          type: 'extra_options',
+          critical: false,
+          message: `Property '${prop.name}' has unexpected options: ${extra.join(', ')}`,
+          actual: actualValues,
+          expected: validation.expectedOptions,
+        });
+      }
+    }
+  });
+  
+  return enumWarnings;
+}
+
 function displayResults(objectType, results) {
   logHeader(`${objectType} Properties Validation`);
 
@@ -124,6 +241,9 @@ function displayResults(objectType, results) {
       console.log(`    Label: ${prop.label}`);
       console.log(`    Type: ${prop.type}`);
       console.log(`    Required: ${prop.required ? 'Yes' : 'No'}`);
+      if (prop.type === 'enumeration' && prop.options) {
+        console.log(`    Options: ${prop.options.map(o => o.value).join(', ')}`);
+      }
       console.log('');
     });
   }
@@ -263,6 +383,38 @@ async function main() {
     const dealResults = validateProperties(dealProps, expectedDealProps, 'Deal');
     const dealsValid = displayResults('Deal', dealResults);
     allValid = allValid && dealsValid;
+    
+    // Validate enum options for deal properties
+    const enumWarnings = validateEnumOptions(dealProps);
+    if (enumWarnings.length > 0) {
+      logHeader('Enumeration Options Validation');
+      
+      const criticalWarnings = enumWarnings.filter(w => w.critical);
+      const nonCriticalWarnings = enumWarnings.filter(w => !w.critical);
+      
+      if (criticalWarnings.length > 0) {
+        logError(`Found ${criticalWarnings.length} critical enum validation issues:`);
+        console.log('');
+        criticalWarnings.forEach(warning => {
+          logError(warning.message);
+          console.log(`    Expected: ${warning.expected.join(', ')}`);
+          console.log(`    Actual: ${warning.actual.join(', ')}`);
+          console.log('');
+        });
+        allValid = false;
+      }
+      
+      if (nonCriticalWarnings.length > 0) {
+        logWarning(`Found ${nonCriticalWarnings.length} non-critical enum validation issues:`);
+        console.log('');
+        nonCriticalWarnings.forEach(warning => {
+          logWarning(warning.message);
+          console.log(`    Expected: ${warning.expected.join(', ')}`);
+          console.log(`    Actual: ${warning.actual.join(', ')}`);
+          console.log('');
+        });
+      }
+    }
 
     // Validate pipeline configuration
     const pipelineValid = await validatePipeline(hubspotClient);
