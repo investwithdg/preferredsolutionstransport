@@ -24,6 +24,7 @@ import {
 import { Badge } from '@/app/components/ui/badge';
 import { OrderRouteModal } from '@/app/components/modals/OrderRouteModal';
 import { Truck, Package, CheckCircle2, AlertCircle, Map } from 'lucide-react';
+import { getDealPipelineForStatus } from '@/lib/hubspot/property-mappings';
 
 interface Driver {
   id: string;
@@ -200,6 +201,7 @@ export default function DispatcherClient({ initialOrders, drivers }: DispatcherC
                     <TableHead>Order Details</TableHead>
                     <TableHead>Customer</TableHead>
                     <TableHead>Route</TableHead>
+                    <TableHead>Pipeline</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
                   </TableRow>
@@ -248,6 +250,11 @@ export default function DispatcherClient({ initialOrders, drivers }: DispatcherC
                             <p className="text-sm">{order.quotes?.dropoff_address || 'N/A'}</p>
                           </div>
                         </div>
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="secondary">
+                          {getDealPipelineForStatus(order.status)}
+                        </Badge>
                       </TableCell>
                       <TableCell>
                         <div className="space-y-1">

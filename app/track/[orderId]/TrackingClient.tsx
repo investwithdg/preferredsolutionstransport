@@ -1,11 +1,13 @@
 'use client';
 
 import dynamic from 'next/dynamic';
+import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { StatusBadge } from '@/app/components/shared/StatusBadge';
 import { Badge } from '@/app/components/ui/badge';
 import { Separator } from '@/app/components/ui/separator';
 import { PageHeader } from '@/app/components/shared/PageHeader';
+import { Label } from '@/app/components/ui/label';
 import { 
   MapPin, 
   User, 
@@ -17,7 +19,8 @@ import {
   CheckCircle2,
   TruckIcon,
   Mail,
-  Navigation
+  Navigation,
+  AlertCircle
 } from 'lucide-react';
 
 const LiveTrackingMap = dynamic(
@@ -46,6 +49,13 @@ type Order = {
     name: string;
     phone: string;
   } | null;
+  delivery_exception_type?: string;
+  delivery_exception_notes?: string;
+  delivery_resolution_status?: string;
+  scheduled_pickup_time?: string;
+  scheduled_delivery_time?: string;
+  actual_pickup_time?: string;
+  actual_delivery_time?: string;
 };
 
 type Event = {
@@ -139,6 +149,31 @@ export default function TrackingClient({ order, events }: Props) {
             </div>
           </CardContent>
         </Card>
+
+        {/* Exception Badge */}
+        {order.status === 'Canceled' && order.delivery_exception_type && (
+          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg mb-8">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+              <div className="flex-1">
+                <h4 className="font-medium text-red-900">Delivery Exception</h4>
+                <p className="text-sm text-red-700 mt-1">
+                  Type: {order.delivery_exception_type.replace(/_/g, ' ')}
+                </p>
+                {order.delivery_exception_notes && (
+                  <p className="text-sm text-red-700 mt-1">
+                    Details: {order.delivery_exception_notes}
+                  </p>
+                )}
+                {order.delivery_resolution_status && (
+                  <p className="text-sm text-red-700 mt-1">
+                    Status: {order.delivery_resolution_status}
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
           {/* Delivery Information */}
@@ -295,6 +330,43 @@ export default function TrackingClient({ order, events }: Props) {
                       minute: '2-digit',
                     })}
                   </span>
+                </div>
+              </div>
+
+              {/* Time Information */}
+              <Separator className="my-4" />
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs text-muted-foreground">Scheduled Pickup</Label>
+                  <p className="text-sm font-medium mt-1">
+                    {order.scheduled_pickup_time 
+                      ? format(new Date(order.scheduled_pickup_time), 'MMM d, h:mm a')
+                      : 'Not scheduled'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Actual Pickup</Label>
+                  <p className="text-sm font-medium mt-1">
+                    {order.actual_pickup_time
+                      ? format(new Date(order.actual_pickup_time), 'MMM d, h:mm a')
+                      : 'Pending'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Scheduled Delivery</Label>
+                  <p className="text-sm font-medium mt-1">
+                    {order.scheduled_delivery_time
+                      ? format(new Date(order.scheduled_delivery_time), 'MMM d, h:mm a')
+                      : 'Not scheduled'}
+                  </p>
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground">Actual Delivery</Label>
+                  <p className="text-sm font-medium mt-1">
+                    {order.actual_delivery_time
+                      ? format(new Date(order.actual_delivery_time), 'MMM d, h:mm a')
+                      : 'Pending'}
+                  </p>
                 </div>
               </div>
             </CardContent>
