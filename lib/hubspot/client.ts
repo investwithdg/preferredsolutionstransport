@@ -191,7 +191,8 @@ export async function updateHubSpotDeal(
 export async function syncOrderToHubSpot(
   hubspotClient: Client,
   orderData: OrderSyncData,
-  existingDealId?: string
+  existingDealId?: string,
+  supabaseClient?: any
 ): Promise<SyncResult> {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -285,6 +286,30 @@ export async function syncOrderToHubSpot(
     }
 
     const success = errors.length === 0;
+    
+    // Store HubSpot IDs back to Supabase if client provided
+    if (supabaseClient && success) {
+      try {
+        // Update order with HubSpot deal ID
+        if (dealId) {
+          await supabaseClient
+            .from('orders')
+            .update({ hubspot_deal_id: dealId })
+            .eq('id', orderData.orderId);
+        }
+        
+        // Update customer with HubSpot contact ID
+        if (contactId) {
+          await supabaseClient
+            .from('customers')
+            .update({ hubspot_contact_id: contactId })
+            .eq('id', orderData.customerId);
+        }
+      } catch (supabaseError) {
+        console.error('Failed to store HubSpot IDs in Supabase:', supabaseError);
+        warnings.push('HubSpot IDs not stored in database');
+      }
+    }
     
     return {
       success,

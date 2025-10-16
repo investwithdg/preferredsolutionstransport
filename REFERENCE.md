@@ -202,6 +202,56 @@ To map your actual HubSpot pipeline stages:
    HUBSPOT_STAGE_CANCELED=closedlost
    ```
 
+### HubSpot Webhook Configuration (Bi-Directional Sync)
+
+Your app uses a **hybrid data model** where:
+- **HubSpot owns**: CRM data (contacts, deal stages, pipeline, custom properties edited by your sales team)
+- **Supabase owns**: Operational data (real-time driver tracking, order status changes, GPS coordinates)
+
+#### Data Flow
+
+**App → HubSpot** (Automatic):
+- When customers place orders, their contact and deal information is automatically synced to HubSpot
+- When drivers update order status, HubSpot deals are updated with new status and timestamps
+
+**HubSpot → App** (via Webhooks):
+- When your team updates deal properties in HubSpot (e.g., changes pipeline stage, adds notes), those changes sync back to your app
+- This allows your sales/ops team to manage customer relationships in HubSpot while keeping the app UI current
+
+#### Setting Up Webhooks
+
+1. **In your HubSpot Private App Settings**:
+   - Navigate to Settings > Integrations > Private Apps
+   - Click on your private app
+   - Go to the "Webhooks" tab
+   - Click "Create subscription"
+
+2. **Configure the webhook**:
+   - **Target URL**: `https://your-domain.com/api/hubspot/webhook`
+   - **Subscribe to events**:
+     - `contact.propertyChange` - syncs customer data updates
+     - `deal.propertyChange` - syncs deal/order updates
+   - **Properties to monitor**: Select "All properties" or specific ones you want to sync
+
+3. **Copy the webhook secret**:
+   - HubSpot will generate a webhook secret for signature verification
+   - Add it to your `.env.local`:
+     ```env
+     HUBSPOT_WEBHOOK_SECRET=your_webhook_secret_here
+     ```
+
+4. **Test the webhook**:
+   - Use HubSpot's webhook testing tool to send a test event
+   - Verify in your app logs that the webhook was received and processed
+
+#### What Syncs from HubSpot
+
+The following HubSpot properties automatically sync back to your app:
+- **Contact fields**: name, email, phone → updates customer records
+- **Deal fields**: custom properties you've mapped (pickup/dropoff addresses, special instructions, etc.)
+
+**Note**: Order status and driver assignment remain controlled by the app to prevent conflicts with real-time operational data. HubSpot pipeline stages are for CRM visibility only.
+
 ### Google Maps API Restrictions (Production)
 
 For production security:
@@ -216,6 +266,7 @@ For production security:
 - `POST /api/quote` → creates customer + quote with pricing
 - `POST /api/checkout` → creates Stripe checkout session
 - `POST /api/stripe/webhook` → processes Stripe webhooks, creates orders
+- `POST /api/hubspot/webhook` → receives HubSpot property changes, syncs to Supabase
 - `GET, POST /api/drivers` → manage drivers
 - `POST /api/orders/assign` → assigns driver to order
 - `PATCH /api/orders/:orderId/status` → updates order status

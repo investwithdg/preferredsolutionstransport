@@ -1,13 +1,14 @@
 -- =============================================================================
 -- Preferred Solutions Transport - Complete Database Schema
--- Consolidated schema for Milestones 1 & 2
+-- Consolidated schema for all milestones
 -- NOTE: This file is the canonical source of truth for the database.
 --       Prefer edits here over individual migrations; ensure PRs update this.
 -- =============================================================================
 -- 
 -- This file contains the complete database schema including:
 -- - Core tables (customers, quotes, orders, dispatch_events, webhook_events)
--- - Driver management (Milestone 2)
+-- - Driver management with locations and push notifications
+-- - HubSpot integration (webhook events, contact/deal sync)
 -- - All triggers, functions, and policies
 -- - Test data seeding
 --
@@ -53,6 +54,7 @@ CREATE TABLE IF NOT EXISTS public.customers (
   email text NOT NULL UNIQUE,
   name text,
   phone text,
+  hubspot_contact_id text,
   created_at timestamptz DEFAULT now()
 );
 
@@ -82,6 +84,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   stripe_payment_intent_id text,
   stripe_checkout_session_id text,
   driver_id uuid, -- Will be linked to drivers table below
+  hubspot_deal_id text,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -93,6 +96,7 @@ CREATE TABLE IF NOT EXISTS public.drivers (
   name text NOT NULL,
   phone text,
   vehicle_details jsonb, -- { "make": "Ford", "model": "Transit", "license_plate": "ABC1234" }
+  push_subscription jsonb DEFAULT NULL,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -123,6 +127,38 @@ CREATE TABLE IF NOT EXISTS public.webhook_events (
   created_at timestamptz DEFAULT now()
 );
 
+-- HubSpot webhook events table - for idempotency and audit
+CREATE TABLE IF NOT EXISTS public.hubspot_webhook_events (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  event_id text NOT NULL UNIQUE,
+  event_type text NOT NULL,
+  object_type text NOT NULL CHECK (object_type IN ('contact', 'deal')),
+  object_id text NOT NULL,
+  portal_id integer,
+  occurred_at bigint,
+  processed_at timestamptz DEFAULT now(),
+  payload jsonb NOT NULL,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Driver locations table - for live tracking
+CREATE TABLE IF NOT EXISTS public.driver_locations (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  driver_id uuid REFERENCES public.drivers(id) ON DELETE CASCADE,
+  order_id uuid REFERENCES public.orders(id) ON DELETE CASCADE,
+  latitude decimal(10, 8) NOT NULL,
+  longitude decimal(11, 8) NOT NULL,
+  accuracy decimal, -- Accuracy in meters
+  heading decimal, -- Direction in degrees (0-360)
+  speed decimal, -- Speed in meters per second
+  created_at timestamptz DEFAULT now(),
+  
+  -- Constraints
+  CONSTRAINT valid_latitude CHECK (latitude >= -90 AND latitude <= 90),
+  CONSTRAINT valid_longitude CHECK (longitude >= -180 AND longitude <= 180),
+  CONSTRAINT valid_heading CHECK (heading IS NULL OR (heading >= 0 AND heading <= 360))
+);
+
 -- =============================================================================
 -- INDEXES FOR PERFORMANCE
 -- =============================================================================
@@ -146,6 +182,28 @@ CREATE INDEX IF NOT EXISTS idx_dispatch_events_order_created
 -- Webhook events indexes
 CREATE INDEX IF NOT EXISTS idx_webhook_events_stripe_id 
   ON public.webhook_events(stripe_event_id);
+
+-- HubSpot webhook events indexes
+CREATE INDEX IF NOT EXISTS idx_hubspot_webhook_events_event_id 
+  ON public.hubspot_webhook_events(event_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_webhook_events_object 
+  ON public.hubspot_webhook_events(object_type, object_id);
+CREATE INDEX IF NOT EXISTS idx_hubspot_webhook_events_created_at 
+  ON public.hubspot_webhook_events(created_at DESC);
+
+-- Driver locations indexes
+CREATE INDEX IF NOT EXISTS idx_driver_locations_driver_id 
+  ON public.driver_locations(driver_id);
+CREATE INDEX IF NOT EXISTS idx_driver_locations_order_id 
+  ON public.driver_locations(order_id);
+CREATE INDEX IF NOT EXISTS idx_driver_locations_created_at 
+  ON public.driver_locations(created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_driver_locations_driver_order 
+  ON public.driver_locations(driver_id, order_id, created_at DESC);
+
+-- Driver push subscription index
+CREATE INDEX IF NOT EXISTS idx_drivers_push_subscription 
+  ON public.drivers ((push_subscription IS NOT NULL));
 
 -- =============================================================================
 -- FUNCTIONS AND TRIGGERS
@@ -312,6 +370,8 @@ ALTER TABLE public.orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.drivers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.dispatch_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.webhook_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.hubspot_webhook_events ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.driver_locations ENABLE ROW LEVEL SECURITY;
 
 -- Drop existing policies to avoid conflicts
 DROP POLICY IF EXISTS "Allow anonymous read orders" ON public.orders;
@@ -347,6 +407,14 @@ CREATE POLICY "Service role full access dispatch_events"
 
 CREATE POLICY "Service role full access webhook_events" 
   ON public.webhook_events FOR ALL 
+  USING (auth.jwt() ->> 'role' = 'service_role');
+
+CREATE POLICY "Service role full access hubspot_webhook_events" 
+  ON public.hubspot_webhook_events FOR ALL 
+  USING (auth.jwt() ->> 'role' = 'service_role');
+
+CREATE POLICY "Service role full access driver_locations" 
+  ON public.driver_locations FOR ALL 
   USING (auth.jwt() ->> 'role' = 'service_role');
 
 -- =============================================================================
@@ -438,6 +506,28 @@ CREATE POLICY "Drivers view own dispatch events"
       SELECT 1 FROM public.orders o
       JOIN public.drivers d ON d.id = o.driver_id
       WHERE o.id = dispatch_events.order_id AND d.user_id = auth.uid()
+    )
+  );
+
+-- Drivers can read their own location history
+CREATE POLICY "Drivers can read their own locations"
+  ON public.driver_locations
+  FOR SELECT
+  USING (
+    driver_id IN (
+      SELECT id FROM public.drivers 
+      WHERE user_id = auth.uid()
+    )
+  );
+
+-- Drivers can insert their own locations
+CREATE POLICY "Drivers can insert their own locations"
+  ON public.driver_locations
+  FOR INSERT
+  WITH CHECK (
+    driver_id IN (
+      SELECT id FROM public.drivers 
+      WHERE user_id = auth.uid()
     )
   );
 
@@ -657,9 +747,25 @@ CREATE INDEX IF NOT EXISTS idx_quotes_expires_at ON public.quotes(expires_at);
 CREATE INDEX IF NOT EXISTS idx_orders_quote_id ON public.orders(quote_id);
 CREATE INDEX IF NOT EXISTS idx_orders_customer_id ON public.orders(customer_id);
 
+-- HubSpot integration indexes
+CREATE INDEX IF NOT EXISTS idx_orders_hubspot_deal_id 
+  ON public.orders(hubspot_deal_id) 
+  WHERE hubspot_deal_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_customers_hubspot_contact_id 
+  ON public.customers(hubspot_contact_id) 
+  WHERE hubspot_contact_id IS NOT NULL;
+
 -- =============================================================================
 -- MONITORING FUNCTIONS
 -- =============================================================================
+
+-- Function to clean up old location data (keep last 24 hours)
+CREATE OR REPLACE FUNCTION public.cleanup_old_driver_locations()
+RETURNS void LANGUAGE plpgsql AS $$
+BEGIN
+  DELETE FROM public.driver_locations
+  WHERE created_at < NOW() - INTERVAL '24 hours';
+END $$;
 
 -- Function to get system health metrics
 CREATE OR REPLACE FUNCTION public.get_system_health()
@@ -738,8 +844,13 @@ END $$;
 COMMENT ON FUNCTION public.get_system_health() IS 'Returns system health metrics for monitoring';
 COMMENT ON FUNCTION public.get_system_alerts() IS 'Returns potential system issues for alerting';
 COMMENT ON FUNCTION public.check_rate_limit(text, text, integer, integer) IS 'Rate limiting function for API endpoints';
+COMMENT ON FUNCTION public.cleanup_old_driver_locations IS 'Removes driver location records older than 24 hours to save storage';
 COMMENT ON TABLE public.api_rate_limits IS 'Tracks API request counts for rate limiting';
 COMMENT ON TABLE public.users IS 'User roles for access control (admin, dispatcher, driver, recipient)';
+COMMENT ON TABLE public.driver_locations IS 'Real-time driver location tracking for live order updates';
+COMMENT ON TABLE public.hubspot_webhook_events IS 'Stores HubSpot webhook events for idempotent processing and audit trail';
+COMMENT ON COLUMN public.orders.hubspot_deal_id IS 'HubSpot deal ID for bi-directional sync';
+COMMENT ON COLUMN public.customers.hubspot_contact_id IS 'HubSpot contact ID for bi-directional sync';
 
 -- Reload PostgREST schema cache
 NOTIFY pgrst, 'reload schema';
@@ -753,7 +864,10 @@ BEGIN
   RAISE NOTICE '=============================================================================';
   RAISE NOTICE 'COMPLETE SCHEMA DEPLOYMENT SUCCESSFUL!';
   RAISE NOTICE '=============================================================================';
-  RAISE NOTICE 'Core Tables: customers, quotes, orders, drivers, dispatch_events, webhook_events';
+  RAISE NOTICE 'Core Tables: customers, quotes, orders, drivers, dispatch_events';
+  RAISE NOTICE 'Webhook Tables: webhook_events (Stripe), hubspot_webhook_events';
+  RAISE NOTICE 'Driver Features: driver_locations (live tracking), push_subscription';
+  RAISE NOTICE 'HubSpot Integration: hubspot_deal_id, hubspot_contact_id columns';
   RAISE NOTICE 'RBAC System: users table with 4 roles (admin, dispatcher, driver, recipient)';
   RAISE NOTICE 'Security: Row-Level Security policies for all roles';
   RAISE NOTICE 'Rate Limiting: api_rate_limits table and check_rate_limit() function';
@@ -765,5 +879,6 @@ BEGIN
   RAISE NOTICE '1. Create user accounts and assign roles in users table';
   RAISE NOTICE '2. Test role-based access for each dashboard';
   RAISE NOTICE '3. Verify order workflow: quote → payment → dispatch → delivery';
+  RAISE NOTICE '4. Configure HubSpot webhook endpoint and VAPID keys for push notifications';
   RAISE NOTICE '=============================================================================';
 END $$;

@@ -176,7 +176,7 @@ export async function POST(request: NextRequest) {
             : undefined,
         };
 
-        const syncResult = await syncOrderToHubSpot(hubspotClient, orderSyncData);
+        const syncResult = await syncOrderToHubSpot(hubspotClient, orderSyncData, undefined, supabase);
         
         if (!syncResult.success) {
           console.error('HubSpot sync errors:', syncResult.errors);
