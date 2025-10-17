@@ -67,7 +67,7 @@ export function captureApiError(error: unknown, context: string, extra?: Record<
   if (error instanceof Error) {
     captureException(error, errorData);
   } else {
-    captureMessage(`API Error in ${context}: ${String(error)}`, 'error', errorData);
+    captureMessage(`API Error in ${context}: ${String(error)}`, errorData as any);
   }
 }
 
@@ -90,7 +90,7 @@ export function captureWebhookError(error: unknown, eventType: string, eventId?:
   if (error instanceof Error) {
     captureException(error, errorData);
   } else {
-    captureMessage(`Webhook Error for ${eventType}: ${String(error)}`, 'error', errorData);
+    captureMessage(`Webhook Error for ${eventType}: ${String(error)}`, errorData as any);
   }
 }
 

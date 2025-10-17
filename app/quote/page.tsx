@@ -11,7 +11,6 @@ import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
 import { Separator } from '@/app/components/ui/separator';
-import { Badge } from '@/app/components/ui/badge';
 import { PageHeader } from '@/app/components/shared/PageHeader';
 import { LoadingState } from '@/app/components/shared/LoadingState';
 import { 

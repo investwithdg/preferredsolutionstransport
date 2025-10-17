@@ -11,7 +11,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/app/components/ui/select';
-import { Badge } from '@/app/components/ui/badge';
 import { Separator } from '@/app/components/ui/separator';
 import { 
   User, 
@@ -20,7 +19,6 @@ import {
   Package,
   ChevronUp,
   ChevronDown,
-  Zap,
   AlertTriangle,
 } from 'lucide-react';
 
@@ -34,7 +32,6 @@ const roleConfig = {
 export function DemoRoleSwitcher() {
   const { isDemoMode, currentRole, currentDriverId, setRole, setDriverId, demoDrivers } = useDemo();
   const [isExpanded, setIsExpanded] = useState(true);
-  const [showQuickActions, setShowQuickActions] = useState(false);
 
   if (!isDemoMode) return null;
 

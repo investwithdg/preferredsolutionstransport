@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { listDriversWithStats, createDriver } from '@/lib/services/drivers';
 import { http } from '@/lib/utils';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   try {
     const drivers = await listDriversWithStats();
     const { body, init } = http.ok({ drivers });

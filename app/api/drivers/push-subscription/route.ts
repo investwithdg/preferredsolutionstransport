@@ -8,12 +8,12 @@ const subscriptionSchema = driverPushSubscriptionSchema;
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { driverId, subscription } = subscriptionSchema.parse(body);
+    const requestBody = await request.json();
+    const { driverId, subscription } = subscriptionSchema.parse(requestBody);
 
     await upsertDriverPushSubscription(driverId, subscription);
-    const { body, init } = http.ok({ success: true });
-    return NextResponse.json(body, init);
+    const { body: responseBody, init } = http.ok({ success: true });
+    return NextResponse.json(responseBody, init);
   } catch (error) {
     if (error instanceof z.ZodError) {
       const { body, init } = http.badRequest('Invalid request data', error.errors);

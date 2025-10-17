@@ -10,7 +10,6 @@ import {
   mapPropertyChangesToSupabase, 
   combineContactName 
 } from '@/lib/hubspot/reverse-mappings';
-import { http } from '@/lib/utils';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,7 +55,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceRoleClient();
 
     // Check for duplicate event (idempotency)
-    const { data: existingEvent } = await supabase
+    const { data: existingEvent } = await (supabase as any)
       .from('hubspot_webhook_events')
       .select('id')
       .eq('event_id', webhookEvent.eventId)
@@ -68,7 +67,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Store webhook event for audit trail
-    const { error: insertError } = await supabase
+    const { error: insertError } = await (supabase as any)
       .from('hubspot_webhook_events')
       .insert({
         event_id: webhookEvent.eventId,

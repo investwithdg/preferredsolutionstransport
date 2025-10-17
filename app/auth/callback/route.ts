@@ -47,24 +47,22 @@ export async function GET(req: NextRequest) {
               }, { onConflict: 'auth_id' });
 
             if (!upsertError) {
-              userRole = roleParam;
+              userRole = roleParam as 'admin' | 'dispatcher' | 'driver' | 'recipient';
 
               // Create driver record if role is driver
               if (roleParam === 'driver') {
                 await service.from('drivers').insert({
                   user_id: authId,
                   name: session.user.user_metadata?.name || email?.split('@')[0] || 'Driver',
-                  phone: session.user.user_metadata?.phone || null,
-                  vehicle_details: {},
+                  phone: session.user.user_metadata?.phone || '',
+                  vehicle_details: null,
                 });
               }
 
-              // Link customer record if role is recipient
+              // Link customer record if role is recipient (no auth_email field needed)
               if (roleParam === 'recipient' && email) {
-                await service
-                  .from('customers')
-                  .update({ auth_email: email })
-                  .eq('email', email);
+                // Customer record is already linked via email
+                // No action needed
               }
             }
           } else {
@@ -80,13 +78,8 @@ export async function GET(req: NextRequest) {
             .upsert({ auth_id: authId, email, role: userRole }, { onConflict: 'auth_id' });
         }
 
-        // Link customer auth_email if recipient
-        if (userRole === 'recipient' && email) {
-          await service
-            .from('customers')
-            .update({ auth_email: email })
-            .eq('email', email);
-        }
+        // Customer record is linked via email (no auth_email field in schema)
+        // No additional action needed for recipients
 
         // Redirect based on user role
         let redirectPath = '/customer/dashboard';

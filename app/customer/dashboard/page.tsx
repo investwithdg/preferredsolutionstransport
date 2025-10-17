@@ -16,7 +16,7 @@ export default async function CustomerDashboardPage() {
   const { data: customer } = await supabase
     .from('customers')
     .select('*')
-    .eq('email', session.user.email)
+    .eq('email', session.user.email!)
     .single();
 
   if (!customer) {
@@ -40,7 +40,7 @@ export default async function CustomerDashboardPage() {
       quotes (*),
       drivers (name, phone)
     `)
-    .eq('customer_id', customer.id)
+    .eq('customer_id', (customer as any).id)
     .order('created_at', { ascending: false });
 
   return (

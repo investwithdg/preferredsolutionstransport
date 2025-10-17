@@ -61,8 +61,8 @@ export default async function AdminPage() {
   return (
     <AdminClient
       initialUsers={(users as any) || []}
-      initialDrivers={drivers || []}
-      initialOrders={orders || []}
+      initialDrivers={(drivers as any) || []}
+      initialOrders={(orders as any) || []}
       stats={stats}
     />
   );

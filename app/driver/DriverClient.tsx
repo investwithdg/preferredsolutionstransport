@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import dynamic from 'next/dynamic';
 import { PageHeader } from '@/app/components/shared/PageHeader';
 import { EmptyState } from '@/app/components/shared/EmptyState';
 import { LoadingState } from '@/app/components/shared/LoadingState';
@@ -207,7 +206,7 @@ export default function DriverClient() {
           // Register background sync
           const registration = await navigator.serviceWorker.ready;
           if ('sync' in registration) {
-            await registration.sync.register('sync-status-updates');
+            await (registration as any).sync.register('sync-status-updates');
           }
 
           toast.success('Offline: update queued', {
@@ -297,12 +296,13 @@ export default function DriverClient() {
               console.error('Failed to update location:', err);
               try {
                 if ('serviceWorker' in navigator && 'caches' in window) {
+                  // Queue location update for offline sync
                   const cache = await caches.open('pending-updates');
                   const req = new Request('/api/drivers/location', { method: 'POST' });
-                  await cache.put(req, new Response(JSON.stringify({ ...payload }), { headers: { 'Content-Type': 'application/json' } }));
+                  await cache.put(req, new Response(JSON.stringify({ driverId: selectedDriverId, lat: position.coords.latitude, lng: position.coords.longitude }), { headers: { 'Content-Type': 'application/json' } }));
                   const registration = await navigator.serviceWorker.ready;
                   if ('sync' in registration) {
-                    await registration.sync.register('sync-location-updates');
+                    await (registration as any).sync.register('sync-location-updates');
                   }
                 }
               } catch (queueErr) {

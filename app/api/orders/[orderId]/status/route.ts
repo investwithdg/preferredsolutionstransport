@@ -108,7 +108,7 @@ export async function PATCH(
           // Create order sync data for property mapping
           const orderSyncData: OrderSyncData = {
             orderId: updatedOrder.id,
-            customerId: updatedOrder.customer_id,
+            customerId: updatedOrder.customer_id!,
             customerEmail: customer?.email || '',
             customerName: customer?.name || undefined,
             customerPhone: customer?.phone || undefined,

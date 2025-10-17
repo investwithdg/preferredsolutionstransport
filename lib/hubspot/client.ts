@@ -84,7 +84,7 @@ export async function createHubSpotDeal(
  * Uses HubSpot's Single Send API for transactional emails
  */
 export async function sendHubSpotEmail(
-  hubspotClient: Client,
+  _hubspotClient: Client,
   emailData: {
     to: string;
     subject: string;
@@ -202,7 +202,6 @@ export async function syncOrderToHubSpot(
     const contactProperties = mapOrderToContactProperties(orderData);
 
     // Step 2: Validate contact properties
-    let validatedContactProps: Record<string, any>;
     try {
       const contactDefinitions = await getCachedContactProperties(hubspotClient);
       const validation = validateProperties(contactProperties, contactDefinitions);
@@ -216,10 +215,11 @@ export async function syncOrderToHubSpot(
         warnings.push(...validation.warnings);
       }
 
-      validatedContactProps = filterValidProperties(contactProperties, contactDefinitions);
+      // Validated properties (unused but kept for future reference)
+      filterValidProperties(contactProperties, contactDefinitions);
     } catch (schemaError) {
       console.warn('Failed to fetch contact schema, using properties as-is:', schemaError);
-      validatedContactProps = contactProperties;
+      // Using contact properties as-is
       warnings.push('Contact properties not validated against schema');
     }
 
@@ -266,7 +266,7 @@ export async function syncOrderToHubSpot(
 
     if (existingDealId) {
       // Update existing deal
-      const updated = await updateHubSpotDeal(hubspotClient, existingDealId, validatedDealProps);
+      const updated = await updateHubSpotDeal(hubspotClient, existingDealId, validatedDealProps as any);
       if (!updated) {
         errors.push('Failed to update existing deal');
       }
@@ -349,7 +349,9 @@ export async function findDealByOrderId(
       ],
       properties: ['hs_object_id'],
       limit: 1,
-    });
+      sorts: [],
+      after: '',
+    } as any);
 
     if (searchResponse.results.length > 0) {
       return searchResponse.results[0].id;

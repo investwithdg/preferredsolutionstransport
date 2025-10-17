@@ -23,8 +23,8 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (driverError || !driver) {
-      const { body, init } = http.notFound('Driver not found');
-      return NextResponse.json(body, init);
+      const { body: errorBody, init } = http.notFound('Driver not found');
+      return NextResponse.json(errorBody, init);
     }
 
     // If orderId is provided, verify it exists and is assigned to this driver
@@ -36,8 +36,8 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (orderError || !order) {
-        const { body, init } = http.notFound('Order not found');
-        return NextResponse.json(body, init);
+        const { body: errorBody, init } = http.notFound('Order not found');
+        return NextResponse.json(errorBody, init);
       }
 
       if (order.driver_id !== locationData.driverId) {
@@ -62,12 +62,12 @@ export async function POST(request: NextRequest) {
 
     if (locationError) {
       console.error('Error inserting driver location:', locationError);
-      const { body, init } = http.serverError('Failed to record location');
-      return NextResponse.json(body, init);
+      const { body: errorBody, init } = http.serverError('Failed to record location');
+      return NextResponse.json(errorBody, init);
     }
 
-    const { body, init } = http.ok({ message: 'Location recorded successfully', location });
-    return NextResponse.json(body, init);
+    const { body: responseBody, init } = http.ok({ message: 'Location recorded successfully', location });
+    return NextResponse.json(responseBody, init);
 
   } catch (error) {
     console.error('Driver location API error:', error);

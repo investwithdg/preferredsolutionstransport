@@ -5,7 +5,6 @@ import { PageHeader } from '@/app/components/shared/PageHeader';
 import { EmptyState } from '@/app/components/shared/EmptyState';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent } from '@/app/components/ui/card';
-import { StatusBadge } from '@/app/components/shared/StatusBadge';
 import {
   Select,
   SelectContent,
@@ -25,6 +24,9 @@ import { Badge } from '@/app/components/ui/badge';
 import { OrderRouteModal } from '@/app/components/modals/OrderRouteModal';
 import { Truck, Package, CheckCircle2, AlertCircle, Map } from 'lucide-react';
 import { getDealPipelineForStatus } from '@/lib/hubspot/property-mappings';
+import { useRealtimeOrders } from '@/app/hooks/useRealtimeOrders';
+import { useRealtimeDrivers } from '@/app/hooks/useRealtimeDrivers';
+import { RealtimeIndicator } from '@/app/components/shared/SyncStatusIndicator';
 
 interface Driver {
   id: string;
@@ -39,17 +41,23 @@ interface Order {
   id: string;
   status: string;
   price_total: number;
-  currency: string;
+  currency?: string;
   created_at: string;
-  customers: {
+  updated_at?: string;
+  hubspot_deal_id?: string | null;
+  customers?: {
     name?: string;
     email?: string;
     phone?: string;
   } | null;
-  quotes: {
+  quotes?: {
     pickup_address?: string;
     dropoff_address?: string;
     distance_mi?: number;
+  } | null;
+  drivers?: {
+    name?: string;
+    phone?: string;
   } | null;
 }
 
@@ -58,11 +66,18 @@ interface DispatcherClientProps {
   drivers: Driver[];
 }
 
-export default function DispatcherClient({ initialOrders, drivers }: DispatcherClientProps) {
-  const [orders, setOrders] = useState(initialOrders);
+export default function DispatcherClient({ initialOrders, drivers: initialDrivers }: DispatcherClientProps) {
   const [isAssigning, setIsAssigning] = useState<string | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<{ [orderId: string]: string }>({});
   const [selectedOrderForMap, setSelectedOrderForMap] = useState<Order | null>(null);
+  
+  // Real-time subscriptions
+  const { orders, lastUpdate } = useRealtimeOrders({
+    status: 'ReadyForDispatch',
+    initialOrders,
+  });
+  
+  const { drivers } = useRealtimeDrivers(initialDrivers);
 
   const availableDrivers = drivers.filter(d => d.is_available);
   const busyDrivers = drivers.filter(d => !d.is_available);
@@ -88,10 +103,8 @@ export default function DispatcherClient({ initialOrders, drivers }: DispatcherC
         throw new Error('Failed to assign driver');
       }
 
-      // Remove the assigned order from the list
-      setOrders(orders.filter(order => order.id !== orderId));
-      
-      // Clear the selection
+      // Real-time subscription will automatically update the list
+      // Just clear the selection
       setSelectedDriver(prev => {
         const newState = { ...prev };
         delete newState[orderId];
@@ -115,14 +128,17 @@ export default function DispatcherClient({ initialOrders, drivers }: DispatcherC
 
   return (
     <div className="container max-w-[1600px] mx-auto py-8 px-4 sm:px-6 lg:px-8" data-testid="dispatcher-dashboard">
-      <PageHeader
-        title="Dispatch Queue"
-        description="Assign incoming orders to available drivers to minimize time-to-delivery"
-        breadcrumbs={[
-          { label: 'Home', href: '/' },
-          { label: 'Dispatcher' },
-        ]}
-      />
+      <div className="flex items-center justify-between mb-6">
+        <PageHeader
+          title="Dispatch Queue"
+          description="Assign incoming orders to available drivers to minimize time-to-delivery"
+          breadcrumbs={[
+            { label: 'Home', href: '/' },
+            { label: 'Dispatcher' },
+          ]}
+        />
+        <RealtimeIndicator isActive={true} lastUpdate={lastUpdate} />
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">

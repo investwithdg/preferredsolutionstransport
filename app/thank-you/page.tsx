@@ -15,8 +15,7 @@ import {
   MapPin,
   DollarSign,
   Calendar,
-  TruckIcon,
-  ExternalLink
+  TruckIcon
 } from 'lucide-react';
 
 export default function ThankYouPage() {

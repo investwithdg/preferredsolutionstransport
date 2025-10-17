@@ -28,5 +28,5 @@ export default async function TrackOrderPage({ params }: { params: { orderId: st
     .eq('order_id', params.orderId)
     .order('created_at', { ascending: true });
 
-  return <TrackingClient order={order} events={events || []} />;
+  return <TrackingClient order={order as any} events={(events as any) || []} />;
 }

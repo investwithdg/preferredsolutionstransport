@@ -1,7 +1,6 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { format } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { StatusBadge } from '@/app/components/shared/StatusBadge';
 import { Badge } from '@/app/components/ui/badge';
@@ -27,6 +26,17 @@ const LiveTrackingMap = dynamic(
   () => import('@/app/components/maps/LiveTrackingMap'),
   { ssr: false }
 );
+
+// Format date to "MMM d, h:mm a" format
+function formatDateTime(date: Date): string {
+  return date.toLocaleString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    hour12: true
+  });
+}
 
 type Order = {
   id: string;
@@ -340,7 +350,7 @@ export default function TrackingClient({ order, events }: Props) {
                   <Label className="text-xs text-muted-foreground">Scheduled Pickup</Label>
                   <p className="text-sm font-medium mt-1">
                     {order.scheduled_pickup_time 
-                      ? format(new Date(order.scheduled_pickup_time), 'MMM d, h:mm a')
+                      ? formatDateTime(new Date(order.scheduled_pickup_time))
                       : 'Not scheduled'}
                   </p>
                 </div>
@@ -348,7 +358,7 @@ export default function TrackingClient({ order, events }: Props) {
                   <Label className="text-xs text-muted-foreground">Actual Pickup</Label>
                   <p className="text-sm font-medium mt-1">
                     {order.actual_pickup_time
-                      ? format(new Date(order.actual_pickup_time), 'MMM d, h:mm a')
+                      ? formatDateTime(new Date(order.actual_pickup_time))
                       : 'Pending'}
                   </p>
                 </div>
@@ -356,7 +366,7 @@ export default function TrackingClient({ order, events }: Props) {
                   <Label className="text-xs text-muted-foreground">Scheduled Delivery</Label>
                   <p className="text-sm font-medium mt-1">
                     {order.scheduled_delivery_time
-                      ? format(new Date(order.scheduled_delivery_time), 'MMM d, h:mm a')
+                      ? formatDateTime(new Date(order.scheduled_delivery_time))
                       : 'Not scheduled'}
                   </p>
                 </div>
@@ -364,7 +374,7 @@ export default function TrackingClient({ order, events }: Props) {
                   <Label className="text-xs text-muted-foreground">Actual Delivery</Label>
                   <p className="text-sm font-medium mt-1">
                     {order.actual_delivery_time
-                      ? format(new Date(order.actual_delivery_time), 'MMM d, h:mm a')
+                      ? formatDateTime(new Date(order.actual_delivery_time))
                       : 'Pending'}
                   </p>
                 </div>

@@ -3,7 +3,6 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
-import { Button } from '@/app/components/ui/button';
 import { toast } from 'sonner';
 import { Loader2, TruckIcon, User, Car, Shield } from 'lucide-react';
 import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';

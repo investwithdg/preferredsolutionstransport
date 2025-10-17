@@ -35,7 +35,7 @@ export async function createDriver(input: { name: string; phone?: string; vehicl
     .from('drivers')
     .insert({
       name: input.name,
-      phone: input.phone || null,
+      phone: input.phone || '',
       vehicle_details: input.vehicle_details || null,
     })
     .select()

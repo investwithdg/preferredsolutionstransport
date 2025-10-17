@@ -16,7 +16,7 @@ interface OrderCardProps {
       distance_mi?: number;
     } | null;
     drivers?: {
-      name: string;
+      name?: string;
       phone?: string;
     } | null;
   };

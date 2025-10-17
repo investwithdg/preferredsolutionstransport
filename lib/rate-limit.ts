@@ -31,7 +31,7 @@ export async function checkRateLimit(
 
   try {
     // Call the database function to check rate limit
-    const { data, error } = await supabase
+    const { data, error } = await (supabase as any)
       .rpc('check_rate_limit', {
         p_identifier: identifier,
         p_endpoint: endpoint,

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { validateEnvironment } from '@/lib/config';
 
-export async function GET(request: NextRequest) {
+export async function GET(_request: NextRequest) {
   const startTime = Date.now();
   const healthCheck = {
     status: 'ok',
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest) {
     // Check database connectivity
     try {
       const supabase = createServiceRoleClient();
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from('dispatch_events')
         .select('id')
         .limit(1);

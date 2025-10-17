@@ -25,6 +25,8 @@ import {
 } from '@/app/components/ui/select';
 import { Input } from '@/app/components/ui/input';
 import { Package, Plus, Eye, TruckIcon, Search, Filter } from 'lucide-react';
+import { useRealtimeOrders } from '@/app/hooks/useRealtimeOrders';
+import { RealtimeIndicator, SyncStatusIndicator } from '@/app/components/shared/SyncStatusIndicator';
 
 type Customer = {
   id: string;
@@ -38,6 +40,8 @@ type Order = {
   status: string;
   price_total: number;
   created_at: string;
+  updated_at?: string;
+  hubspot_deal_id?: string | null;
   quotes: {
     pickup_address: string;
     dropoff_address: string;
@@ -54,10 +58,16 @@ type Props = {
   orders: Order[];
 };
 
-export default function CustomerDashboardClient({ customer, orders }: Props) {
+export default function CustomerDashboardClient({ customer, orders: initialOrders }: Props) {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [dateFilter, setDateFilter] = useState<string>('all');
+  
+  // Real-time orders subscription
+  const { orders, lastUpdate } = useRealtimeOrders({
+    customerId: customer.id,
+    initialOrders,
+  });
 
   // Filter logic
   const filteredOrders = orders.filter(order => {
@@ -107,22 +117,25 @@ export default function CustomerDashboardClient({ customer, orders }: Props) {
 
   return (
     <div className="container max-w-[1200px] mx-auto py-8 px-4 sm:px-6 lg:px-8" data-testid="customer-dashboard">
-      <PageHeader
-        title={`Welcome back, ${customer.name}!`}
-        description="Track your deliveries and request new quotes"
-        breadcrumbs={[
-          { label: 'Home', href: '/' },
-          { label: 'My Orders' },
-        ]}
-        action={
-          <Button asChild variant="accent" size="lg">
-            <Link href="/quote">
-              <Plus className="h-4 w-4 mr-2" />
-              Request New Quote
-            </Link>
-          </Button>
-        }
-      />
+      <div className="flex items-center justify-between mb-6">
+        <PageHeader
+          title={`Welcome back, ${customer.name}!`}
+          description="Track your deliveries and request new quotes"
+          breadcrumbs={[
+            { label: 'Home', href: '/' },
+            { label: 'My Orders' },
+          ]}
+          action={
+            <Button asChild variant="accent" size="lg">
+              <Link href="/quote">
+                <Plus className="h-4 w-4 mr-2" />
+                Request New Quote
+              </Link>
+            </Button>
+          }
+        />
+        <RealtimeIndicator isActive={true} lastUpdate={lastUpdate} />
+      </div>
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -264,9 +277,15 @@ export default function CustomerDashboardClient({ customer, orders }: Props) {
                     {pastOrders.map(order => (
                       <TableRow key={order.id}>
                         <TableCell>
-                          <span className="font-mono text-sm">
-                            #{order.id.slice(0, 8)}
-                          </span>
+                          <div className="flex flex-col gap-1">
+                            <span className="font-mono text-sm">
+                              #{order.id.slice(0, 8)}
+                            </span>
+                            <SyncStatusIndicator 
+                              hubspotDealId={order.hubspot_deal_id} 
+                              lastUpdated={order.updated_at}
+                            />
+                          </div>
                         </TableCell>
                         <TableCell>
                           <div className="max-w-xs">

@@ -3,8 +3,6 @@
  * Maps HubSpot property names back to Supabase column names
  */
 
-import { dealMappings, contactMappings } from './property-mappings';
-import type { PropertyMapping } from './types';
 
 /**
  * Reverse mapping entry
@@ -142,8 +140,7 @@ export function getReverseContactMappings(): Record<string, ReverseMappingEntry[
  */
 export function mapPropertyChangesToSupabase(
   objectType: 'deal' | 'contact',
-  propertyChanges: Array<{ name: string; value: any }>,
-  allProperties?: Record<string, any>
+  propertyChanges: Array<{ name: string; value: any }>
 ): Record<string, Record<string, any>> {
   const reverseMappings = objectType === 'deal' 
     ? getReverseDealMappings() 
@@ -169,7 +166,7 @@ export function mapPropertyChangesToSupabase(
       let value = change.value;
       if (transformer) {
         try {
-          value = transformer(value, allProperties);
+          value = transformer(value);
         } catch (error) {
           console.error(`Error transforming property ${change.name}:`, error);
           continue;
