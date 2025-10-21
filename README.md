@@ -20,7 +20,7 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 5. **Driver App receives job** → updates statuses (PickedUp → Delivered), uploads proof
 6. **Notifications flow** → customer & dispatcher receive updates; receipt/invoice issued
 
-## 🚀 Current Status: Milestone 2.5 (Production Ready) + Complete UI Overhaul
+## 🚀 Current Status: Milestone 3.5 (Production Ready) + Complete UI Overhaul
 
 **✅ Milestone 1: Complete**
 - Customer quote submission with automatic Google Maps distance calculation
@@ -46,6 +46,18 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - Role-based access control (admin, dispatcher, driver, recipient)
 - Production-ready security and monitoring
 
+**✅ Milestone 3: Real-Time & Notifications (Complete)**
+- ✅ Email notifications via HubSpot (order confirmation, driver assignment, status updates)
+- ✅ Live driver location tracking with Google Maps (real-time updates every 30 seconds)
+- ✅ Real-time map on customer tracking page (pickup, dropoff, driver location with ETA)
+- ✅ Background location tracking for drivers (automatic GPS updates)
+- ✅ PWA support (installable app, offline functionality)
+- ✅ Service worker with background sync
+- ✅ Admin logs viewer with CSV export
+- ✅ Push notifications for drivers (VAPID keys generated, subscription management)
+- ✅ Supabase Realtime integration (real-time order and driver updates)
+- ❌ SMS notifications (future - requires Twilio setup)
+
 **🎨 NEW: Complete UI/UX Overhaul**
 - Modern design system with shadcn/ui components
 - Tailwind CSS with custom design tokens
@@ -57,18 +69,6 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - WCAG AA accessibility compliant
 - Comprehensive loading/empty/error states
 - Professional branding throughout
-
-**✅ Milestone 3: Real-Time & Notifications (Phases 1-3 Complete)**
-- ✅ Email notifications via HubSpot (order confirmation, driver assignment, status updates)
-- ✅ Live driver location tracking with Google Maps
-- ✅ Real-time map on customer tracking page (pickup, dropoff, driver location with ETA)
-- ✅ Background location tracking for drivers
-- ✅ PWA support (installable app, offline functionality)
-- ✅ Service worker with background sync
-- ✅ Admin logs viewer with CSV export
-- ⏳ Push notifications for drivers (ready, needs VAPID keys)
-- ⏳ Supabase Realtime integration (planned)
-- ❌ SMS notifications (future - requires Twilio setup)
 
 **🚧 Milestone 4: Analytics & Optimization**
 - Revenue analytics dashboard
@@ -101,13 +101,15 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - **Database**: Full audit trail and event logging
 - **Vercel Ready**: Production deployment configuration included
 
-### NEW: Notifications & Tracking (Phase 1-3)
+### NEW: Real-Time Features & Notifications (Complete)
 - **📧 Email Notifications**: Automated emails via HubSpot for order confirmation, driver assignment, and status updates
-- **🗺️ Live Driver Tracking**: Real-time Google Maps integration showing driver location with automatic ETA calculation
-- **📍 Background Location**: Automatic location updates every 30 seconds for active deliveries
+- **🗺️ Live Driver Tracking**: Real-time Google Maps integration showing driver location with automatic ETA calculation (30-second updates)
+- **📍 Background Location**: Automatic GPS location updates for active deliveries via driver mobile devices
 - **📱 PWA Support**: Installable mobile app with offline capabilities and background sync
 - **📊 Admin Logs & Reports**: Event log viewer with filtering and CSV export for orders and logs
 - **🔄 Offline Mode**: Service worker caches data and syncs updates when connection restored
+- **🔔 Push Notifications**: VAPID-enabled browser notifications for drivers (order assignments, status updates)
+- **⚡ Real-Time Updates**: Supabase Realtime integration for instant UI updates across all dashboards
 
 ## 🛠 Tech Stack
 
@@ -115,11 +117,12 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - **UI Components**: shadcn/ui (Radix UI primitives)
 - **Design System**: Custom design tokens with CSS variables
 - **Forms**: react-hook-form + @hookform/resolvers
-- **Notifications**: Sonner (toast notifications)
+- **Notifications**: Sonner (toast notifications) + Web Push API (VAPID)
 - **Icons**: Lucide React
-- **Database**: Supabase (PostgreSQL with Row Level Security)
+- **Database**: Supabase (PostgreSQL with Row Level Security + Realtime)
 - **Payments**: Stripe Checkout + Webhooks
 - **CRM**: HubSpot API integration
+- **Maps & Location**: Google Maps JavaScript API + Geolocation API
 - **Deployment**: Vercel-ready configuration
 
 ## ⚡ Quick Start
@@ -140,10 +143,11 @@ cp env.example .env.local
 - `NEXT_PUBLIC_APP_URL` - Your app URL (for email tracking links, default: http://localhost:3000)
  - `NEXT_PUBLIC_DEMO_MODE` - Enable demo UI (role switcher, demo data). Keep false in production
 
-**NEW for Phase 1-3:**
+**NEW for Milestone 3:**
 - Google Maps now requires **Maps JavaScript API, Geocoding API, and Geometry Library** enabled
 - HubSpot token needs transactional email scope for notifications
-- Database migration required: run `supabase/migrations/001_add_driver_locations.sql`
+- **VAPID Keys**: Generate using `scripts/generate-vapid-keys.js` for push notifications
+- **Database**: Consolidated schema includes all tables, triggers, and test data (run `supabase/consolidated-schema.sql`)
 
 ### 2. Database Setup
 
@@ -304,8 +308,9 @@ Core tables: `customers`, `quotes`, `orders`, `dispatch_events`, `webhook_events
 - ✅ M1: Complete - Core quote-to-payment flow
 - ✅ M2: Complete - Driver management & actions
 - ✅ M2.5: Complete - Admin UI, Customer UIs, Google Maps, HubSpot config
-- 🚧 M3: Real-time tracking, notifications, WebSockets
+- ✅ M3: Complete - Real-time tracking, notifications, PWA, push notifications
 - 🚧 M4: Advanced analytics & reporting
+- 🚧 M5: SMS notifications, signature capture, recurring deliveries
 
 ## 🌐 Application Routes
 
@@ -333,21 +338,25 @@ Core tables: `customers`, `quotes`, `orders`, `dispatch_events`, `webhook_events
 
 ---
 
-**Current Version: Milestone 2.5 + Complete UI Overhaul (Production Ready)**
+**Current Version: Milestone 3.5 + Complete UI Overhaul (Production Ready)**
 
 This platform is ready for production deployment with:
 - ✅ Complete user management and role-based access control
 - ✅ All core delivery management features
+- ✅ Real-time driver tracking and location updates
+- ✅ Push notifications and PWA capabilities
 - ✅ Modern, accessible UI with shadcn/ui design system
 - ✅ Advanced filtering, search, and confirmation dialogs
 - ✅ Toast notifications and beautiful loading states
 - ✅ Mobile-optimized interfaces for all roles
 - ✅ WCAG AA accessibility compliance
+- ✅ Supabase Realtime integration for instant updates
 
 **📚 Documentation:**
 - `DESIGN_SYSTEM.md` - Complete design system documentation
-- `WIREFRAMES.md` - Detailed wireframes and UI specifications
-- `UI_IMPLEMENTATION_SUMMARY.md` - Technical implementation details
-- `IMPLEMENTATION_COMPLETE.md` - Final implementation checklist
+- `REALTIME_UI_IMPLEMENTATION.md` - Real-time features implementation
+- `HUBSPOT_WEBHOOK_IMPLEMENTATION.md` - HubSpot integration details
+- `GOOGLE_TROUBLESHOOTING_GUIDE.md` - Google Maps setup guide
+- `VERCEL_DEPLOYMENT_GUIDE.md` - Production deployment instructions
 
-**🚀 Ready for Milestone 3:** Real-time updates, maps, notifications, and analytics.
+**🚀 Ready for Milestone 4:** Analytics dashboard, revenue tracking, and optimization tools.
