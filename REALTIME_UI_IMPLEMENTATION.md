@@ -238,3 +238,5 @@ Your UI now:
 
 The hybrid model is complete: **HubSpot owns CRM data, Supabase owns operational data, and the UI stays in sync with both sources in real-time.**
 
+
+

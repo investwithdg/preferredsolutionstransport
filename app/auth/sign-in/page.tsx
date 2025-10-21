@@ -33,6 +33,33 @@ export default function SignInPage() {
     if (roleParam === 'driver' || roleParam === 'dispatcher' || roleParam === 'recipient') {
       setSelectedRole(roleParam);
     }
+    
+    // Check for auth errors from callback
+    const error = searchParams.get('error');
+    const message = searchParams.get('message');
+    
+    if (error) {
+      console.error('[Sign In Debug] Auth error from callback:', error, message);
+      
+      // Display user-friendly error messages
+      if (error === 'auth_failed') {
+        toast.error('Authentication failed', {
+          description: message || 'Unable to sign in with Google. Please try again.',
+        });
+      } else if (error === 'access_denied') {
+        toast.error('Access denied', {
+          description: 'You cancelled the sign-in process.',
+        });
+      } else if (error === 'server_error') {
+        toast.error('Server error', {
+          description: 'There was a problem with the authentication server. Please try again later.',
+        });
+      } else {
+        toast.error('Sign in failed', {
+          description: message || 'An unexpected error occurred. Please try again.',
+        });
+      }
+    }
   }, [searchParams]);
 
   const handlePasswordSignIn = async (e: React.FormEvent) => {
@@ -109,18 +136,43 @@ export default function SignInPage() {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
+    
+    // Debug logging
+    console.log('[Google OAuth Debug] Starting sign in process');
+    console.log('[Google OAuth Debug] Selected role:', selectedRole);
+    console.log('[Google OAuth Debug] Redirect URL:', `${window.location.origin}/auth/callback?role=${selectedRole}`);
+    
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback?role=${selectedRole}`,
+          queryParams: {
+            access_type: 'offline',
+            prompt: 'consent',
+          },
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Google OAuth Debug] OAuth error:', error);
+        throw error;
+      }
+      
+      console.log('[Google OAuth Debug] OAuth initiated successfully:', data);
     } catch (error: any) {
+      console.error('[Google OAuth Debug] Sign in failed:', error);
+      
+      // More detailed error messages
+      let errorMessage = 'Please try again';
+      if (error.message?.includes('OAuth')) {
+        errorMessage = 'OAuth is not properly configured. Please check Supabase settings.';
+      } else if (error.message?.includes('redirect')) {
+        errorMessage = 'Invalid redirect URL configuration.';
+      }
+      
       toast.error('Google sign in failed', {
-        description: error.message || 'Please try again',
+        description: error.message || errorMessage,
       });
       setIsLoading(false);
     }

@@ -6,17 +6,39 @@ export async function GET(req: NextRequest) {
     const requestUrl = new URL(req.url);
     const code = requestUrl.searchParams.get('code');
     const roleParam = requestUrl.searchParams.get('role'); // Get role from query param
+    const error = requestUrl.searchParams.get('error');
+    const errorDescription = requestUrl.searchParams.get('error_description');
     const origin = process.env.NEXT_PUBLIC_SITE_URL || requestUrl.origin;
+
+    console.log('[Auth Callback Debug] Full URL:', requestUrl.toString());
+    console.log('[Auth Callback Debug] Code:', code ? 'Present' : 'Missing');
+    console.log('[Auth Callback Debug] Role:', roleParam);
+    console.log('[Auth Callback Debug] Error:', error);
+    console.log('[Auth Callback Debug] Error Description:', errorDescription);
+    console.log('[Auth Callback Debug] Origin:', origin);
+
+    // Handle OAuth errors from provider
+    if (error) {
+      console.error('[Auth Callback Debug] OAuth provider error:', error, errorDescription);
+      const errorMessage = encodeURIComponent(errorDescription || 'Authentication failed');
+      return NextResponse.redirect(`${origin}/auth/sign-in?error=${error}&message=${errorMessage}`);
+    }
 
     if (code) {
       const supabase = createServerClient();
       
+      console.log('[Auth Callback Debug] Exchanging code for session...');
       // Exchange code for session
       const { data: { session }, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
       
       if (exchangeError) {
-        console.error('Code exchange error:', exchangeError);
-        return NextResponse.redirect(`${origin}/auth/sign-in?error=auth_failed`);
+        console.error('[Auth Callback Debug] Code exchange error:', exchangeError);
+        console.error('[Auth Callback Debug] Error details:', {
+          message: exchangeError.message,
+          status: exchangeError.status,
+          name: exchangeError.name
+        });
+        return NextResponse.redirect(`${origin}/auth/sign-in?error=auth_failed&message=${encodeURIComponent(exchangeError.message)}`);
       }
 
       if (session?.user) {

@@ -1,14 +1,22 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { AlertCircle } from 'lucide-react';
 
 export default function HomeHero() {
   const router = useRouter();
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  
+  // Debug logging
+  useEffect(() => {
+    console.log('[Google Maps Debug] API Key present:', !!apiKey);
+    console.log('[Google Maps Debug] API Key length:', apiKey?.length || 0);
+  }, [apiKey]);
+  
   const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
+    googleMapsApiKey: apiKey || '',
     libraries: ['places'],
   });
 
@@ -16,6 +24,20 @@ export default function HomeHero() {
   const [dropoffAutocomplete, setDropoffAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
+  
+  // Log any load errors
+  useEffect(() => {
+    if (loadError) {
+      console.error('[Google Maps Debug] Load error:', loadError);
+    }
+    if (isLoaded) {
+      console.log('[Google Maps Debug] Successfully loaded');
+      console.log('[Google Maps Debug] Libraries available:', {
+        maps: !!window.google?.maps,
+        places: !!window.google?.maps?.places,
+      });
+    }
+  }, [isLoaded, loadError]);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -38,9 +60,21 @@ export default function HomeHero() {
 
           <form onSubmit={onSubmit} className="mt-8 bg-white/95 backdrop-blur rounded-xl p-4 shadow-lg">
             {loadError ? (
-              <div className="text-red-600 text-sm flex items-center gap-2">
-                <AlertCircle className="h-4 w-4" />
-                <span>Failed to load Google Maps. Please check your API key configuration.</span>
+              <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                  <div className="text-sm">
+                    <p className="font-semibold text-red-800">Unable to load Google Maps</p>
+                    <p className="mt-1 text-red-700">
+                      {!apiKey 
+                        ? 'API key is missing. Please set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY in your environment variables.'
+                        : 'Please check your API key configuration and ensure Maps JavaScript API and Places API are enabled.'}
+                    </p>
+                    <p className="mt-2 text-xs text-red-600">
+                      See console for detailed error information.
+                    </p>
+                  </div>
+                </div>
               </div>
             ) : !isLoaded ? (
               <div className="text-gray-600 text-sm">Loading map…</div>
