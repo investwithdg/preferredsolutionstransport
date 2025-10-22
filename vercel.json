@@ -4,6 +4,12 @@
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30
+    },
+    "app/api/stripe/webhook/route.ts": {
+      "maxDuration": 60
+    },
+    "app/api/hubspot/webhook/route.ts": {
+      "maxDuration": 60
     }
   },
   "headers": [
