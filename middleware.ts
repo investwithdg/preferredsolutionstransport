@@ -1,11 +1,31 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { createMiddlewareClient } from '@supabase/auth-helpers-nextjs';
+import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { isDemoEnabled } from '@/lib/config';
+import type { Database } from '@/lib/supabase/types';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  const supabase = createMiddlewareClient({ req, res });
+  
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
+  
+  const supabase = createServerClient<Database>(url, anon, {
+    cookies: {
+      get(name: string) {
+        return req.cookies.get(name)?.value;
+      },
+      set(name: string, value: string, options: CookieOptions) {
+        req.cookies.set({ name, value, ...options });
+        res.cookies.set({ name, value, ...options });
+      },
+      remove(name: string, options: CookieOptions) {
+        req.cookies.set({ name, value: '', ...options });
+        res.cookies.set({ name, value: '', ...options });
+      },
+    },
+  });
+  
   await supabase.auth.getSession();
 
   const { pathname } = req.nextUrl;

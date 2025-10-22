@@ -15,7 +15,7 @@ export default async function DispatcherPage() {
     );
   }
   
-  const cookieClient = createServerClient();
+  const cookieClient = await createServerClient();
   const {
     data: { session },
   } = await cookieClient.auth.getSession();

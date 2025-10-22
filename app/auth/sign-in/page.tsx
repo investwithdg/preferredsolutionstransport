@@ -10,7 +10,7 @@ import { Separator } from '@/app/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
 import { toast } from 'sonner';
 import { Mail, Loader2, TruckIcon, CheckCircle2, Lock, Chrome, Car, Shield, User } from 'lucide-react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase/client';
 
 type AuthMode = 'magic-link' | 'password';
 type UserRole = 'recipient' | 'driver' | 'dispatcher';
@@ -18,7 +18,7 @@ type UserRole = 'recipient' | 'driver' | 'dispatcher';
 export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
   
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

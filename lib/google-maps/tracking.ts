@@ -17,36 +17,11 @@ export type DriverLocation = {
 };
 
 /**
- * Load Google Maps JavaScript API
+ * @deprecated Use @react-google-maps/api's useLoadScript hook instead
  */
-export function loadGoogleMapsScript(apiKey: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    // Check if already loaded
-    if (window.google?.maps) {
-      resolve();
-      return;
-    }
-
-    // Check if script is already being loaded
-    if (document.querySelector('script[src*="maps.googleapis.com"]')) {
-      // Wait for it to load
-      const checkGoogle = setInterval(() => {
-        if (window.google?.maps) {
-          clearInterval(checkGoogle);
-          resolve();
-        }
-      }, 100);
-      return;
-    }
-
-    const script = document.createElement('script');
-    script.src = `https://maps.googleapis.com/maps/api/js?key=${apiKey}&libraries=geometry`;
-    script.async = true;
-    script.defer = true;
-    script.onload = () => resolve();
-    script.onerror = () => reject(new Error('Failed to load Google Maps'));
-    document.head.appendChild(script);
-  });
+export function loadGoogleMapsScript(_apiKey: string): Promise<void> {
+  console.warn('loadGoogleMapsScript is deprecated. Use @react-google-maps/api\'s useLoadScript hook instead.');
+  return Promise.resolve();
 }
 
 /**

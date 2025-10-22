@@ -5,13 +5,13 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
 import { toast } from 'sonner';
 import { Loader2, TruckIcon, User, Car, Shield } from 'lucide-react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase/client';
 
 type UserRole = 'recipient' | 'driver' | 'dispatcher';
 
 export default function OAuthRoleSelectPage() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserRole | null>(null);
   const [userEmail, setUserEmail] = useState<string>('');
@@ -78,10 +78,9 @@ export default function OAuthRoleSelectPage() {
         const { error: driverError } = await supabase
           .from('drivers')
           .insert({
-            user_id: session.user.id,
             name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Driver',
-            phone: session.user.user_metadata?.phone || null,
-            vehicle_details: {},
+            phone: session.user.user_metadata?.phone || '',
+            vehicle_details: '{}',
           });
 
         if (driverError && driverError.code !== '23505') { // Ignore duplicate key error
@@ -93,7 +92,7 @@ export default function OAuthRoleSelectPage() {
       if (role === 'recipient' && session.user.email) {
         await supabase
           .from('customers')
-          .update({ auth_email: session.user.email })
+          .update({ email: session.user.email })
           .eq('email', session.user.email);
       }
 

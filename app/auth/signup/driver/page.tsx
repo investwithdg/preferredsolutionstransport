@@ -9,12 +9,12 @@ import { Label } from '@/app/components/ui/label';
 import { Separator } from '@/app/components/ui/separator';
 import { toast } from 'sonner';
 import { Mail, Loader2, TruckIcon, User, Lock, Chrome, Phone, Car } from 'lucide-react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
 export default function DriverSignUpPage() {
   const router = useRouter();
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
   const [isLoading, setIsLoading] = useState(false);
   const [formData, setFormData] = useState({
     email: '',
@@ -75,16 +75,15 @@ export default function DriverSignUpPage() {
         if (userError) console.error('Error creating user record:', userError);
 
         // Create driver record with vehicle details
-        const vehicleDetails = {
+        const vehicleDetails = JSON.stringify({
           make: formData.vehicleMake,
           model: formData.vehicleModel,
           license_plate: formData.licensePlate,
-        };
+        });
 
         const { error: driverError } = await supabase
           .from('drivers')
           .insert({
-            user_id: data.user.id,
             name: formData.name,
             phone: formData.phone,
             vehicle_details: vehicleDetails,

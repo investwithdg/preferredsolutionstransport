@@ -2,7 +2,7 @@ import { createServiceRoleClient, createServerClient } from '@/lib/supabase/serv
 import AdminClient from './AdminClient';
 
 export default async function AdminPage() {
-  const cookieClient = createServerClient();
+  const cookieClient = await createServerClient();
   const {
     data: { session },
   } = await cookieClient.auth.getSession();

@@ -102,6 +102,15 @@ NEXT_PUBLIC_BASE_URL=https://your-domain.com
 NEXT_PUBLIC_DEMO_MODE=false
 ```
 
+### Supabase Auth Setup (Updated for @supabase/ssr)
+
+**Client Setup:**
+- Uses `@supabase/ssr` for better Next.js 15 App Router support
+- Client components use `createClient()` from `lib/supabase/client.ts`
+- Server components use `createServerClientRSC()` from `lib/supabase/server.ts`
+- Route handlers use `createRouteHandlerClient()` from `lib/supabase/route.ts`
+- All API routes with service role require `export const runtime = 'nodejs'`
+
 ### Google Maps Setup
 
 **Required APIs to enable in Google Cloud Console:**
@@ -109,6 +118,11 @@ NEXT_PUBLIC_DEMO_MODE=false
 - Places API
 - Geocoding API
 - Geometry Library
+
+**Implementation:**
+- Uses `@react-google-maps/api` for consistent loading
+- Components use `useLoadScript` hook with required libraries
+- Server-side Distance Matrix API uses separate `GOOGLE_MAPS_API_KEY`
 
 **API Key Restrictions (Production):**
 1. Go to Google Cloud Console → APIs & Services → Credentials

@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import CustomerDashboardClient from './CustomerDashboardClient';
 
 export default async function CustomerDashboardPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();

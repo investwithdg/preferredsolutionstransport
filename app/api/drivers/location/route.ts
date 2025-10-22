@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { http } from '@/lib/utils';
 import { z } from 'zod';

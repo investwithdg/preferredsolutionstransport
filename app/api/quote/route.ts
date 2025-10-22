@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { quoteRequestSchema } from '@/lib/validations';
 import { calculatePrice } from '@/lib/pricing';

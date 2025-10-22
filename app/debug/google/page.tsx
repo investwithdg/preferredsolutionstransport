@@ -5,7 +5,7 @@ import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
 import { Alert, AlertDescription } from '@/app/components/ui/alert';
 import { AlertCircle, CheckCircle, X } from 'lucide-react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClient } from '@/lib/supabase/client';
 
 export default function GoogleDebugPage() {
   const [debugInfo, setDebugInfo] = useState<any>({
@@ -15,7 +15,7 @@ export default function GoogleDebugPage() {
     errors: []
   });
   const [isLoading, setIsLoading] = useState(false);
-  const supabase = createClientComponentClient();
+  const supabase = createClient();
 
   useEffect(() => {
     checkEnvironmentVariables();

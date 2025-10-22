@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import {
   Dialog,
@@ -39,29 +38,6 @@ export function OrderRouteModal({
   dropoffAddress,
   distance,
 }: OrderRouteModalProps) {
-  const [googleMapsLoaded, setGoogleMapsLoaded] = useState(false);
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    // Load Google Maps script if not already loaded
-    if (window.google && window.google.maps) {
-      setGoogleMapsLoaded(true);
-      return;
-    }
-
-    const loadGoogleMaps = () => {
-      const script = document.createElement('script');
-      script.src = `https://maps.googleapis.com/maps/api/js?key=${process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY}&libraries=places,geometry`;
-      script.async = true;
-      script.defer = true;
-      script.onload = () => setGoogleMapsLoaded(true);
-      script.onerror = () => console.error('Failed to load Google Maps');
-      document.head.appendChild(script);
-    };
-
-    loadGoogleMaps();
-  }, [isOpen]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -95,16 +71,10 @@ export function OrderRouteModal({
           </DialogDescription>
         </DialogHeader>
         <div className="h-[500px] relative">
-          {googleMapsLoaded ? (
-            <OrderRouteMap
-              pickupAddress={pickupAddress}
-              dropoffAddress={dropoffAddress}
-            />
-          ) : (
-            <div className="flex items-center justify-center h-full">
-              <LoadingState message="Loading Google Maps..." />
-            </div>
-          )}
+          <OrderRouteMap
+            pickupAddress={pickupAddress}
+            dropoffAddress={dropoffAddress}
+          />
         </div>
       </DialogContent>
     </Dialog>

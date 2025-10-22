@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { createHubSpotClient, sendHubSpotEmail, findDealByOrderId, updateHubSpotDeal } from '@/lib/hubspot/client';
 import { driverAssignedEmail } from '@/lib/hubspot/emails';

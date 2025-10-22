@@ -2,7 +2,7 @@ import DriverClient from './DriverClient';
 import { createServerClient } from '@/lib/supabase/server';
 
 export default async function DriverPage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();

@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient, createServiceRoleClient } from '@/lib/supabase/server';
+import { createServiceRoleClient } from '@/lib/supabase/server';
+import { createRouteHandlerClient } from '@/lib/supabase/route';
+
+export const runtime = 'nodejs';
 
 export async function GET(req: NextRequest) {
   try {
@@ -25,7 +28,8 @@ export async function GET(req: NextRequest) {
     }
 
     if (code) {
-      const supabase = createServerClient();
+      const res = NextResponse.next();
+      const supabase = createRouteHandlerClient(req, res);
       
       console.log('[Auth Callback Debug] Exchanging code for session...');
       // Exchange code for session

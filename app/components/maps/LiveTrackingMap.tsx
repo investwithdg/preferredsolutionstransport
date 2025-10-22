@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { loadGoogleMapsScript, calculateDistanceMiles, calculateETA, formatETA, geocodeAddress, createTruckMarkerIcon, type LatLng, type DriverLocation } from '@/lib/google-maps/tracking';
+import { useLoadScript } from '@react-google-maps/api';
+import { calculateDistanceMiles, calculateETA, formatETA, geocodeAddress, createTruckMarkerIcon, type LatLng, type DriverLocation } from '@/lib/google-maps/tracking';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
 import { MapPin, Clock, Navigation, AlertCircle } from 'lucide-react';
@@ -23,8 +24,6 @@ export default function LiveTrackingMap({
 }: LiveTrackingMapProps) {
   const mapRef = useRef<HTMLDivElement>(null);
   const [map, setMap] = useState<google.maps.Map | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [driverLocation, setDriverLocation] = useState<DriverLocation | null>(null);
   const [eta, setEta] = useState<string | null>(null);
   
@@ -36,37 +35,27 @@ export default function LiveTrackingMap({
   
   const routeLineRef = useRef<google.maps.Polyline | null>(null);
 
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
+  const { isLoaded, loadError } = useLoadScript({
+    googleMapsApiKey: apiKey || '',
+    libraries: ['places', 'geometry'],
+  });
+
   // Initialize Google Maps
   useEffect(() => {
-    const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-    if (!apiKey) {
-      setError('Google Maps API key not configured');
-      setIsLoading(false);
-      return;
-    }
+    if (!isLoaded || !mapRef.current) return;
 
-    loadGoogleMapsScript(apiKey)
-      .then(() => {
-        if (!mapRef.current) return;
+    const mapInstance = new google.maps.Map(mapRef.current, {
+      zoom: 12,
+      center: { lat: 37.7749, lng: -122.4194 }, // Default to SF
+      mapTypeControl: false,
+      streetViewControl: false,
+      fullscreenControl: true,
+      zoomControl: true,
+    });
 
-        const mapInstance = new google.maps.Map(mapRef.current, {
-          zoom: 12,
-          center: { lat: 37.7749, lng: -122.4194 }, // Default to SF
-          mapTypeControl: false,
-          streetViewControl: false,
-          fullscreenControl: true,
-          zoomControl: true,
-        });
-
-        setMap(mapInstance);
-        setIsLoading(false);
-      })
-      .catch((err) => {
-        setError('Failed to load Google Maps');
-        setIsLoading(false);
-        console.error(err);
-      });
-  }, []);
+    setMap(mapInstance);
+  }, [isLoaded]);
 
   // Geocode addresses and place markers
   useEffect(() => {
@@ -209,7 +198,7 @@ export default function LiveTrackingMap({
     map.panTo(driverCoords);
   };
 
-  if (isLoading) {
+  if (!isLoaded) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
@@ -222,13 +211,17 @@ export default function LiveTrackingMap({
     );
   }
 
-  if (error) {
+  if (loadError) {
     return (
       <Card className="border-warning/20 bg-warning/5">
         <CardContent className="p-8 text-center">
           <AlertCircle className="h-12 w-12 text-warning mx-auto mb-4" />
           <p className="text-foreground font-medium mb-2">Map Unavailable</p>
-          <p className="text-sm text-muted-foreground">{error}</p>
+          <p className="text-sm text-muted-foreground">
+            {!apiKey 
+              ? 'Google Maps API key not configured' 
+              : 'Failed to load Google Maps'}
+          </p>
         </CardContent>
       </Card>
     );

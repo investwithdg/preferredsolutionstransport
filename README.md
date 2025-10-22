@@ -111,13 +111,15 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 
 ## 🛠 Tech Stack
 
-- **Frontend**: Next.js 14 (App Router) + TypeScript + Tailwind CSS + PWA
+- **Frontend**: Next.js 15 (App Router) + TypeScript + Tailwind CSS + PWA
 - **UI Components**: shadcn/ui (Radix UI primitives)
 - **Design System**: Custom design tokens with CSS variables
 - **Forms**: react-hook-form + @hookform/resolvers
 - **Notifications**: Sonner (toast notifications)
 - **Icons**: Lucide React
 - **Database**: Supabase (PostgreSQL with Row Level Security)
+- **Auth**: Supabase Auth with @supabase/ssr
+- **Maps**: Google Maps via @react-google-maps/api
 - **Payments**: Stripe Checkout + Webhooks
 - **CRM**: HubSpot API integration
 - **Deployment**: Vercel-ready configuration

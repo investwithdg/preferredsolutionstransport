@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+
+export const runtime = 'nodejs';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { createHubSpotClient, sendHubSpotEmail, findDealByOrderId, updateHubSpotDeal } from '@/lib/hubspot/client';
 import { statusUpdateEmail, formatStatusDisplay } from '@/lib/hubspot/emails';
@@ -11,10 +13,10 @@ const updateStatusSchema = updateOrderStatusSchema;
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
+  const { orderId } = await params;
   try {
-    const { orderId } = params;
     const body = await request.json();
     
     // Validate input
