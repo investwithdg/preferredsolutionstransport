@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useLoadScript } from '@react-google-maps/api';
 import { calculateDistanceMiles, calculateETA, formatETA, geocodeAddress, createTruckMarkerIcon, type LatLng, type DriverLocation } from '@/lib/google-maps/tracking';
 import { Card, CardContent } from '@/app/components/ui/card';
@@ -125,45 +125,16 @@ export default function LiveTrackingMap({
 
     return () => {
       // Cleanup markers
-      markersRef.current.pickup?.setMap(null);
-      markersRef.current.dropoff?.setMap(null);
-      markersRef.current.driver?.setMap(null);
+      const markers = markersRef.current;
+      markers.pickup?.setMap(null);
+      markers.dropoff?.setMap(null);
+      markers.driver?.setMap(null);
       routeLineRef.current?.setMap(null);
     };
   }, [map, pickupAddress, dropoffAddress]);
 
-  // Fetch and update driver location
-  useEffect(() => {
-    if (!map || !driverId || !['Assigned', 'Accepted', 'PickedUp', 'InTransit'].includes(orderStatus)) {
-      return;
-    }
-
-    const fetchDriverLocation = async () => {
-      try {
-        const response = await fetch(`/api/drivers/location?driverId=${driverId}&orderId=${orderId}`);
-        if (response.ok) {
-          const data = await response.json();
-          if (data.location) {
-            setDriverLocation(data.location);
-            updateDriverMarker(data.location);
-          }
-        }
-      } catch (err) {
-        console.error('Error fetching driver location:', err);
-      }
-    };
-
-    // Fetch immediately
-    fetchDriverLocation();
-
-    // Then poll every 30 seconds
-    const interval = setInterval(fetchDriverLocation, 30000);
-
-    return () => clearInterval(interval);
-  }, [map, driverId, orderId, orderStatus]);
-
   // Update driver marker on map
-  const updateDriverMarker = (location: DriverLocation) => {
+  const updateDriverMarker = useCallback((location: DriverLocation) => {
     if (!map) return;
 
     const driverCoords: LatLng = {
@@ -196,7 +167,37 @@ export default function LiveTrackingMap({
 
     // Pan map to show driver
     map.panTo(driverCoords);
-  };
+  }, [map]);
+
+  // Fetch and update driver location
+  useEffect(() => {
+    if (!map || !driverId || !['Assigned', 'Accepted', 'PickedUp', 'InTransit'].includes(orderStatus)) {
+      return;
+    }
+
+    const fetchDriverLocation = async () => {
+      try {
+        const response = await fetch(`/api/drivers/location?driverId=${driverId}&orderId=${orderId}`);
+        if (response.ok) {
+          const data = await response.json();
+          if (data.location) {
+            setDriverLocation(data.location);
+            updateDriverMarker(data.location);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching driver location:', err);
+      }
+    };
+
+    // Fetch immediately
+    fetchDriverLocation();
+
+    // Then poll every 30 seconds
+    const interval = setInterval(fetchDriverLocation, 30000);
+
+    return () => clearInterval(interval);
+  }, [map, driverId, orderId, orderStatus, updateDriverMarker]);
 
   if (!isLoaded) {
     return (

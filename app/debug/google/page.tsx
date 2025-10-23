@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Button } from '@/app/components/ui/button';
 import { Card } from '@/app/components/ui/card';
 import { Alert, AlertDescription } from '@/app/components/ui/alert';
@@ -17,12 +17,6 @@ export default function GoogleDebugPage() {
   const [isLoading, setIsLoading] = useState(false);
   const supabase = createClient();
 
-  useEffect(() => {
-    checkEnvironmentVariables();
-    checkGoogleMapsAPI();
-    checkSupabaseConfig();
-  }, []);
-
   const checkEnvironmentVariables = () => {
     const envVars = {
       NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY,
@@ -30,7 +24,7 @@ export default function GoogleDebugPage() {
       NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     };
 
-    setDebugInfo(prev => ({
+    setDebugInfo((prev: any) => ({
       ...prev,
       env: {
         ...envVars,
@@ -42,11 +36,11 @@ export default function GoogleDebugPage() {
     }));
   };
 
-  const checkGoogleMapsAPI = async () => {
+  const checkGoogleMapsAPI = useCallback(async () => {
     const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
     
     if (!apiKey) {
-      setDebugInfo(prev => ({
+      setDebugInfo((prev: any) => ({
         ...prev,
         googleMaps: { error: 'No API key found' },
         errors: [...prev.errors, 'Google Maps API key is missing']
@@ -61,7 +55,7 @@ export default function GoogleDebugPage() {
     if (!isLoaded) {
       try {
         await loadGoogleMapsScript(apiKey);
-        setDebugInfo(prev => ({
+        setDebugInfo((prev: any) => ({
           ...prev,
           googleMaps: {
             ...prev.googleMaps,
@@ -74,18 +68,19 @@ export default function GoogleDebugPage() {
           }
         }));
       } catch (error) {
-        setDebugInfo(prev => ({
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        setDebugInfo((prev: any) => ({
           ...prev,
           googleMaps: {
             ...prev.googleMaps,
             scriptLoaded: false,
-            loadError: error.message
+            loadError: errorMessage
           },
-          errors: [...prev.errors, `Failed to load Google Maps: ${error.message}`]
+          errors: [...prev.errors, `Failed to load Google Maps: ${errorMessage}`]
         }));
       }
     } else {
-      setDebugInfo(prev => ({
+      setDebugInfo((prev: any) => ({
         ...prev,
         googleMaps: {
           alreadyLoaded: true,
@@ -107,7 +102,7 @@ export default function GoogleDebugPage() {
       if (!response.ok) {
         const text = await response.text();
         if (text.includes('InvalidKeyMapError')) {
-          setDebugInfo(prev => ({
+          setDebugInfo((prev: any) => ({
             ...prev,
             googleMaps: {
               ...prev.googleMaps,
@@ -117,7 +112,7 @@ export default function GoogleDebugPage() {
             errors: [...prev.errors, 'Google Maps API key is invalid']
           }));
         } else if (text.includes('RefererNotAllowedMapError')) {
-          setDebugInfo(prev => ({
+          setDebugInfo((prev: any) => ({
             ...prev,
             googleMaps: {
               ...prev.googleMaps,
@@ -128,7 +123,7 @@ export default function GoogleDebugPage() {
           }));
         }
       } else {
-        setDebugInfo(prev => ({
+        setDebugInfo((prev: any) => ({
           ...prev,
           googleMaps: {
             ...prev.googleMaps,
@@ -137,22 +132,23 @@ export default function GoogleDebugPage() {
         }));
       }
     } catch (error) {
-      setDebugInfo(prev => ({
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setDebugInfo((prev: any) => ({
         ...prev,
         googleMaps: {
           ...prev.googleMaps,
-          testError: error.message
+          testError: errorMessage
         }
       }));
     }
-  };
+  }, []);
 
-  const checkSupabaseConfig = async () => {
+  const checkSupabaseConfig = useCallback(async () => {
     try {
       // Get Supabase session
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      setDebugInfo(prev => ({
+      setDebugInfo((prev: any) => ({
         ...prev,
         supabase: {
           connected: true,
@@ -166,21 +162,28 @@ export default function GoogleDebugPage() {
         }
       }));
     } catch (error) {
-      setDebugInfo(prev => ({
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setDebugInfo((prev: any) => ({
         ...prev,
         supabase: {
           connected: false,
-          error: error.message
+          error: errorMessage
         },
-        errors: [...prev.errors, `Supabase connection error: ${error.message}`]
+        errors: [...prev.errors, `Supabase connection error: ${errorMessage}`]
       }));
     }
-  };
+  }, [supabase.auth]);
+
+  useEffect(() => {
+    checkEnvironmentVariables();
+    checkGoogleMapsAPI();
+    checkSupabaseConfig();
+  }, [checkGoogleMapsAPI, checkSupabaseConfig]);
 
   const testGoogleOAuth = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/debug/google?oauth_test=true`,
@@ -188,15 +191,17 @@ export default function GoogleDebugPage() {
       });
 
       if (error) {
-        setDebugInfo(prev => ({
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        setDebugInfo((prev: any) => ({
           ...prev,
-          errors: [...prev.errors, `OAuth error: ${error.message}`]
+          errors: [...prev.errors, `OAuth error: ${errorMessage}`]
         }));
       }
     } catch (error) {
-      setDebugInfo(prev => ({
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setDebugInfo((prev: any) => ({
         ...prev,
-        errors: [...prev.errors, `OAuth test failed: ${error.message}`]
+        errors: [...prev.errors, `OAuth test failed: ${errorMessage}`]
       }));
     } finally {
       setIsLoading(false);
@@ -227,14 +232,14 @@ export default function GoogleDebugPage() {
       div.style.height = '100px';
       document.body.appendChild(div);
 
-      const map = new google.maps.Map(div, {
+      new google.maps.Map(div, {
         center: { lat: 37.7749, lng: -122.4194 },
         zoom: 8,
       });
 
       document.body.removeChild(div);
 
-      setDebugInfo(prev => ({
+      setDebugInfo((prev: any) => ({
         ...prev,
         googleMaps: {
           ...prev.googleMaps,
@@ -242,13 +247,14 @@ export default function GoogleDebugPage() {
         }
       }));
     } catch (error) {
-      setDebugInfo(prev => ({
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setDebugInfo((prev: any) => ({
         ...prev,
         googleMaps: {
           ...prev.googleMaps,
-          mapCreationTest: `Failed: ${error.message}`
+          mapCreationTest: `Failed: ${errorMessage}`
         },
-        errors: [...prev.errors, `Map creation failed: ${error.message}`]
+        errors: [...prev.errors, `Map creation failed: ${errorMessage}`]
       }));
     }
   };
@@ -258,11 +264,11 @@ export default function GoogleDebugPage() {
       const input = document.createElement('input');
       document.body.appendChild(input);
 
-      const autocomplete = new google.maps.places.Autocomplete(input);
+      new google.maps.places.Autocomplete(input);
       
       document.body.removeChild(input);
 
-      setDebugInfo(prev => ({
+      setDebugInfo((prev: any) => ({
         ...prev,
         googleMaps: {
           ...prev.googleMaps,
@@ -270,13 +276,14 @@ export default function GoogleDebugPage() {
         }
       }));
     } catch (error) {
-      setDebugInfo(prev => ({
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      setDebugInfo((prev: any) => ({
         ...prev,
         googleMaps: {
           ...prev.googleMaps,
-          placesTest: `Failed: ${error.message}`
+          placesTest: `Failed: ${errorMessage}`
         },
-        errors: [...prev.errors, `Places API test failed: ${error.message}`]
+        errors: [...prev.errors, `Places API test failed: ${errorMessage}`]
       }));
     }
   };
@@ -455,7 +462,7 @@ export default function GoogleDebugPage() {
           <AlertDescription>
             <div className="font-semibold mb-2">Errors Found:</div>
             <ul className="list-disc list-inside space-y-1">
-              {debugInfo.errors.map((error, idx) => (
+              {debugInfo.errors.map((error: string, idx: number) => (
                 <li key={idx}>{error}</li>
               ))}
             </ul>

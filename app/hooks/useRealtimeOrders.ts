@@ -13,16 +13,17 @@ export interface Order {
   id: string;
   status: string;
   price_total: number;
-  currency?: string;
-  created_at: string;
-  updated_at?: string;
+  currency?: string | null;
+  created_at: string | null;
+  updated_at?: string | null;
   hubspot_deal_id?: string | null;
   customers?: {
     id?: string;
-    name?: string;
+    name?: string | null;
     email?: string;
-    phone?: string;
+    phone?: string | null;
     hubspot_contact_id?: string | null;
+    created_at?: string | null;
   } | null;
   quotes?: {
     id?: string;
@@ -90,7 +91,7 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
       }
 
       if (status) {
-        query = query.eq('status', status);
+        query = query.eq('status', status as any);
       }
 
       const { data, error: fetchError } = await query;
@@ -159,6 +160,7 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
         supabase.removeChannel(realtimeChannel);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId, driverId, status]);
 
   return {

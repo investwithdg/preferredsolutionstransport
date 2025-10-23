@@ -41,14 +41,17 @@ interface Order {
   id: string;
   status: string;
   price_total: number;
-  currency?: string;
-  created_at: string;
-  updated_at?: string;
+  currency?: string | null;
+  created_at: string | null;
+  updated_at?: string | null;
   hubspot_deal_id?: string | null;
   customers?: {
-    name?: string;
+    id?: string;
+    name?: string | null;
     email?: string;
-    phone?: string;
+    phone?: string | null;
+    hubspot_contact_id?: string | null;
+    created_at?: string | null;
   } | null;
   quotes?: {
     pickup_address?: string;
@@ -231,7 +234,7 @@ export default function DispatcherClient({ initialOrders, drivers: initialDriver
                             #{order.id.slice(-8)}
                           </div>
                           <div className="text-xs text-muted-foreground">
-                            {new Date(order.created_at).toLocaleString()}
+                            {order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}
                           </div>
                           {order.quotes?.distance_mi && (
                             <Badge variant="secondary" className="text-xs">

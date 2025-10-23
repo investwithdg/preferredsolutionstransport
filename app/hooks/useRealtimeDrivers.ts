@@ -126,6 +126,7 @@ export function useRealtimeDrivers(initialDrivers: Driver[] = []): UseRealtimeDr
         supabase.removeChannel(realtimeChannel);
       }
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {

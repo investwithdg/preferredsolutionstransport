@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useLoadScript } from '@react-google-maps/api';
 import { LoadingState } from '@/app/components/shared/LoadingState';
 import { AlertCircle } from 'lucide-react';
@@ -24,7 +24,7 @@ export default function OrderRouteMap({ pickupAddress, dropoffAddress }: OrderRo
     libraries: ['places', 'geometry'],
   });
 
-  const calculateRoute = () => {
+  const calculateRoute = useCallback(() => {
     if (!directionsServiceRef.current || !directionsRendererRef.current) return;
 
     const request: google.maps.DirectionsRequest = {
@@ -50,7 +50,7 @@ export default function OrderRouteMap({ pickupAddress, dropoffAddress }: OrderRo
         setError(`Could not calculate route: ${status}`);
       }
     });
-  };
+  }, [pickupAddress, dropoffAddress]);
 
   useEffect(() => {
     if (!isLoaded || !mapRef.current) return;
@@ -80,7 +80,7 @@ export default function OrderRouteMap({ pickupAddress, dropoffAddress }: OrderRo
 
     // Calculate and display route
     calculateRoute();
-  }, [isLoaded, pickupAddress, dropoffAddress]);
+  }, [isLoaded, pickupAddress, dropoffAddress, calculateRoute]);
 
   if (loadError) {
     return (

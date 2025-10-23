@@ -134,7 +134,7 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
       order.drivers?.name || 'Unassigned',
       order.status,
       `$${order.price_total?.toFixed(2) || '0.00'}`,
-      new Date(order.created_at).toLocaleDateString(),
+      order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A',
     ]);
     
     const csvContent = [
@@ -160,7 +160,7 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
       log.event_type,
       log.actor,
       log.source,
-      new Date(log.created_at).toLocaleString(),
+      log.created_at ? new Date(log.created_at).toLocaleString() : 'N/A',
     ]);
     
     const csvContent = [
@@ -316,7 +316,7 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                           ${order.price_total?.toFixed(2) || '0.00'}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
-                          {new Date(order.created_at).toLocaleDateString()}
+                          {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -362,7 +362,7 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                         </Badge>
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {new Date(user.created_at).toLocaleDateString()}
+                        {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex items-center justify-end gap-2">
@@ -476,7 +476,7 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                         ${order.price_total?.toFixed(2) || '0.00'}
                       </TableCell>
                       <TableCell className="text-muted-foreground text-sm">
-                        {new Date(order.created_at).toLocaleDateString()}
+                        {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
                       </TableCell>
                     </TableRow>
                   ))}
@@ -703,7 +703,7 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                               </details>
                             </TableCell>
                             <TableCell className="text-sm text-muted-foreground">
-                              {new Date(log.created_at).toLocaleString()}
+                              {log.created_at ? new Date(log.created_at).toLocaleString() : 'N/A'}
                             </TableCell>
                           </TableRow>
                         ))}

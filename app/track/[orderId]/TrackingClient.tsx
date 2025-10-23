@@ -320,11 +320,11 @@ export default function TrackingClient({ order, events }: Props) {
                     Order Date
                   </span>
                   <span className="text-foreground font-medium">
-                    {new Date(order.created_at).toLocaleDateString('en-US', {
+                    {order.created_at ? new Date(order.created_at).toLocaleDateString('en-US', {
                       month: 'short',
                       day: 'numeric',
                       year: 'numeric',
-                    })}
+                    }) : 'N/A'}
                   </span>
                 </div>
                 <div className="flex items-center justify-between text-sm">
@@ -409,13 +409,13 @@ export default function TrackingClient({ order, events }: Props) {
                         {formatEventType(event.event_type)}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {new Date(event.created_at).toLocaleDateString('en-US', {
+                        {event.created_at ? new Date(event.created_at).toLocaleDateString('en-US', {
                           year: 'numeric',
                           month: 'short',
                           day: 'numeric',
                           hour: '2-digit',
                           minute: '2-digit',
-                        })}
+                        }) : 'N/A'}
                       </p>
                       {event.payload && (
                         <p className="text-xs text-muted-foreground mt-1">

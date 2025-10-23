@@ -30,17 +30,18 @@ import { RealtimeIndicator, SyncStatusIndicator } from '@/app/components/shared/
 
 type Customer = {
   id: string;
-  name: string;
+  name: string | null;
   email: string;
-  phone: string;
+  phone: string | null;
+  created_at?: string | null;
 };
 
 type Order = {
   id: string;
   status: string;
   price_total: number;
-  created_at: string;
-  updated_at?: string;
+  created_at: string | null;
+  updated_at?: string | null;
   hubspot_deal_id?: string | null;
   quotes: {
     pickup_address: string;
@@ -95,7 +96,7 @@ export default function CustomerDashboardClient({ customer, orders: initialOrder
 
     // Date filter
     if (dateFilter !== 'all') {
-      const orderDate = new Date(order.created_at);
+      const orderDate = order.created_at ? new Date(order.created_at) : new Date();
       const now = new Date();
       const daysDiff = Math.floor((now.getTime() - orderDate.getTime()) / (1000 * 60 * 60 * 24));
 
@@ -119,7 +120,7 @@ export default function CustomerDashboardClient({ customer, orders: initialOrder
     <div className="container max-w-[1200px] mx-auto py-8 px-4 sm:px-6 lg:px-8" data-testid="customer-dashboard">
       <div className="flex items-center justify-between mb-6">
         <PageHeader
-          title={`Welcome back, ${customer.name}!`}
+          title={`Welcome back${customer.name ? `, ${customer.name}` : ''}!`}
           description="Track your deliveries and request new quotes"
           breadcrumbs={[
             { label: 'Home', href: '/' },
@@ -309,7 +310,7 @@ export default function CustomerDashboardClient({ customer, orders: initialOrder
                         </TableCell>
                         <TableCell>
                           <span className="text-sm text-muted-foreground">
-                            {new Date(order.created_at).toLocaleDateString()}
+                            {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
                           </span>
                         </TableCell>
                         <TableCell className="text-right">

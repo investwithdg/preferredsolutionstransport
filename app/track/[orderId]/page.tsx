@@ -26,7 +26,7 @@ export default async function TrackOrderPage({ params }: { params: Promise<{ ord
   const { data: events } = await supabase
     .from('dispatch_events')
     .select('*')
-    .eq('order_id', params.orderId)
+    .eq('order_id', orderId)
     .order('created_at', { ascending: true });
 
   return <TrackingClient order={order as any} events={(events as any) || []} />;

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { PageHeader } from '@/app/components/shared/PageHeader';
 import { EmptyState } from '@/app/components/shared/EmptyState';
 import { LoadingState } from '@/app/components/shared/LoadingState';
@@ -95,6 +95,40 @@ export default function DriverClient() {
     driverId: selectedDriverId 
   });
 
+  const fetchDrivers = useCallback(async () => {
+    try {
+      const response = await fetch('/api/drivers');
+      const data = await response.json();
+      setDrivers(data.drivers || []);
+    } catch (error) {
+      console.error('Error fetching drivers:', error);
+      toast.error('Failed to load drivers');
+    }
+  }, []);
+
+  const fetchOrdersForDriver = useCallback(async (driverId: string) => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/orders/by-driver', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ driverId }),
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setOrders(data.orders || []);
+      }
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+      toast.error('Failed to load orders');
+    } finally {
+      setIsLoading(false);
+    }
+  }, []);
+
   useEffect(() => {
     if (isDemoMode) {
       // In demo mode, use demo drivers
@@ -119,7 +153,7 @@ export default function DriverClient() {
         fetchDrivers();
       }
     }
-  }, [isDemoMode, currentDriverId, demoDrivers]);
+  }, [isDemoMode, currentDriverId, demoDrivers, fetchDrivers, selectedDriverId]);
 
   useEffect(() => {
     if (selectedDriverId) {
@@ -127,41 +161,7 @@ export default function DriverClient() {
     } else {
       setOrders([]);
     }
-  }, [selectedDriverId]);
-
-  const fetchDrivers = async () => {
-    try {
-      const response = await fetch('/api/drivers');
-      const data = await response.json();
-      setDrivers(data.drivers || []);
-    } catch (error) {
-      console.error('Error fetching drivers:', error);
-      toast.error('Failed to load drivers');
-    }
-  };
-
-  const fetchOrdersForDriver = async (driverId: string) => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/orders/by-driver', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ driverId }),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data.orders || []);
-      }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      toast.error('Failed to load orders');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  }, [selectedDriverId, fetchOrdersForDriver]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     setIsUpdating(orderId);
@@ -333,7 +333,7 @@ export default function DriverClient() {
       console.error('Failed to start location tracking:', err);
       toast.error('Location tracking not supported');
     }
-  }, [selectedDriverId, activeOrders.length]);
+  }, [selectedDriverId, activeOrders]);
 
   return (
     <div className="container max-w-[1200px] mx-auto py-8 px-4 sm:px-6 lg:px-8" data-testid="driver-dashboard">
@@ -449,7 +449,7 @@ export default function DriverClient() {
                               Order #{order.id.slice(-8)}
                             </CardTitle>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Created {new Date(order.created_at).toLocaleString()}
+                              Created {order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}
                             </p>
                           </div>
                           <StatusBadge status={order.status} />

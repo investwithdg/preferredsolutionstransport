@@ -9,7 +9,7 @@ interface OrderCardProps {
     id: string;
     status: string;
     price_total: number;
-    created_at: string;
+    created_at: string | null;
     quotes?: {
       pickup_address?: string;
       dropoff_address?: string;
