@@ -579,6 +579,8 @@ export default function DispatcherClient({ initialOrders, drivers: initialDriver
         </Card>
         <AuditPanel />
       </div>
+        </div>
+      </div>
     </div>
   );
 }
