@@ -30,6 +30,7 @@ import { Separator } from '@/app/components/ui/separator';
 import { toast } from 'sonner';
 import { watchLocation, clearWatch } from '@/lib/google-maps/tracking';
 import { usePushNotifications } from '@/app/hooks/usePushNotifications';
+import { useRealtimeOrders } from '@/app/hooks/useRealtimeOrders';
 import { useDemo } from '@/app/demo/DemoContext';
 import { generateDemoOrders } from '@/app/demo/demoData';
 import { 
@@ -84,8 +85,6 @@ export default function DriverClient() {
   const { isDemoMode, currentDriverId, demoDrivers } = useDemo();
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [drivers, setDrivers] = useState<Driver[]>([]);
-  const [orders, setOrders] = useState<Order[]>([]);
-  const [isLoading, setIsLoading] = useState(false);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [isLocationTracking, setIsLocationTracking] = useState(false);
   const locationWatchIdRef = useRef<number | null>(null);
@@ -96,6 +95,16 @@ export default function DriverClient() {
     driverId: selectedDriverId 
   });
 
+  // Use real-time orders hook with driver filter
+  const { 
+    orders, 
+    isLoading, 
+    refresh: refreshOrders 
+  } = useRealtimeOrders({ 
+    driverId: selectedDriverId || undefined,
+    initialOrders: isDemoMode && selectedDriverId ? generateDemoOrders().filter(o => o.driver_id === selectedDriverId) as unknown as Order[] : []
+  });
+
   const fetchDrivers = useCallback(async () => {
     try {
       const response = await fetch('/api/drivers');
@@ -104,29 +113,6 @@ export default function DriverClient() {
     } catch (error) {
       console.error('Error fetching drivers:', error);
       toast.error('Failed to load drivers');
-    }
-  }, []);
-
-  const fetchOrdersForDriver = useCallback(async (driverId: string) => {
-    setIsLoading(true);
-    try {
-      const response = await fetch('/api/orders/by-driver', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ driverId }),
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setOrders(data.orders || []);
-      }
-    } catch (error) {
-      console.error('Error fetching orders:', error);
-      toast.error('Failed to load orders');
-    } finally {
-      setIsLoading(false);
     }
   }, []);
 
@@ -158,37 +144,11 @@ export default function DriverClient() {
     }
   }, [isDemoMode, currentDriverId, demoDrivers, fetchDrivers, selectedDriverId]);
 
-  useEffect(() => {
-    if (!selectedDriverId) {
-      setOrders([]);
-      return;
-    }
-
-    if (isDemoMode) {
-      const allDemo = generateDemoOrders();
-      // Show orders assigned to selected driver
-      const filtered = allDemo.filter(o => o.driver_id === selectedDriverId);
-      setOrders(filtered as unknown as Order[]);
-      return;
-    }
-
-    fetchOrdersForDriver(selectedDriverId);
-  }, [selectedDriverId, fetchOrdersForDriver, isDemoMode]);
-
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     setIsUpdating(orderId);
     try {
       if (isDemoMode) {
-        // Local-only update in demo mode
-        setOrders(prev => prev.map(order => (
-          order.id === orderId
-            ? {
-                ...order,
-                status: newStatus,
-                updated_at: new Date().toISOString(),
-              }
-            : order
-        )));
+        // In demo mode, just show success - the demo data doesn't persist
         toast.success('Status updated!', {
           description: `Order marked as ${newStatus}`,
         });
@@ -210,13 +170,12 @@ export default function DriverClient() {
       });
 
       if (response.ok) {
-        const data = await response.json();
-        setOrders(orders.map(order => 
-          order.id === orderId ? data.order : order
-        ));
+        // Real-time hook will automatically update the orders list
         toast.success('Status updated!', {
           description: `Order marked as ${newStatus}`,
         });
+        // Optionally refresh immediately rather than waiting for real-time update
+        await refreshOrders();
       } else {
         throw new Error('Failed to update status');
       }
