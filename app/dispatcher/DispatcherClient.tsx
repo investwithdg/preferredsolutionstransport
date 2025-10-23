@@ -80,11 +80,10 @@ interface DispatcherClientProps {
 }
 
 export default function DispatcherClient({ initialOrders, drivers: initialDrivers }: DispatcherClientProps) {
-  const { isDemoMode } = useDemo();
+  const { isDemoMode, demoOrders, assignDemoOrder } = useDemo();
   const [isAssigning, setIsAssigning] = useState<string | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<{ [orderId: string]: string }>({});
   const [selectedOrderForMap, setSelectedOrderForMap] = useState<Order | null>(null);
-  const [localOrders, setLocalOrders] = useState<Order[]>(initialOrders);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ReadyForDispatch' | 'Assigned' | 'Accepted' | 'PickedUp' | 'InTransit'>('all');
   const [isMapOpen, setIsMapOpen] = useState(true);
@@ -93,10 +92,13 @@ export default function DispatcherClient({ initialOrders, drivers: initialDriver
   const [bulkDriver, setBulkDriver] = useState<string>('');
   const [issueOrder, setIssueOrder] = useState<Order | null>(null);
   
+  // Get initial orders from demo context in demo mode
+  const demoReadyOrders = isDemoMode ? demoOrders.filter(o => o.status === 'ReadyForDispatch') as unknown as Order[] : [];
+  
   // Real-time subscriptions
   const { orders, lastUpdate } = useRealtimeOrders({
     status: 'ReadyForDispatch',
-    initialOrders: isDemoMode ? localOrders : initialOrders,
+    initialOrders: isDemoMode ? demoReadyOrders : initialOrders,
   });
   
   const { drivers } = useRealtimeDrivers(initialDrivers);
@@ -113,8 +115,8 @@ export default function DispatcherClient({ initialOrders, drivers: initialDriver
     
     try {
       if (isDemoMode) {
-        // Local assign: move order out of ReadyForDispatch list
-        setLocalOrders(prev => prev.filter(o => o.id !== orderId));
+        // Use shared demo context to assign order
+        assignDemoOrder(orderId, driverId);
       } else {
         const response = await fetch('/api/orders/assign', {
           method: 'POST',

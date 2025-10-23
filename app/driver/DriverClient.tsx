@@ -32,7 +32,6 @@ import { watchLocation, clearWatch } from '@/lib/google-maps/tracking';
 import { usePushNotifications } from '@/app/hooks/usePushNotifications';
 import { useRealtimeOrders } from '@/app/hooks/useRealtimeOrders';
 import { useDemo } from '@/app/demo/DemoContext';
-import { generateDemoOrders } from '@/app/demo/demoData';
 import { 
   Package, 
   MapPin, 
@@ -82,7 +81,7 @@ interface Driver {
 }
 
 export default function DriverClient() {
-  const { isDemoMode, currentDriverId, demoDrivers } = useDemo();
+  const { isDemoMode, currentDriverId, demoDrivers, demoOrders, updateDemoOrderStatus } = useDemo();
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
@@ -96,13 +95,18 @@ export default function DriverClient() {
   });
 
   // Use real-time orders hook with driver filter
+  // In demo mode, use shared demo orders filtered by selected driver
+  const demoDriverOrders = isDemoMode && selectedDriverId 
+    ? demoOrders.filter(o => o.driver_id === selectedDriverId) as unknown as Order[]
+    : [];
+  
   const { 
     orders, 
     isLoading, 
     refresh: refreshOrders 
   } = useRealtimeOrders({ 
     driverId: selectedDriverId || undefined,
-    initialOrders: isDemoMode && selectedDriverId ? generateDemoOrders().filter(o => o.driver_id === selectedDriverId) as unknown as Order[] : []
+    initialOrders: isDemoMode ? demoDriverOrders : []
   });
 
   const fetchDrivers = useCallback(async () => {
@@ -148,7 +152,8 @@ export default function DriverClient() {
     setIsUpdating(orderId);
     try {
       if (isDemoMode) {
-        // In demo mode, just show success - the demo data doesn't persist
+        // In demo mode, update shared demo context
+        updateDemoOrderStatus(orderId, newStatus);
         toast.success('Status updated!', {
           description: `Order marked as ${newStatus}`,
         });

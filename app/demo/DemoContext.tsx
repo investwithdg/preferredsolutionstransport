@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { generateDemoOrders, type DemoOrder } from './demoData';
 
 export type DemoRole = 'customer' | 'dispatcher' | 'driver' | 'admin';
 
@@ -17,6 +18,11 @@ interface DemoContextType {
   setRole: (role: DemoRole) => void;
   setDriverId: (driverId: string | null) => void;
   demoDrivers: DemoDriver[];
+  // Demo orders management
+  demoOrders: DemoOrder[];
+  assignDemoOrder: (orderId: string, driverId: string) => void;
+  updateDemoOrderStatus: (orderId: string, status: string) => void;
+  resetDemoOrders: () => void;
 }
 
 const DemoContext = createContext<DemoContextType | undefined>(undefined);
@@ -34,6 +40,7 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
   
   const [currentRole, setCurrentRole] = useState<DemoRole>('customer');
   const [currentDriverId, setCurrentDriverId] = useState<string | null>(null);
+  const [demoOrders, setDemoOrders] = useState<DemoOrder[]>([]);
 
   // Set demo mode cookie for middleware
   useEffect(() => {
@@ -50,12 +57,24 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     
     const savedRole = localStorage.getItem('demo-role') as DemoRole;
     const savedDriverId = localStorage.getItem('demo-driver-id');
+    const savedOrders = localStorage.getItem('demo-orders');
     
     if (savedRole) {
       setCurrentRole(savedRole);
     }
     if (savedDriverId) {
       setCurrentDriverId(savedDriverId);
+    }
+    if (savedOrders) {
+      try {
+        setDemoOrders(JSON.parse(savedOrders));
+      } catch (e) {
+        console.error('Failed to parse saved demo orders', e);
+        setDemoOrders(generateDemoOrders());
+      }
+    } else {
+      // Initialize with default demo orders
+      setDemoOrders(generateDemoOrders());
     }
   }, [isDemoMode]);
 
@@ -69,7 +88,29 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     } else {
       localStorage.removeItem('demo-driver-id');
     }
-  }, [isDemoMode, currentRole, currentDriverId]);
+    
+    if (demoOrders.length > 0) {
+      localStorage.setItem('demo-orders', JSON.stringify(demoOrders));
+    }
+  }, [isDemoMode, currentRole, currentDriverId, demoOrders]);
+
+  // Listen for storage changes from other tabs/windows
+  useEffect(() => {
+    if (!isDemoMode) return;
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'demo-orders' && e.newValue) {
+        try {
+          setDemoOrders(JSON.parse(e.newValue));
+        } catch (err) {
+          console.error('Failed to parse demo orders from storage event', err);
+        }
+      }
+    };
+
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
+  }, [isDemoMode]);
 
   const setRole = (role: DemoRole) => {
     setCurrentRole(role);
@@ -95,6 +136,61 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     setCurrentDriverId(driverId);
   };
 
+  const assignDemoOrder = (orderId: string, driverId: string) => {
+    setDemoOrders(prev => {
+      const updatedOrders = prev.map(order => 
+        order.id === orderId 
+          ? { 
+              ...order, 
+              driver_id: driverId, 
+              status: 'Assigned',
+              updated_at: new Date().toISOString()
+            }
+          : order
+      );
+
+      // Send push notification in demo mode
+      const assignedOrder = updatedOrders.find(o => o.id === orderId);
+      if (assignedOrder && 'Notification' in window && Notification.permission === 'granted') {
+        // Find the driver name
+        const driverName = DEMO_DRIVERS.find(d => d.id === driverId)?.name || 'Driver';
+        
+        // Create notification
+        const notification = new Notification('🚚 New Delivery Assignment', {
+          body: `Order #${orderId.slice(-8)} - ${assignedOrder.quotes.pickup_address} to ${assignedOrder.quotes.dropoff_address}`,
+          icon: '/icon-192x192.png',
+          badge: '/icon-192x192.png',
+          tag: `order-${orderId}`,
+          requireInteraction: false,
+        });
+
+        // Optional: handle notification click
+        notification.onclick = () => {
+          window.focus();
+          notification.close();
+        };
+      }
+
+      return updatedOrders;
+    });
+  };
+
+  const updateDemoOrderStatus = (orderId: string, status: string) => {
+    setDemoOrders(prev =>
+      prev.map(order =>
+        order.id === orderId
+          ? { ...order, status, updated_at: new Date().toISOString() }
+          : order
+      )
+    );
+  };
+
+  const resetDemoOrders = () => {
+    const fresh = generateDemoOrders();
+    setDemoOrders(fresh);
+    localStorage.setItem('demo-orders', JSON.stringify(fresh));
+  };
+
   const value: DemoContextType = {
     isDemoMode,
     currentRole,
@@ -102,6 +198,10 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
     setRole,
     setDriverId,
     demoDrivers: DEMO_DRIVERS,
+    demoOrders,
+    assignDemoOrder,
+    updateDemoOrderStatus,
+    resetDemoOrders,
   };
 
   return <DemoContext.Provider value={value}>{children}</DemoContext.Provider>;
