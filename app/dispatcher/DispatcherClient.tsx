@@ -88,7 +88,7 @@ export default function DispatcherClient({ initialOrders, drivers: initialDriver
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'ReadyForDispatch' | 'Assigned' | 'Accepted' | 'PickedUp' | 'InTransit'>('all');
   const [isMapOpen, setIsMapOpen] = useState(true);
-  const { settings, getSuggestions } = useDispatcherSettings();
+  const { settings, getSuggestions, setAlgorithm } = useDispatcherSettings();
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
   const [bulkDriver, setBulkDriver] = useState<string>('');
   const [issueOrder, setIssueOrder] = useState<Order | null>(null);
@@ -263,6 +263,14 @@ export default function DispatcherClient({ initialOrders, drivers: initialDriver
                     <UiSelectItem value="Accepted">Accepted</UiSelectItem>
                     <UiSelectItem value="PickedUp">Picked Up</UiSelectItem>
                     <UiSelectItem value="InTransit">In Transit</UiSelectItem>
+                  </UiSelectContent>
+                </UiSelect>
+                <UiSelect value={settings.algorithm} onValueChange={(v: any) => setAlgorithm(v)}>
+                  <UiSelectTrigger className="w-[220px]"><UiSelectValue placeholder="Algorithm" /></UiSelectTrigger>
+                  <UiSelectContent>
+                    <UiSelectItem value="nearest">Nearest available</UiSelectItem>
+                    <UiSelectItem value="workload">Workload balancing</UiSelectItem>
+                    <UiSelectItem value="roundRobin">Round robin</UiSelectItem>
                   </UiSelectContent>
                 </UiSelect>
                 <Button variant="outline" className="gap-2" onClick={() => exportCSV(filteredOrders)}>
@@ -566,19 +574,7 @@ export default function DispatcherClient({ initialOrders, drivers: initialDriver
         </Dialog>
       )}
 
-      {/* Notifications & Audit Sections */}
-      <div id="notifications" className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-8">
-        <Card>
-          <CardContent className="p-4">
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-semibold">Notifications</h3>
-              <Badge variant="secondary">Live</Badge>
-            </div>
-            <p className="text-xs text-muted-foreground">No new notifications</p>
-          </CardContent>
-        </Card>
-        <AuditPanel />
-      </div>
+      {/* Notifications & Audit moved to separate pages */}
         </div>
       </div>
     </div>

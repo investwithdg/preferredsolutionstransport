@@ -9,28 +9,25 @@ import { Badge } from '@/app/components/ui/badge';
 import { Separator } from '@/app/components/ui/separator';
 import { useDemoAuth } from '@/app/hooks/useDemoAuth';
 import { Settings, ListOrdered, Bell, Map as MapIcon, FileText, LogOut, User } from 'lucide-react';
-import { useDispatcherSettings, type SuggestionAlgorithm } from '@/app/hooks/useDispatcherSettings';
 
 const navItems = [
+  { href: '/dispatcher/profile', label: 'Profile', icon: User },
   { href: '/dispatcher', label: 'Order Queue', icon: ListOrdered },
-  { href: '/dispatcher#notifications', label: 'Notifications', icon: Bell },
-  { href: '/dispatcher#map', label: 'Map / Tracking', icon: MapIcon },
-  { href: '/dispatcher#audit', label: 'Audit Log', icon: FileText },
-  { href: '/dispatcher#settings', label: 'Settings', icon: Settings },
+  { href: '/dispatcher/notifications', label: 'Notifications', icon: Bell },
+  { href: '/dispatcher/map', label: 'Map / Tracking', icon: MapIcon },
+  { href: '/dispatcher/audit', label: 'Audit Log', icon: FileText },
+  { href: '/dispatcher/settings', label: 'Settings', icon: Settings },
 ];
 
 export function DispatcherSidebar() {
   const pathname = usePathname();
   const { demoUser } = useDemoAuth();
-  const { settings, setAlgorithm } = useDispatcherSettings();
 
   const roleLabel = useMemo(() => {
     const role = demoUser?.role?.toLowerCase();
     if (!role) return 'Dispatcher';
     return role.charAt(0).toUpperCase() + role.slice(1);
   }, [demoUser]);
-
-  const handleAlgoChange = (algo: SuggestionAlgorithm) => setAlgorithm(algo);
 
   return (
     <aside className="w-full md:w-72 md:min-h-[calc(100vh-4rem)] md:border-r border-border p-4 space-y-4">
@@ -61,35 +58,6 @@ export function DispatcherSidebar() {
           );
         })}
       </nav>
-
-      <Separator />
-
-      <div id="settings" className="space-y-3">
-        <div className="text-xs font-semibold text-muted-foreground">Suggestion Algorithm</div>
-        <div className="grid grid-cols-1 gap-2">
-          <Button
-            variant={settings.algorithm === 'nearest' ? 'accent' : 'outline'}
-            onClick={() => handleAlgoChange('nearest')}
-            className="justify-start"
-          >
-            Nearest available
-          </Button>
-          <Button
-            variant={settings.algorithm === 'workload' ? 'accent' : 'outline'}
-            onClick={() => handleAlgoChange('workload')}
-            className="justify-start"
-          >
-            Workload balancing
-          </Button>
-          <Button
-            variant={settings.algorithm === 'roundRobin' ? 'accent' : 'outline'}
-            onClick={() => handleAlgoChange('roundRobin')}
-            className="justify-start"
-          >
-            Round robin
-          </Button>
-        </div>
-      </div>
 
       <Separator />
 

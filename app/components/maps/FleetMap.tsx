@@ -26,7 +26,17 @@ export default function FleetMap({ orders, drivers, driverLocations, onSelect }:
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const { isLoaded } = useLoadScript({ googleMapsApiKey: apiKey || '', libraries: ['places', 'geometry'] });
+  const { isLoaded, loadError } = useLoadScript({ googleMapsApiKey: apiKey || '', libraries: ['places', 'geometry'] });
+
+  if (!apiKey) {
+    return <div className="p-6 text-sm text-muted-foreground">Google Maps API key not configured. Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY.</div>;
+  }
+  if (loadError) {
+    return <div className="p-6 text-sm text-muted-foreground">Map failed to load. Check API key and API enablement.</div>;
+  }
+  if (!isLoaded) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading map…</div>;
+  }
 
   const activeOrders = useMemo(() => orders.filter(o => !['Delivered', 'Canceled'].includes(o.status)), [orders]);
 
