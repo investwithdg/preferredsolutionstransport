@@ -99,16 +99,27 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
   const fetchLogs = async () => {
     setIsLoadingLogs(true);
     try {
-      const params = new URLSearchParams();
-      if (logFilter.eventType) params.append('eventType', logFilter.eventType);
-      if (logFilter.orderId) params.append('orderId', logFilter.orderId);
-      if (logFilter.dateFrom) params.append('dateFrom', logFilter.dateFrom);
-      if (logFilter.dateTo) params.append('dateTo', logFilter.dateTo);
-      
-      const response = await fetch(`/api/admin/logs?${params.toString()}`);
-      if (response.ok) {
-        const data = await response.json();
-        setLogs(data.logs || []);
+      const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+      if (isDemoMode) {
+        const now = Date.now();
+        const demoLogs = [
+          { id: 'log-1', event_type: 'order_created', order_id: 'demo-order-1', actor: 'system', source: 'web', payload: { note: 'Demo order created' }, created_at: new Date(now - 3600000).toISOString() },
+          { id: 'log-2', event_type: 'driver_assigned', order_id: 'demo-order-3', actor: 'dispatcher@demo.com', source: 'dashboard', payload: { driver_id: 'demo-driver-1' }, created_at: new Date(now - 1800000).toISOString() },
+          { id: 'log-3', event_type: 'status_updated', order_id: 'demo-order-3', actor: 'demo-driver-1', source: 'driver_app', payload: { status: 'PickedUp' }, created_at: new Date(now - 600000).toISOString() },
+        ];
+        setLogs(demoLogs);
+      } else {
+        const params = new URLSearchParams();
+        if (logFilter.eventType) params.append('eventType', logFilter.eventType);
+        if (logFilter.orderId) params.append('orderId', logFilter.orderId);
+        if (logFilter.dateFrom) params.append('dateFrom', logFilter.dateFrom);
+        if (logFilter.dateTo) params.append('dateTo', logFilter.dateTo);
+        
+        const response = await fetch(`/api/admin/logs?${params.toString()}`);
+        if (response.ok) {
+          const data = await response.json();
+          setLogs(data.logs || []);
+        }
       }
     } catch (error) {
       console.error('Error fetching logs:', error);

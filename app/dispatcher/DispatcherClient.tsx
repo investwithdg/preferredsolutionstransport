@@ -27,6 +27,7 @@ import { getDealPipelineForStatus } from '@/lib/hubspot/property-mappings';
 import { useRealtimeOrders } from '@/app/hooks/useRealtimeOrders';
 import { useRealtimeDrivers } from '@/app/hooks/useRealtimeDrivers';
 import { RealtimeIndicator } from '@/app/components/shared/SyncStatusIndicator';
+import { useDemo } from '@/app/demo/DemoContext';
 
 interface Driver {
   id: string;
@@ -70,14 +71,16 @@ interface DispatcherClientProps {
 }
 
 export default function DispatcherClient({ initialOrders, drivers: initialDrivers }: DispatcherClientProps) {
+  const { isDemoMode } = useDemo();
   const [isAssigning, setIsAssigning] = useState<string | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<{ [orderId: string]: string }>({});
   const [selectedOrderForMap, setSelectedOrderForMap] = useState<Order | null>(null);
+  const [localOrders, setLocalOrders] = useState<Order[]>(initialOrders);
   
   // Real-time subscriptions
   const { orders, lastUpdate } = useRealtimeOrders({
     status: 'ReadyForDispatch',
-    initialOrders,
+    initialOrders: isDemoMode ? localOrders : initialOrders,
   });
   
   const { drivers } = useRealtimeDrivers(initialDrivers);
@@ -91,23 +94,29 @@ export default function DispatcherClient({ initialOrders, drivers: initialDriver
     setIsAssigning(orderId);
     
     try {
-      const response = await fetch('/api/orders/assign', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          orderId,
-          driverId,
-        }),
-      });
+      if (isDemoMode) {
+        // Local assign: move order out of ReadyForDispatch list
+        setLocalOrders(prev => prev.filter(o => o.id !== orderId));
+      } else {
+        const response = await fetch('/api/orders/assign', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            orderId,
+            driverId,
+          }),
+        });
 
-      if (!response.ok) {
-        throw new Error('Failed to assign driver');
+        if (!response.ok) {
+          throw new Error('Failed to assign driver');
+        }
+
+        // Real-time subscription will automatically update the list
       }
 
-      // Real-time subscription will automatically update the list
-      // Just clear the selection
+      // Clear the selection
       setSelectedDriver(prev => {
         const newState = { ...prev };
         delete newState[orderId];

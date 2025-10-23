@@ -66,8 +66,15 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
 
   const supabase = createClient();
 
-  // Fetch orders from database
+  const isDemoMode = typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_DEMO_MODE === 'true');
+
+  // Fetch orders from database (skipped in demo when initialOrders provided)
   const fetchOrders = async () => {
+    if (isDemoMode && initialOrders.length > 0) {
+      setOrders(initialOrders);
+      setLastUpdate(new Date());
+      return;
+    }
     setIsLoading(true);
     setError(null);
 
@@ -110,7 +117,7 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
     }
   };
 
-  // Set up real-time subscription
+  // Set up real-time subscription (skip in demo)
   useEffect(() => {
     // Initial fetch
     if (initialOrders.length === 0) {
@@ -120,6 +127,9 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
       setLastUpdate(new Date());
     }
 
+    if (isDemoMode) {
+      return;
+    }
     // Subscribe to changes
     const channelName = `orders-${customerId || driverId || status || 'all'}`;
     const realtimeChannel = supabase
@@ -162,6 +172,15 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [customerId, driverId, status]);
+
+  // Keep orders in sync if parent supplies new initialOrders in demo mode
+  useEffect(() => {
+    if (isDemoMode) {
+      setOrders(initialOrders);
+      setLastUpdate(new Date());
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [JSON.stringify(initialOrders), isDemoMode]);
 
   return {
     orders,

@@ -57,8 +57,10 @@ export default function DispatcherWrapper({ initialOrders, drivers }: Dispatcher
       is_available: driver.id !== 'demo-driver-1',
     }));
 
+    // Gate render until demo orders are ready so UI doesn't flash empty
     return (
       <DispatcherClient 
+        key={demoOrders.length}
         initialOrders={demoOrders} 
         drivers={demoDriverList} 
       />

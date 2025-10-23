@@ -31,6 +31,7 @@ import { toast } from 'sonner';
 import { watchLocation, clearWatch } from '@/lib/google-maps/tracking';
 import { usePushNotifications } from '@/app/hooks/usePushNotifications';
 import { useDemo } from '@/app/demo/DemoContext';
+import { generateDemoOrders } from '@/app/demo/demoData';
 import { 
   Package, 
   MapPin, 
@@ -145,6 +146,8 @@ export default function DriverClient() {
       // Auto-select the current demo driver
       if (currentDriverId) {
         setSelectedDriverId(currentDriverId);
+      } else if (demoDriverList.length > 0) {
+        setSelectedDriverId(demoDriverList[0].id);
       }
     } else {
       // In non-demo mode, only fetch if a driver is selected (avoid unnecessary load)
@@ -156,16 +159,42 @@ export default function DriverClient() {
   }, [isDemoMode, currentDriverId, demoDrivers, fetchDrivers, selectedDriverId]);
 
   useEffect(() => {
-    if (selectedDriverId) {
-      fetchOrdersForDriver(selectedDriverId);
-    } else {
+    if (!selectedDriverId) {
       setOrders([]);
+      return;
     }
-  }, [selectedDriverId, fetchOrdersForDriver]);
+
+    if (isDemoMode) {
+      const allDemo = generateDemoOrders();
+      // Show orders assigned to selected driver
+      const filtered = allDemo.filter(o => o.driver_id === selectedDriverId);
+      setOrders(filtered as unknown as Order[]);
+      return;
+    }
+
+    fetchOrdersForDriver(selectedDriverId);
+  }, [selectedDriverId, fetchOrdersForDriver, isDemoMode]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     setIsUpdating(orderId);
     try {
+      if (isDemoMode) {
+        // Local-only update in demo mode
+        setOrders(prev => prev.map(order => (
+          order.id === orderId
+            ? {
+                ...order,
+                status: newStatus,
+                updated_at: new Date().toISOString(),
+              }
+            : order
+        )));
+        toast.success('Status updated!', {
+          description: `Order marked as ${newStatus}`,
+        });
+        return;
+      }
+
       const requestBody = {
         status: newStatus,
         notes: `Status updated by driver via dashboard`
@@ -274,6 +303,9 @@ export default function DriverClient() {
 
           // Send location update for each active order
           activeOrders.forEach(async (order) => {
+            if (isDemoMode) {
+              return;
+            }
             try {
               const payload = {
                 driverId: selectedDriverId,
