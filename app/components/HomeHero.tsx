@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { useLoadScript, Autocomplete } from '@react-google-maps/api';
+import { Autocomplete } from '@react-google-maps/api';
+import { useGoogleMaps } from '@/app/contexts/GoogleMaps';
 import { AlertCircle } from 'lucide-react';
 
 export default function HomeHero() {
@@ -15,10 +16,7 @@ export default function HomeHero() {
     console.log('[Google Maps Debug] API Key length:', apiKey?.length || 0);
   }, [apiKey]);
   
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: apiKey || '',
-    libraries: ['places'],
-  });
+  const { isLoaded, loadError } = useGoogleMaps();
 
   const [pickupAutocomplete, setPickupAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
   const [dropoffAutocomplete, setDropoffAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);

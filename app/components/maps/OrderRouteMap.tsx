@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useLoadScript } from '@react-google-maps/api';
+import { useGoogleMaps } from '@/app/contexts/GoogleMaps';
 import { LoadingState } from '@/app/components/shared/LoadingState';
 import { AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/app/components/ui/alert';
@@ -19,10 +19,7 @@ export default function OrderRouteMap({ pickupAddress, dropoffAddress }: OrderRo
   const [error, setError] = useState<string | null>(null);
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: apiKey || '',
-    libraries: ['places', 'geometry'],
-  });
+  const { isLoaded, loadError } = useGoogleMaps();
 
   const calculateRoute = useCallback(() => {
     if (!directionsServiceRef.current || !directionsRendererRef.current) return;

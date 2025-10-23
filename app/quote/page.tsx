@@ -4,7 +4,8 @@ import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PRICING } from '@/lib/config';
 import { calculatePrice } from '@/lib/pricing';
-import { useLoadScript, Autocomplete } from '@react-google-maps/api';
+import { Autocomplete } from '@react-google-maps/api';
+import { useGoogleMaps } from '@/app/contexts/GoogleMaps';
 import { calculateDistanceClient } from '@/lib/google-maps/distance';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
@@ -98,10 +99,7 @@ export default function QuotePage() {
   const [isCalculatingDistance, setIsCalculatingDistance] = useState(false);
   const [distanceError, setDistanceError] = useState('');
 
-  const { isLoaded } = useLoadScript({
-    googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
-    libraries: ['places'],
-  });
+  const { isLoaded } = useGoogleMaps();
   const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
   useEffect(() => {
     if (isLoaded && window.google?.maps?.places && !sessionTokenRef.current) {
