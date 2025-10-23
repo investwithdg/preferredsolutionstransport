@@ -199,6 +199,31 @@ export default function LiveTrackingMap({
     return () => clearInterval(interval);
   }, [map, driverId, orderId, orderStatus, updateDriverMarker]);
 
+  if (!apiKey) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <div className="animate-pulse">
+            <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+            <p className="text-muted-foreground">Google Maps API key not configured.</p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <Card className="border-warning/20 bg-warning/5">
+        <CardContent className="p-8 text-center">
+          <AlertCircle className="h-12 w-12 text-warning mx-auto mb-4" />
+          <p className="text-foreground font-medium mb-2">Map Unavailable</p>
+          <p className="text-sm text-muted-foreground">{String(loadError)}</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!isLoaded) {
     return (
       <Card>
