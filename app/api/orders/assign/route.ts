@@ -9,6 +9,7 @@ import { mapOrderToDealProperties } from '@/lib/hubspot/property-mappings';
 import type { OrderSyncData } from '@/lib/hubspot/types';
 import { z } from 'zod';
 import { assignDriverSchema } from '@/lib/validations';
+import { notifyDriverAssignment, notifyOrderStatusChange } from '@/lib/notifications/dispatcher';
 
 const assignDriverSchemaLocal = assignDriverSchema;
 
@@ -105,6 +106,41 @@ export async function POST(request: NextRequest) {
     if (eventError) {
       // Log the error but don't fail the request
       console.error('Failed to log assignment event:', eventError);
+    }
+
+    // Send notifications about driver assignment
+    try {
+      const driverData = updatedOrder.drivers as any;
+      const customerData = updatedOrder.customers as any;
+      const quotesData = updatedOrder.quotes as any;
+      
+      // Notify driver about new assignment (stub for now)
+      await notifyDriverAssignment({
+        driverId,
+        orderId,
+        customerName: customerData?.name || 'Customer',
+        pickupAddress: quotesData?.pickup_address || 'N/A',
+        dropoffAddress: quotesData?.dropoff_address || 'N/A',
+        distance: quotesData?.distance_mi,
+        driverName: driverData?.name,
+        driverEmail: driverData?.email,
+        driverPhone: driverData?.phone,
+      });
+      
+      // Notify customer about driver assignment (stub for now)
+      await notifyOrderStatusChange({
+        orderId,
+        customerId: customerData?.id || '',
+        customerName: customerData?.name,
+        customerEmail: customerData?.email,
+        customerPhone: customerData?.phone,
+        previousStatus: 'ReadyForDispatch',
+        newStatus: 'Assigned',
+        driverName: driverData?.name,
+      });
+    } catch (notificationError) {
+      // Log error but don't fail the request
+      console.error('Failed to send notification stubs:', notificationError);
     }
 
     // Send push notification to driver

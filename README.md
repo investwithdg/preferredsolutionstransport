@@ -195,6 +195,11 @@ Set `NEXT_PUBLIC_DEMO_MODE=true` in `.env.local` to enable demo features:
 - Floating role switcher
 - Demo drivers and demo dispatcher data
 - Middleware bypasses auth in demo via `demo-mode` cookie
+- Test dispatcher workflow without authentication
+
+**📖 See [DEMO_MODE_GUIDE.md](./DEMO_MODE_GUIDE.md) for complete setup instructions, Vercel deployment, and troubleshooting.**
+
+**⚠️ Important for Vercel**: After setting `NEXT_PUBLIC_DEMO_MODE=true` in environment variables, you MUST redeploy to rebuild the app. The demo mode check is now runtime-based but requires the components to be bundled.
 
 In production, leave `NEXT_PUBLIC_DEMO_MODE` unset/false to disable all demo surfaces.
 
