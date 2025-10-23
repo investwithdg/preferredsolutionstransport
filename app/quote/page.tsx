@@ -50,7 +50,6 @@ function GoogleMapsAutocompleteInput({ value, onChange, id, name, label, require
           try {
             ac.setOptions({
               fields: ['formatted_address','geometry','place_id','name'],
-              sessionToken: sessionToken || undefined,
               // types: ['address'],
               // componentRestrictions: { country: 'us' },
             });

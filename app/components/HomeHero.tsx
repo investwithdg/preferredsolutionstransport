@@ -94,7 +94,6 @@ export default function HomeHero() {
                     try {
                       ac.setOptions({
                         fields: ['formatted_address', 'geometry', 'place_id', 'name'],
-                        sessionToken: sessionTokenRef.current || undefined,
                         // types: ['address'],
                         // componentRestrictions: { country: 'us' },
                       });
@@ -121,7 +120,6 @@ export default function HomeHero() {
                     try {
                       ac.setOptions({
                         fields: ['formatted_address', 'geometry', 'place_id', 'name'],
-                        sessionToken: sessionTokenRef.current || undefined,
                         // types: ['address'],
                         // componentRestrictions: { country: 'us' },
                       });
