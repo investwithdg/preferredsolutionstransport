@@ -54,7 +54,7 @@ export type DriverLocationUpdateRequest = z.infer<typeof driverLocationUpdateSch
 
 // Drivers: push subscription
 export const driverPushSubscriptionSchema = z.object({
-  driverId: z.string().uuid('Invalid driver ID'),
+  driverId: z.string(), // Allow any string, not just UUID, for demo mode compatibility
   subscription: z.object({
     endpoint: z.string().url('Invalid endpoint URL'),
     keys: z.object({
