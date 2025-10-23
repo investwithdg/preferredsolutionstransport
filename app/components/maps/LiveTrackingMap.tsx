@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { useLoadScript } from '@react-google-maps/api';
+// NOTE: Script loaded once globally via GoogleMapsProvider
 import { calculateDistanceMiles, calculateETA, formatETA, geocodeAddress, createTruckMarkerIcon, type LatLng, type DriverLocation } from '@/lib/google-maps/tracking';
 import { Card, CardContent } from '@/app/components/ui/card';
 import { Badge } from '@/app/components/ui/badge';
@@ -36,10 +36,8 @@ export default function LiveTrackingMap({
   const routeLineRef = useRef<google.maps.Polyline | null>(null);
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const { isLoaded, loadError } = useLoadScript({
-    googleMapsApiKey: apiKey || '',
-    libraries: ['places', 'geometry'],
-  });
+  const isLoaded = !!window.google?.maps;
+  const loadError = undefined as any;
 
   // Initialize Google Maps
   useEffect(() => {
@@ -207,18 +205,6 @@ export default function LiveTrackingMap({
             <MapPin className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
             <p className="text-muted-foreground">Google Maps API key not configured.</p>
           </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  if (loadError) {
-    return (
-      <Card className="border-warning/20 bg-warning/5">
-        <CardContent className="p-8 text-center">
-          <AlertCircle className="h-12 w-12 text-warning mx-auto mb-4" />
-          <p className="text-foreground font-medium mb-2">Map Unavailable</p>
-          <p className="text-sm text-muted-foreground">{String(loadError)}</p>
         </CardContent>
       </Card>
     );

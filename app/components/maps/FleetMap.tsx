@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react';
-import { useLoadScript } from '@react-google-maps/api';
+// NOTE: Script loaded once globally via GoogleMapsProvider
 import { geocodeAddress, createTruckMarkerIcon, type LatLng } from '@/lib/google-maps/tracking';
 
 export type FleetMapOrder = {
@@ -25,23 +25,15 @@ export default function FleetMap({ orders, drivers, driverLocations, onSelect }:
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
 
-  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
-  const { isLoaded, loadError } = useLoadScript({ googleMapsApiKey: apiKey || '', libraries: ['places', 'geometry'] });
-
-  if (!apiKey) {
-    return <div className="p-6 text-sm text-muted-foreground">Google Maps API key not configured. Set NEXT_PUBLIC_GOOGLE_MAPS_API_KEY.</div>;
-  }
-  if (loadError) {
-    return <div className="p-6 text-sm text-muted-foreground">Map failed to load. Check API key and API enablement.</div>;
-  }
-  if (!isLoaded) {
+  // The script is already loaded once; just rely on window.google
+  if (!window.google?.maps) {
     return <div className="p-6 text-sm text-muted-foreground">Loading map…</div>;
   }
 
   const activeOrders = useMemo(() => orders.filter(o => !['Delivered', 'Canceled'].includes(o.status)), [orders]);
 
   useEffect(() => {
-    if (!isLoaded || !mapRef.current) return;
+    if (!mapRef.current) return;
     if (!mapInstanceRef.current) {
       mapInstanceRef.current = new google.maps.Map(mapRef.current, {
         zoom: 11,
@@ -102,7 +94,7 @@ export default function FleetMap({ orders, drivers, driverLocations, onSelect }:
     return () => {
       markers.forEach(m => m.setMap(null));
     };
-  }, [isLoaded, orders, drivers, driverLocations, onSelect]);
+  }, [orders, drivers, driverLocations, onSelect]);
 
   return (
     <div ref={mapRef} className="w-full h-full" />

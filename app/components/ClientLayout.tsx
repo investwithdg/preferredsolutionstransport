@@ -2,6 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import type { ComponentType, ReactNode } from 'react';
+import { GoogleMapsProvider } from '@/app/contexts/GoogleMaps';
 
 // Always import demo components dynamically, but only render them if enabled
 // This allows Vercel builds to include demo code that can be activated via env var
@@ -21,16 +22,18 @@ export function ClientLayout({ children }: { children: ReactNode }) {
   const isDemoEnabled = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
   
   if (!isDemoEnabled) {
-    return <>{children}</>;
+    return <GoogleMapsProvider>{children}</GoogleMapsProvider>;
   }
 
   const DemoProvider = DemoProviderLazy as unknown as ComponentType<{ children: ReactNode }>;
   const DemoRoleSwitcher = DemoRoleSwitcherLazy as unknown as ComponentType<{}>;
 
   return (
-    <DemoProvider>
-      {children}
-      <DemoRoleSwitcher />
-    </DemoProvider>
+    <GoogleMapsProvider>
+      <DemoProvider>
+        {children}
+        <DemoRoleSwitcher />
+      </DemoProvider>
+    </GoogleMapsProvider>
   );
 }
