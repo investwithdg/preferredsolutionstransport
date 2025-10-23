@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { PRICING } from '@/lib/config';
 import { calculatePrice } from '@/lib/pricing';
@@ -27,7 +27,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 
-function GoogleMapsAutocompleteInput({ value, onChange, id, name, label, required, icon: Icon }: {
+function GoogleMapsAutocompleteInput({ value, onChange, id, name, label, required, icon: Icon, sessionToken }: {
   value: string;
   onChange: (value: string) => void;
   id: string;
@@ -35,6 +35,7 @@ function GoogleMapsAutocompleteInput({ value, onChange, id, name, label, require
   label: string;
   required?: boolean;
   icon?: React.ElementType;
+  sessionToken?: google.maps.places.AutocompleteSessionToken | null;
 }) {
   const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
 
@@ -44,11 +45,21 @@ function GoogleMapsAutocompleteInput({ value, onChange, id, name, label, require
         {label} {required && <span className="text-destructive">*</span>}
       </Label>
       <Autocomplete
-        onLoad={setAutocomplete}
+        onLoad={(ac) => {
+          setAutocomplete(ac);
+          try {
+            ac.setOptions({
+              fields: ['formatted_address','geometry','place_id','name'],
+              sessionToken: sessionToken || undefined,
+              // types: ['address'],
+              // componentRestrictions: { country: 'us' },
+            });
+          } catch {}
+        }}
         onPlaceChanged={() => {
           if (autocomplete) {
             const place = autocomplete.getPlace();
-            onChange(place.formatted_address || '');
+            onChange(place.formatted_address || place.name || '');
           }
         }}
       >
@@ -92,6 +103,12 @@ export default function QuotePage() {
     googleMapsApiKey: process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || '',
     libraries: ['places'],
   });
+  const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+  useEffect(() => {
+    if (isLoaded && window.google?.maps?.places && !sessionTokenRef.current) {
+      sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
+    }
+  }, [isLoaded]);
 
   // Prefill from URL params
   useEffect(() => {
@@ -110,7 +127,7 @@ export default function QuotePage() {
   // Auto-calculate distance when both addresses are filled
   useEffect(() => {
     const calculateDistanceAuto = async () => {
-      if (!isLoaded || !formData.pickupAddress || !formData.dropoffAddress) {
+      if (!formData.pickupAddress || !formData.dropoffAddress) {
         return;
       }
 
@@ -123,10 +140,24 @@ export default function QuotePage() {
       setDistanceError('');
 
       try {
-        const result = await calculateDistanceClient(
-          formData.pickupAddress,
-          formData.dropoffAddress
-        );
+        let result;
+        if (isLoaded && window.google?.maps?.DistanceMatrixService) {
+          result = await calculateDistanceClient(
+            formData.pickupAddress,
+            formData.dropoffAddress
+          );
+        } else {
+          const res = await fetch('/api/distance', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              origin: formData.pickupAddress,
+              destination: formData.dropoffAddress,
+            }),
+          });
+          if (!res.ok) throw new Error('Server distance failed');
+          result = await res.json();
+        }
         setFormData(prev => ({
           ...prev,
           distanceMiles: result.distanceMiles.toString(),

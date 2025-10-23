@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useLoadScript, Autocomplete } from '@react-google-maps/api';
 import { AlertCircle } from 'lucide-react';
@@ -24,6 +24,13 @@ export default function HomeHero() {
   const [dropoffAutocomplete, setDropoffAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
   const [pickup, setPickup] = useState('');
   const [dropoff, setDropoff] = useState('');
+  const sessionTokenRef = useRef<google.maps.places.AutocompleteSessionToken | null>(null);
+
+  useEffect(() => {
+    if (isLoaded && window.google?.maps?.places && !sessionTokenRef.current) {
+      sessionTokenRef.current = new google.maps.places.AutocompleteSessionToken();
+    }
+  }, [isLoaded]);
   
   // Log any load errors
   useEffect(() => {
@@ -82,10 +89,20 @@ export default function HomeHero() {
               <div className="grid grid-cols-1 md:grid-cols-5 gap-3 items-center">
                 <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-gray-700 mb-1">Pickup</label>
-                  <Autocomplete onLoad={setPickupAutocomplete} onPlaceChanged={() => {
+                  <Autocomplete onLoad={(ac) => {
+                    setPickupAutocomplete(ac);
+                    try {
+                      ac.setOptions({
+                        fields: ['formatted_address', 'geometry', 'place_id', 'name'],
+                        sessionToken: sessionTokenRef.current || undefined,
+                        // types: ['address'],
+                        // componentRestrictions: { country: 'us' },
+                      });
+                    } catch {}
+                  }} onPlaceChanged={() => {
                     if (pickupAutocomplete) {
                       const place = pickupAutocomplete.getPlace();
-                      setPickup(place.formatted_address || '');
+                      setPickup(place.formatted_address || place.name || '');
                     }
                   }}>
                     <input
@@ -99,10 +116,20 @@ export default function HomeHero() {
                 </div>
                 <div className="md:col-span-2">
                   <label className="block text-xs font-medium text-gray-700 mb-1">Dropoff</label>
-                  <Autocomplete onLoad={setDropoffAutocomplete} onPlaceChanged={() => {
+                  <Autocomplete onLoad={(ac) => {
+                    setDropoffAutocomplete(ac);
+                    try {
+                      ac.setOptions({
+                        fields: ['formatted_address', 'geometry', 'place_id', 'name'],
+                        sessionToken: sessionTokenRef.current || undefined,
+                        // types: ['address'],
+                        // componentRestrictions: { country: 'us' },
+                      });
+                    } catch {}
+                  }} onPlaceChanged={() => {
                     if (dropoffAutocomplete) {
                       const place = dropoffAutocomplete.getPlace();
-                      setDropoff(place.formatted_address || '');
+                      setDropoff(place.formatted_address || place.name || '');
                     }
                   }}>
                     <input
