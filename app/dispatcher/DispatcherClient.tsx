@@ -159,6 +159,7 @@ export default function DispatcherClient({
   const [bulkDriver, setBulkDriver] = useState<string>('');
   const [issueOrder, setIssueOrder] = useState<Order | null>(null);
   const [orderForHubSpotDetails, setOrderForHubSpotDetails] = useState<Order | null>(null);
+  const [isSyncingHubSpot, setIsSyncingHubSpot] = useState(false);
   const formatDateTime = (value?: string | null) => {
     if (!value) return 'Not set';
     const date = new Date(value);
@@ -782,10 +783,35 @@ export default function DispatcherClient({
           >
             <DialogContent className="max-w-2xl">
               <DialogHeader>
-                <DialogTitle>
-                  HubSpot details – #
-                  {orderForHubSpotDetails ? orderForHubSpotDetails.id.slice(-8) : '—'}
-                </DialogTitle>
+                <div className="flex items-center justify-between">
+                  <DialogTitle>
+                    HubSpot details – #
+                    {orderForHubSpotDetails ? orderForHubSpotDetails.id.slice(-8) : '—'}
+                  </DialogTitle>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      if (orderForHubSpotDetails) {
+                        setIsSyncingHubSpot(true);
+                        syncOrderToHubSpotHandler(
+                          orderForHubSpotDetails.id,
+                          () => {
+                            toast.success('Synced to HubSpot');
+                            setIsSyncingHubSpot(false);
+                          },
+                          (error) => {
+                            toast.error('Sync failed', { description: error });
+                            setIsSyncingHubSpot(false);
+                          }
+                        );
+                      }
+                    }}
+                    disabled={isSyncingHubSpot}
+                  >
+                    {isSyncingHubSpot ? 'Syncing...' : 'Sync Now'}
+                  </Button>
+                </div>
               </DialogHeader>
               {hasHubspotMetadata ? (
                 <div className="space-y-6">
@@ -1020,6 +1046,31 @@ export default function DispatcherClient({
       </div>
     </div>
   );
+}
+
+// HubSpot Sync Handler (defined outside component for potential reuse)
+async function syncOrderToHubSpotHandler(
+  orderId: string,
+  onSuccess: () => void,
+  onError: (msg: string) => void
+) {
+  try {
+    const response = await fetch('/api/orders/sync-hubspot', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ orderId }),
+    });
+
+    const result = await response.json();
+
+    if (result.success) {
+      onSuccess();
+    } else {
+      onError(result.errors?.join(', ') || 'Unknown error');
+    }
+  } catch (error: any) {
+    onError(error.message);
+  }
 }
 
 function exportCSV(orders: any[]) {
