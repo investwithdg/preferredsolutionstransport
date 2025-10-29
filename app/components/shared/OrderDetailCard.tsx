@@ -140,3 +140,4 @@ export function OrderDetailCard({ order, showActions = false, actions, className
     </Card>
   );
 }
+

@@ -270,3 +270,4 @@ export function PhotoCapture({ onPhotosChange, maxPhotos = 3, className }: Photo
   );
 }
 
+

@@ -153,3 +153,4 @@ COMMENT ON COLUMN public.delivery_proof.signature_url IS 'Storage URL for digita
 COMMENT ON COLUMN public.delivery_proof.notes IS 'Additional notes about the delivery';
 COMMENT ON COLUMN public.delivery_proof.recipient_name IS 'Name of the person who received the delivery';
 
+
