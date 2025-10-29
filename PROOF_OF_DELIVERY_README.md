@@ -1,5 +1,64 @@
 # Proof of Delivery System - Implementation Guide
 
+## 🚀 Quick Start (5 Minutes)
+
+### Step 1: Database Migration (2 minutes)
+
+**Option A: Using Supabase CLI**
+
+```bash
+supabase migration up
+```
+
+**Option B: Using Supabase Dashboard**
+
+1. Open [Supabase Dashboard](https://app.supabase.com)
+2. Navigate to **SQL Editor**
+3. Copy contents of `supabase/migrations/005_add_proof_of_delivery.sql`
+4. Click **Run**
+5. Verify: ✅ Table `delivery_proof` created
+
+### Step 2: Storage Bucket Setup (1 minute)
+
+1. In Supabase Dashboard, go to **Storage**
+2. Click **Create a new bucket**
+3. Settings:
+   - **Name**: `proof-of-delivery`
+   - **Public**: ❌ (Keep it private!)
+   - **File size limit**: 5MB (default is fine)
+4. Click **Create bucket**
+5. Verify: ✅ Bucket appears in list
+
+**Note**: RLS policies are automatically created by the migration.
+
+### Step 3: Deploy (1 minute)
+
+```bash
+# Install dependencies (if needed)
+npm install @radix-ui/react-tabs
+
+# Build
+npm run build
+
+# Deploy to Vercel (or your platform)
+vercel deploy --prod
+```
+
+### Step 4: Test (1 minute)
+
+#### Quick Test Flow:
+
+1. Navigate to `/driver` (demo mode works!)
+2. Select a driver
+3. Find an "In Transit" order
+4. Click **Mark Delivered**
+5. Take a photo or draw a signature
+6. Enter recipient name
+7. Click **Submit & Mark Delivered**
+8. ✅ Order status → "Delivered"
+
+---
+
 ## Overview
 
 A comprehensive proof of delivery (PoD) system has been implemented, allowing drivers to capture photos and digital signatures when completing deliveries. This document outlines the implementation, setup, and usage.
@@ -126,12 +185,14 @@ supabase/migrations/
 Submit proof of delivery for an order.
 
 **Request Body** (FormData):
+
 - `photo_0`, `photo_1`, `photo_2`: Photo files (optional, max 3)
 - `signature`: Signature image file (optional)
 - `notes`: Delivery notes (optional)
 - `recipientName`: Name of recipient (required)
 
 **Response**:
+
 ```json
 {
   "success": true,
@@ -148,6 +209,7 @@ Submit proof of delivery for an order.
 Retrieve proof of delivery for an order.
 
 **Response**:
+
 ```json
 {
   "pod": {
@@ -170,12 +232,14 @@ Retrieve proof of delivery for an order.
 ### Row Level Security (RLS)
 
 **delivery_proof table:**
+
 - Drivers can insert their own PoD
 - Drivers can view their own PoD
 - Customers can view PoD for their orders
 - Dispatchers and admins can view all PoD
 
 **Storage (proof-of-delivery bucket):**
+
 - Drivers can upload files to their own folder
 - Authenticated users can view files (access controlled via signed URLs)
 - Drivers can update/delete their own files
@@ -183,6 +247,7 @@ Retrieve proof of delivery for an order.
 ### Storage Structure
 
 Files are organized by driver and order:
+
 ```
 proof-of-delivery/
 └── {driverId}/
@@ -200,8 +265,8 @@ proof-of-delivery/
 Default settings in `lib/proof-of-delivery/capture.ts`:
 
 ```typescript
-const maxWidth = 1920;      // Maximum photo width in pixels
-const quality = 0.85;       // JPEG quality (0-1)
+const maxWidth = 1920; // Maximum photo width in pixels
+const quality = 0.85; // JPEG quality (0-1)
 ```
 
 Modify these values to adjust file size vs. quality tradeoff.
@@ -211,17 +276,65 @@ Modify these values to adjust file size vs. quality tradeoff.
 Default limits in `lib/proof-of-delivery/storage.ts`:
 
 ```typescript
-const MAX_FILE_SIZE = 5 * 1024 * 1024;  // 5MB per file
-const MAX_PHOTOS = 3;                    // Maximum photos per delivery
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB per file
+const MAX_PHOTOS = 3; // Maximum photos per delivery
 ```
 
 ## Troubleshooting
+
+### Quick Fixes
+
+**Camera Doesn't Work**
+
+Problem: "Failed to access camera" error
+
+Solutions:
+
+```bash
+# 1. Ensure you're on HTTPS
+✅ https://yourdomain.com  # Works
+❌ http://yourdomain.com   # Camera blocked
+
+# 2. Check browser permissions
+# Chrome: Settings → Privacy → Camera → Allow
+
+# 3. Use file upload as fallback
+# Click "Upload Photo" instead of "Start Camera"
+```
+
+**Photos Don't Upload**
+
+Problem: Upload fails or times out
+
+Solutions:
+
+1. Check bucket exists: `proof-of-delivery`
+2. Verify bucket is set to **Private** (not public)
+3. Check browser console for specific error
+4. Ensure photos are under 5MB each
+
+**Database Error**
+
+Problem: "Failed to save PoD metadata"
+
+Solutions:
+
+```sql
+-- Run in Supabase SQL Editor to verify:
+SELECT * FROM delivery_proof LIMIT 1;
+
+-- If table doesn't exist, run migration:
+-- Copy contents of supabase/migrations/005_add_proof_of_delivery.sql
+```
+
+### Detailed Troubleshooting
 
 ### Camera Not Working
 
 **Issue**: "Failed to access camera" error
 
 **Solutions**:
+
 1. Check browser permissions (Allow camera access)
 2. Ensure HTTPS is enabled (cameras require secure context)
 3. Try fallback: Click "Upload Photo" instead
@@ -232,6 +345,7 @@ const MAX_PHOTOS = 3;                    // Maximum photos per delivery
 **Issue**: Photos fail to upload to storage
 
 **Solutions**:
+
 1. Verify storage bucket exists: `proof-of-delivery`
 2. Check RLS policies are correctly applied
 3. Verify file size is under 5MB
@@ -242,6 +356,7 @@ const MAX_PHOTOS = 3;                    // Maximum photos per delivery
 **Issue**: Signature doesn't convert to blob
 
 **Solutions**:
+
 1. Ensure canvas has content (not blank)
 2. Check browser console for canvas errors
 3. Try drawing signature again
@@ -252,6 +367,7 @@ const MAX_PHOTOS = 3;                    // Maximum photos per delivery
 **Issue**: Failed to save PoD metadata
 
 **Solutions**:
+
 1. Run migration: `supabase/migrations/005_add_proof_of_delivery.sql`
 2. Verify table `delivery_proof` exists
 3. Check foreign key constraints (order_id, driver_id)
@@ -262,6 +378,7 @@ const MAX_PHOTOS = 3;                    // Maximum photos per delivery
 ### Local Testing
 
 1. **Start Development Server**:
+
    ```bash
    npm run dev
    ```
@@ -350,5 +467,3 @@ For issues or questions:
 ## License
 
 This implementation is part of the Preferred Solutions Transport platform.
-
-
