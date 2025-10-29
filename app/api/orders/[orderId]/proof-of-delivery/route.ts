@@ -10,39 +10,33 @@ import type { OrderSyncData } from '@/lib/hubspot/types';
  */
 export async function GET(
   _request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
     const supabase = await createServerClient();
 
     // Verify authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const { orderId } = params;
+    const { orderId } = await params;
 
     // Get proof of delivery
     const pod = await getProofOfDelivery(orderId);
 
     if (!pod) {
-      return NextResponse.json(
-        { error: 'Proof of delivery not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Proof of delivery not found' }, { status: 404 });
     }
 
     return NextResponse.json({ pod });
   } catch (error) {
     console.error('Error fetching PoD:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch proof of delivery' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch proof of delivery' }, { status: 500 });
   }
 }
 
@@ -52,7 +46,7 @@ export async function GET(
  */
 export async function POST(
   request: NextRequest,
-  { params }: { params: { orderId: string } }
+  { params }: { params: Promise<{ orderId: string }> }
 ) {
   try {
     const supabase = await createServerClient();
@@ -61,12 +55,12 @@ export async function POST(
     const serviceClient = serviceSupabase as any;
 
     // Verify authentication
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser();
     if (authError || !user) {
-      return NextResponse.json(
-        { error: 'Unauthorized' },
-        { status: 401 }
-      );
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
     // Get driver ID from user
@@ -77,13 +71,10 @@ export async function POST(
       .single();
 
     if (driverError || !driver) {
-      return NextResponse.json(
-        { error: 'Driver not found' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Driver not found' }, { status: 403 });
     }
 
-    const { orderId } = params;
+    const { orderId } = await params;
 
     // Parse form data
     const formData = await request.formData();
@@ -119,10 +110,7 @@ export async function POST(
     }
 
     if (!recipientName.trim()) {
-      return NextResponse.json(
-        { error: 'Recipient name is required' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Recipient name is required' }, { status: 400 });
     }
 
     // Verify order exists and is assigned to this driver
@@ -133,19 +121,13 @@ export async function POST(
       .single();
 
     if (orderError || !order) {
-      return NextResponse.json(
-        { error: 'Order not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Order not found' }, { status: 404 });
     }
 
     const existingDealId = (order as any).hubspot_deal_id || undefined;
 
     if (order.driver_id !== driver.id) {
-      return NextResponse.json(
-        { error: 'Order not assigned to this driver' },
-        { status: 403 }
-      );
+      return NextResponse.json({ error: 'Order not assigned to this driver' }, { status: 403 });
     }
 
     // Check if PoD already exists
@@ -156,10 +138,7 @@ export async function POST(
       .single();
 
     if (existingPod) {
-      return NextResponse.json(
-        { error: 'Proof of delivery already submitted' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Proof of delivery already submitted' }, { status: 400 });
     }
 
     // Upload proof of delivery
@@ -169,7 +148,7 @@ export async function POST(
       photos,
       signature,
       notes,
-      recipientName
+      recipientName,
     });
 
     // Update order status to Delivered
@@ -177,7 +156,7 @@ export async function POST(
       .from('orders')
       .update({
         status: 'Delivered',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
       })
       .eq('id', orderId);
 
@@ -192,12 +171,14 @@ export async function POST(
       try {
         const { data: orderDetails } = await serviceClient
           .from('orders')
-          .select(`
+          .select(
+            `
             *,
             customers (id, name, email, phone),
             quotes (pickup_address, dropoff_address, distance_mi),
             drivers (name, phone)
-          `)
+          `
+          )
           .eq('id', orderId)
           .single();
 
@@ -221,26 +202,28 @@ export async function POST(
             createdAt: new Date(orderDetails.created_at || new Date().toISOString()),
             updatedAt: new Date(),
             actualDeliveryTime: new Date(),
-            deliveryRoute: metadata?.deliveryRoute || (orderDetails.quotes?.pickup_address && orderDetails.quotes?.dropoff_address
-              ? `${orderDetails.quotes.pickup_address} → ${orderDetails.quotes.dropoff_address}`
-              : undefined),
-            deliveryLocation: metadata?.deliveryLocation || orderDetails.quotes?.dropoff_address || undefined,
+            deliveryRoute:
+              metadata?.deliveryRoute ||
+              (orderDetails.quotes?.pickup_address && orderDetails.quotes?.dropoff_address
+                ? `${orderDetails.quotes.pickup_address} → ${orderDetails.quotes.dropoff_address}`
+                : undefined),
+            deliveryLocation:
+              metadata?.deliveryLocation || orderDetails.quotes?.dropoff_address || undefined,
             deliveryType: metadata?.deliveryType || undefined,
             weightBracket: metadata?.weightBracket || undefined,
-            specialDeliveryInstructions: metadata?.specialDeliveryInstructions || (orderDetails.quotes as any)?.special_instructions || undefined,
+            specialDeliveryInstructions:
+              metadata?.specialDeliveryInstructions ||
+              (orderDetails.quotes as any)?.special_instructions ||
+              undefined,
             quoteSource: metadata?.quoteSource || undefined,
             recurringFrequency: metadata?.recurringFrequency || undefined,
-            rushRequested: typeof metadata?.rushRequested === 'boolean' ? metadata.rushRequested : undefined,
+            rushRequested:
+              typeof metadata?.rushRequested === 'boolean' ? metadata.rushRequested : undefined,
             servicesProposed: metadata?.servicesProposed || undefined,
             snapshotAuditSent: metadata?.snapshotAuditSent || undefined,
           };
 
-          await syncOrderToHubSpot(
-            hubspotClient,
-            orderSyncData,
-            existingDealId,
-            serviceSupabase
-          );
+          await syncOrderToHubSpot(hubspotClient, orderSyncData, existingDealId, serviceSupabase);
         }
       } catch (syncError) {
         console.error('Failed to sync to HubSpot:', syncError);
@@ -253,18 +236,17 @@ export async function POST(
       pod: {
         id: result.id,
         photoUrls: result.photoUrls,
-        signatureUrl: result.signatureUrl
-      }
+        signatureUrl: result.signatureUrl,
+      },
     });
   } catch (error) {
     console.error('Error submitting PoD:', error);
     return NextResponse.json(
-      { 
+      {
         error: 'Failed to submit proof of delivery',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
       },
       { status: 500 }
     );
   }
 }
-
