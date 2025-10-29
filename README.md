@@ -2,6 +2,50 @@
 
 A modern, full-service delivery platform built with Next.js, Supabase, and Stripe. This platform provides end-to-end delivery management from quote request to proof of delivery.
 
+## ⚡ Quick Start for Developers
+
+**First time setup? Follow these steps:**
+
+1. **Clone and install dependencies**
+
+   ```bash
+   git clone <repository-url>
+   cd preferredsolutionstransport
+   npm install
+   ```
+
+2. **Configure environment**
+
+   ```bash
+   cp env.example .env.local
+   # Edit .env.local with your Supabase, Stripe, HubSpot, and Google Maps credentials
+   ```
+
+3. **Set up database**
+   - Run `supabase/consolidated-schema.sql` in Supabase SQL Editor
+   - Run all migrations in `supabase/migrations/` folder
+
+4. **Create test users**
+   - Follow [`docs/TEST_USERS_SETUP.md`](./docs/TEST_USERS_SETUP.md)
+   - Create auth users in Supabase Dashboard
+   - Run `supabase/seeds/complete_test_data.sql` for test data
+
+5. **Run development server**
+
+   ```bash
+   npm run dev
+   ```
+
+   Open [http://localhost:3000](http://localhost:3000)
+
+6. **Test with master users**
+   - Admin: `admin@test.preferredsolutions`
+   - Dispatcher: `dispatcher@test.preferredsolutions`
+   - Driver: `driver@test.preferredsolutions`
+   - Customer: `customer@test.preferredsolutions`
+
+**For detailed testing instructions, see [`docs/TESTING.md`](./docs/TESTING.md)**
+
 ## 🎯 End-State Vision
 
 ### Users & Outcomes
