@@ -27,7 +27,7 @@ export default function DispatcherWrapper({ initialOrders, drivers }: Dispatcher
       (async () => {
         const { generateDemoOrders, createTestOrder } = await import('@/app/demo/demoData');
         // Generate demo orders
-        let orders = generateDemoOrders();
+        const orders = generateDemoOrders();
 
         // Check for additional test orders from quick actions
         const testOrders = JSON.parse(localStorage.getItem('demo-test-orders') || '[]');
@@ -48,7 +48,7 @@ export default function DispatcherWrapper({ initialOrders, drivers }: Dispatcher
 
   if (isDemoMode) {
     // Use demo drivers
-    const demoDriverList = demoDrivers.map(driver => ({
+    const demoDriverList = demoDrivers.map((driver) => ({
       id: driver.id,
       name: driver.name,
       phone: '(555) 123-4567',
@@ -59,18 +59,13 @@ export default function DispatcherWrapper({ initialOrders, drivers }: Dispatcher
 
     // Gate render until demo orders are ready so UI doesn't flash empty
     return (
-      <DispatcherClient 
+      <DispatcherClient
         key={demoOrders.length}
-        initialOrders={demoOrders} 
-        drivers={demoDriverList} 
+        initialOrders={demoOrders}
+        drivers={demoDriverList}
       />
     );
   }
 
-  return (
-    <DispatcherClient 
-      initialOrders={initialOrders} 
-      drivers={drivers} 
-    />
-  );
+  return <DispatcherClient initialOrders={initialOrders} drivers={drivers} />;
 }

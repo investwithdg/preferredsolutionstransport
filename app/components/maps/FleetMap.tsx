@@ -25,19 +25,21 @@ export default function FleetMap({ orders, drivers, driverLocations, onSelect }:
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<google.maps.Map | null>(null);
 
-  // The script is already loaded once; just rely on window.google
-  if (!window.google?.maps) {
-    return <div className="p-6 text-sm text-muted-foreground">Loading map…</div>;
-  }
-
-  const activeOrders = useMemo(() => orders.filter(o => !['Delivered', 'Canceled'].includes(o.status)), [orders]);
+  const activeOrders = useMemo(
+    () => orders.filter((o) => !['Delivered', 'Canceled'].includes(o.status)),
+    [orders]
+  );
 
   useEffect(() => {
+    // The script is already loaded once; just rely on window.google
+    if (!window.google?.maps) {
+      return;
+    }
     if (!mapRef.current) return;
     if (!mapInstanceRef.current) {
       mapInstanceRef.current = new google.maps.Map(mapRef.current, {
         zoom: 11,
-        center: { lat: 40.7128, lng: -74.0060 },
+        center: { lat: 40.7128, lng: -74.006 },
         mapTypeControl: false,
         streetViewControl: false,
         fullscreenControl: false,
@@ -49,7 +51,10 @@ export default function FleetMap({ orders, drivers, driverLocations, onSelect }:
     const markers: google.maps.Marker[] = [];
     const bounds = new google.maps.LatLngBounds();
 
-    const addMarker = (pos: LatLng, options: Omit<google.maps.MarkerOptions, 'position' | 'map'> = {}) => {
+    const addMarker = (
+      pos: LatLng,
+      options: Omit<google.maps.MarkerOptions, 'position' | 'map'> = {}
+    ) => {
       const m = new google.maps.Marker({ position: pos, map, ...options });
       markers.push(m);
       bounds.extend(pos);
@@ -64,14 +69,34 @@ export default function FleetMap({ orders, drivers, driverLocations, onSelect }:
         if (pickup) {
           const coords = await geocodeAddress(pickup);
           if (coords) {
-            const m = addMarker(coords, { title: `Pickup #${o.id.slice(-6)}`, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#10b981', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 } });
+            const m = addMarker(coords, {
+              title: `Pickup #${o.id.slice(-6)}`,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: '#10b981',
+                fillOpacity: 1,
+                strokeColor: '#fff',
+                strokeWeight: 2,
+              },
+            });
             m.addListener('click', () => onSelect?.(o.id, o.driver_id || undefined));
           }
         }
         if (drop) {
           const coords = await geocodeAddress(drop);
           if (coords) {
-            const m = addMarker(coords, { title: `Dropoff #${o.id.slice(-6)}`, icon: { path: google.maps.SymbolPath.CIRCLE, scale: 8, fillColor: '#ef4444', fillOpacity: 1, strokeColor: '#fff', strokeWeight: 2 } });
+            const m = addMarker(coords, {
+              title: `Dropoff #${o.id.slice(-6)}`,
+              icon: {
+                path: google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: '#ef4444',
+                fillOpacity: 1,
+                strokeColor: '#fff',
+                strokeWeight: 2,
+              },
+            });
             m.addListener('click', () => onSelect?.(o.id, o.driver_id || undefined));
           }
         }
@@ -92,11 +117,13 @@ export default function FleetMap({ orders, drivers, driverLocations, onSelect }:
     })();
 
     return () => {
-      markers.forEach(m => m.setMap(null));
+      markers.forEach((m) => m.setMap(null));
     };
   }, [orders, drivers, driverLocations, onSelect]);
 
-  return (
-    <div ref={mapRef} className="w-full h-full" />
-  );
+  if (!window.google?.maps) {
+    return <div className="p-6 text-sm text-muted-foreground">Loading map…</div>;
+  }
+
+  return <div ref={mapRef} className="w-full h-full" />;
 }
