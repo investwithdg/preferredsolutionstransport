@@ -1,5 +1,3 @@
-"use server";
-
 import { NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { isTwilioConfigured } from '@/lib/notifications/providers/twilio';
@@ -50,17 +48,14 @@ export async function GET() {
 
   const googleMapsStatus = {
     configured: Boolean(
-      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY &&
-        process.env.GOOGLE_MAPS_API_KEY
+      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY && process.env.GOOGLE_MAPS_API_KEY
     ),
   };
 
   const notificationsStatus = {
     email: Boolean(process.env.HUBSPOT_PRIVATE_APP_TOKEN),
     sms: isTwilioConfigured(),
-    push: Boolean(
-      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY
-    ),
+    push: Boolean(process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY),
   };
 
   return NextResponse.json({

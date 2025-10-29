@@ -5,13 +5,16 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "prebuild": "npm run validate",
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
+    "validate": "npm run typecheck && npm run lint",
     "depcheck": "npx depcheck --ignores=@sentry/nextjs",
     "tsprune": "npx ts-prune",
     "analyze": "ANALYZE=true next build",
-    "sweep": "npm run typecheck && npm run lint && npm run depcheck && npm run tsprune"
+    "sweep": "npm run typecheck && npm run lint && npm run depcheck && npm run tsprune",
+    "prepare": "husky"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
@@ -56,10 +59,22 @@
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "depcheck": "^1.4.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.6",
     "prettier": "^3.1.0",
-    "ts-prune": "^0.10.3"
+    "ts-prune": "^0.10.3",
+    "tsc-files": "^1.1.4"
   },
   "optionalDependencies": {
     "@sentry/nextjs": "^8.0.0"
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "tsc-files --noEmit"
+    ],
+    "*.{js,jsx,ts,tsx,json,css,md}": [
+      "prettier --write"
+    ]
   }
 }

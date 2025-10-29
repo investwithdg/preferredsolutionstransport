@@ -23,6 +23,7 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 ## 🚀 Current Status: Milestone 2.5 (Production Ready) + Complete UI Overhaul
 
 **✅ Milestone 1: Complete**
+
 - Customer quote submission with automatic Google Maps distance calculation
 - Stripe payment processing with webhook automation
 - Order creation and management system
@@ -31,6 +32,7 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - Complete API infrastructure with rate limiting
 
 **✅ Milestone 2: Complete**
+
 - Driver authentication & management system
 - Driver assignment to orders (UI and API)
 - Order status updates by drivers
@@ -40,6 +42,7 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - Customer dashboard (order history)
 
 **✅ Milestone 2.5: Complete**
+
 - Google Maps Distance Matrix integration (automatic distance calculation)
 - HubSpot pipeline configuration (customizable stages and pipelines)
 - Vercel deployment configuration
@@ -47,6 +50,7 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - Production-ready security and monitoring
 
 **🎨 NEW: Complete UI/UX Overhaul**
+
 - Modern design system with shadcn/ui components
 - Tailwind CSS with custom design tokens
 - Toast notifications (Sonner)
@@ -59,6 +63,7 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - Professional branding throughout
 
 **✅ Milestone 3: Real-Time & Notifications (Phases 1-3 Complete)**
+
 - ✅ Email notifications via HubSpot (order confirmation, driver assignment, status updates)
 - ✅ Live driver location tracking with Google Maps
 - ✅ Real-time map on customer tracking page (pickup, dropoff, driver location with ETA)
@@ -71,6 +76,7 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - ❌ SMS notifications (future - requires Twilio setup)
 
 **🚧 Milestone 4: Analytics & Optimization**
+
 - Revenue analytics dashboard
 - Driver performance metrics
 - Customer behavior analysis
@@ -78,6 +84,7 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - Pricing optimization tools
 
 **🚧 Future Enhancements**
+
 - Customer ratings and reviews
 - Recurring delivery schedules
 - Multi-stop deliveries
@@ -86,6 +93,7 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 ## 📋 Current Features (M1, M2, M2.5 & M3)
 
 ### Core Features
+
 - **Customer Quote Form**: Distance-based pricing with **automatic Google Maps distance calculation**
 - **Stripe Integration**: Secure payment processing with webhook automation
 - **Order Management**: Automatic order creation after successful payment
@@ -101,6 +109,7 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - **Vercel Ready**: Production deployment configuration included
 
 ### NEW: Notifications & Tracking (Phase 1-3)
+
 - **📧 Email Notifications**: Automated emails via HubSpot for order confirmation, driver assignment, and status updates
 - **📬 Driver Alerts**: Real-time driver email + SMS notifications (Twilio optional) for assignments and status changes
 - **🗺️ Live Driver Tracking**: Real-time Google Maps integration showing driver location with automatic ETA calculation
@@ -129,11 +138,13 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 ### 1. Environment Setup
 
 Copy the environment template and configure your services:
+
 ```bash
 cp env.example .env.local
 ```
 
 **Critical Environment Variables:**
+
 - `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` - Required for quote form AND live tracking maps
 - `NEXT_PUBLIC_SUPABASE_URL` & `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Database connection
 - `SUPABASE_SERVICE_ROLE_KEY` - Server-side database operations
@@ -144,6 +155,7 @@ cp env.example .env.local
 - `NEXT_PUBLIC_DEMO_MODE` - Enable demo UI (role switcher, demo data). Keep false in production
 
 **NEW for Phase 1-3:**
+
 - Google Maps now requires **Maps JavaScript API, Geocoding API, and Geometry Library** enabled
 - HubSpot token needs transactional email scope for notifications
 - Database migration required: run `supabase/migrations/001_add_driver_locations.sql`
@@ -158,6 +170,7 @@ cp env.example .env.local
 4. Verify success - you should see "COMPLETE SCHEMA DEPLOYMENT SUCCESSFUL!"
 
 This single file contains:
+
 - All tables (customers, quotes, orders, drivers, dispatch_events, webhook_events, users)
 - Row Level Security policies for all user roles
 - Production-ready indexes and constraints
@@ -166,6 +179,7 @@ This single file contains:
 - Test data seeding (5 demo drivers)
 
 **Optional: Set up user roles after creating auth users:**
+
 1. Create users in Supabase Auth → Users
 2. Update emails in `supabase/seeds/initial_roles.sql`
 3. Run the seed file to assign roles and link driver/customer records
@@ -173,6 +187,7 @@ This single file contains:
 ### 3. Stripe Webhook Setup
 
 **Local development:**
+
 ```bash
 stripe listen --forward-to localhost:3000/api/stripe/webhook
 # Copy the webhook signing secret to STRIPE_WEBHOOK_SECRET in .env.local
@@ -204,16 +219,37 @@ Set `NEXT_PUBLIC_DEMO_MODE=true` in `.env.local` to enable demo features:
 
 In production, leave `NEXT_PUBLIC_DEMO_MODE` unset/false to disable all demo surfaces.
 
-### Sweep & Checks
+### Validation & Quality Checks
 
-Useful scripts:
+This project has **automated validation** to prevent deployment failures:
 
 ```bash
+# Type checking
 npm run typecheck
+
+# Linting
+npm run lint
+
+# Combined validation (runs before build automatically)
+npm run validate
+
+# Full build with validation
+npm run build
+
+# Additional code quality checks
 npm run depcheck
 npm run tsprune
 npm run analyze
 ```
+
+**🔒 Automated Pre-deployment Checks:**
+
+- ✅ Pre-commit hooks run on staged files (ESLint, TypeScript, Prettier)
+- ✅ Pre-push hooks run full validation before pushing
+- ✅ GitHub Actions CI validates all pushes/PRs
+- ✅ Vercel build includes prebuild validation
+
+**📖 See [DEPLOYMENT_VALIDATION.md](./DEPLOYMENT_VALIDATION.md) for complete documentation.**
 
 ## 🧪 Testing the Complete Flow
 
@@ -231,6 +267,7 @@ Use the script in `scripts/test-api.sh` or test manually:
 ## 💰 Pricing Configuration
 
 Pricing currently in `lib/config.ts`:
+
 - Base fee: $50.00
 - Per mile: $2.00
 - Fuel surcharge: 10% of subtotal
@@ -256,11 +293,13 @@ Core tables: `customers`, `quotes`, `orders`, `dispatch_events`, `webhook_events
 ## 🚀 Deployment to Vercel
 
 ### Prerequisites
+
 - All third-party services configured (Supabase, Stripe, HubSpot, Google Maps)
 - Code pushed to GitHub
 - Vercel account (free tier works)
 
 ### Quick Deploy Steps
+
 1. **Import to Vercel**: Connect your GitHub repository
 2. **Add Environment Variables**: Copy ALL variables from `.env.local` to Vercel dashboard
    - **Critical**: `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` (app appears blank without this)
@@ -274,24 +313,29 @@ Core tables: `customers`, `quotes`, `orders`, `dispatch_events`, `webhook_events
 ### Troubleshooting Common Issues
 
 **App appears blank on Vercel:**
+
 - Missing `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` - quote page waits for Google Maps to load
 
 **Build failures:**
+
 - TypeScript errors - run `npm run build` locally to test
 - Missing environment variables during build
 
 **Runtime errors:**
+
 - Check Vercel Function logs in dashboard
 - Verify all environment variables are set correctly
 - Test API endpoints individually (`/api/health`, `/api/quote`)
 
 **Stripe webhook failures:**
+
 - Webhook URL must match your production domain
 - `STRIPE_WEBHOOK_SECRET` must match the webhook endpoint secret
 
 ## 🔒 Security & Role-Based Access Control
 
 ### User Roles
+
 - **ANONYMOUS** - Public users (quote requests only)
 - **RECIPIENT** - Authenticated customers (view own orders/tracking)
 - **DRIVER** - Delivery drivers (manage assigned orders, update status)
@@ -300,6 +344,7 @@ Core tables: `customers`, `quotes`, `orders`, `dispatch_events`, `webhook_events
 - **SERVICE_ROLE** - Backend API operations (full database access)
 
 ### Security Features
+
 - Row Level Security (RLS) with role-based policies for all tables
 - Service role key for secure server-side operations (never exposed to client)
 - Webhook signature verification
@@ -318,6 +363,7 @@ Core tables: `customers`, `quotes`, `orders`, `dispatch_events`, `webhook_events
 ## 🌐 Application Routes
 
 ### Customer Routes
+
 - `/` - Homepage
 - `/quote` - Request quote and checkout
 - `/track/[orderId]` - Track order status
@@ -325,12 +371,14 @@ Core tables: `customers`, `quotes`, `orders`, `dispatch_events`, `webhook_events
 - `/thank-you` - Post-payment confirmation
 
 ### Staff Routes (Authentication Required)
+
 - `/dispatcher` - Dispatcher dashboard (admin/dispatcher roles)
 - `/driver` - Driver dashboard (driver role)
 - `/admin` - Admin dashboard (admin role only)
 - `/auth/sign-in` - Authentication page
 
 ### API Routes
+
 - `POST /api/quote` - Create quote
 - `POST /api/checkout` - Create Stripe checkout session
 - `POST /api/stripe/webhook` - Process Stripe webhooks
@@ -344,6 +392,7 @@ Core tables: `customers`, `quotes`, `orders`, `dispatch_events`, `webhook_events
 **Current Version: Milestone 2.5 + Complete UI Overhaul (Production Ready)**
 
 This platform is ready for production deployment with:
+
 - ✅ Complete user management and role-based access control
 - ✅ All core delivery management features
 - ✅ Modern, accessible UI with shadcn/ui design system
@@ -353,6 +402,7 @@ This platform is ready for production deployment with:
 - ✅ WCAG AA accessibility compliance
 
 **📚 Documentation:**
+
 - `README.md` - This file: project overview, features, and quick start
 - `IMPLEMENTATION.md` - Technical implementation guide (authentication, HubSpot, real-time)
 - `REFERENCE.md` - Operational reference (deployment, configuration, troubleshooting)
