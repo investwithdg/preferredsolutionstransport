@@ -139,6 +139,8 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
     dateTo: '',
   });
   const [systemHealth, setSystemHealth] = useState<any | null>(null);
+  const [integrationsHealth, setIntegrationsHealth] = useState<any | null>(null);
+  const [databaseHealth, setDatabaseHealth] = useState<any | null>(null);
   const [isHealthLoading, setIsHealthLoading] = useState(false);
   const [healthError, setHealthError] = useState<string | null>(null);
 
@@ -225,12 +227,15 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
     setIsHealthLoading(true);
     setHealthError(null);
     try {
-      const response = await fetch('/api/admin/health');
-      if (!response.ok) {
-        throw new Error('Health check failed');
-      }
-      const data = await response.json();
-      setSystemHealth(data);
+      const [basicHealth, integrationsHealth, databaseHealth] = await Promise.all([
+        fetch('/api/admin/health').then((r) => (r.ok ? r.json() : null)),
+        fetch('/api/admin/health/integrations').then((r) => (r.ok ? r.json() : null)),
+        fetch('/api/admin/health/database').then((r) => (r.ok ? r.json() : null)),
+      ]);
+
+      setSystemHealth(basicHealth);
+      setIntegrationsHealth(integrationsHealth);
+      setDatabaseHealth(databaseHealth);
     } catch (error) {
       console.error('Error fetching system health:', error);
       setHealthError(error instanceof Error ? error.message : 'Unable to load system health');
@@ -564,25 +569,102 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                       title="Database"
                       description="Supabase connectivity"
                       ok={!!systemHealth.database?.ok}
+                      extra={
+                        databaseHealth?.tables && (
+                          <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Orders:</span>
+                              <span className="font-medium">{databaseHealth.tables.orders}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Customers:</span>
+                              <span className="font-medium">{databaseHealth.tables.customers}</span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Drivers:</span>
+                              <span className="font-medium">{databaseHealth.tables.drivers}</span>
+                            </div>
+                          </div>
+                        )
+                      }
                     />
                     <HealthStatusItem
                       title="HubSpot"
                       description={
-                        systemHealth.hubspot?.missing?.length
-                          ? `Missing: ${systemHealth.hubspot.missing.join(', ')}`
-                          : 'Private app token & pipeline detected'
+                        integrationsHealth?.integrations?.hubspot?.status === 'healthy'
+                          ? 'Connected'
+                          : systemHealth.hubspot?.missing?.length
+                            ? `Missing: ${systemHealth.hubspot.missing.join(', ')}`
+                            : 'Private app token & pipeline detected'
                       }
-                      ok={!!systemHealth.hubspot?.configured}
+                      ok={
+                        !!systemHealth.hubspot?.configured &&
+                        integrationsHealth?.integrations?.hubspot?.status !== 'unhealthy'
+                      }
+                      extra={
+                        integrationsHealth?.integrations?.hubspot?.metadata && (
+                          <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Contacts:</span>
+                              <span className="font-medium">
+                                {integrationsHealth.integrations.hubspot.metadata.totalContacts}
+                              </span>
+                            </div>
+                            {integrationsHealth.integrations.hubspot.metadata.rateLimit && (
+                              <div className="flex justify-between text-xs">
+                                <span className="text-muted-foreground">Rate Limit Remaining:</span>
+                                <span className="font-medium">
+                                  {integrationsHealth.integrations.hubspot.metadata.rateLimit}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      }
                     />
                     <HealthStatusItem
                       title="Stripe"
-                      description="Secret key configured"
-                      ok={!!systemHealth.stripe?.configured}
+                      description={
+                        integrationsHealth?.integrations?.stripe?.status || 'Secret key configured'
+                      }
+                      ok={
+                        systemHealth.stripe?.configured &&
+                        integrationsHealth?.integrations?.stripe?.status !== 'unhealthy'
+                      }
+                      extra={
+                        integrationsHealth?.integrations?.stripe?.metadata?.available && (
+                          <div className="mt-2 pt-2 border-t border-border/50 space-y-1">
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Available Balance:</span>
+                              <span className="font-medium">
+                                $
+                                {integrationsHealth.integrations.stripe.metadata.available[0]?.amount.toFixed(
+                                  2
+                                ) || '0.00'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between text-xs">
+                              <span className="text-muted-foreground">Mode:</span>
+                              <span className="font-medium">
+                                {integrationsHealth.integrations.stripe.metadata.livemode
+                                  ? 'Live'
+                                  : 'Test'}
+                              </span>
+                            </div>
+                          </div>
+                        )
+                      }
                     />
                     <HealthStatusItem
                       title="Google Maps"
-                      description="Client & server API keys"
-                      ok={!!systemHealth.googleMaps?.configured}
+                      description={
+                        integrationsHealth?.integrations?.googleMaps?.status ||
+                        'Client & server API keys'
+                      }
+                      ok={
+                        systemHealth.googleMaps?.configured &&
+                        integrationsHealth?.integrations?.googleMaps?.status !== 'unhealthy'
+                      }
                     />
                     <HealthStatusItem
                       title="Notifications"
