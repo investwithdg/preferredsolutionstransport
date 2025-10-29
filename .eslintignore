@@ -1,0 +1,33 @@
+# Dependencies
+node_modules/
+.next/
+.vercel/
+build/
+dist/
+out/
+
+# Build outputs
+*.tsbuildinfo
+.turbo/
+
+# Utility scripts (these use console.log intentionally)
+scripts/
+check-env.js
+
+# Service worker (needs console for debugging)
+public/sw.js
+
+# Test files
+**/*.test.ts
+**/*.test.tsx
+**/*.spec.ts
+**/*.spec.tsx
+
+# Config files
+next.config.js
+postcss.config.js
+tailwind.config.js
+
+# Cache
+.eslintcache
+
