@@ -1,1 +1,8 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Check package-lock.json sync before running linters
+./scripts/check-lockfile-sync.sh || exit 1
+
+# Run lint-staged
 npx lint-staged

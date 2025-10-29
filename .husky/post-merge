@@ -1,0 +1,12 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Check if package.json or package-lock.json changed
+PACKAGE_JSON_CHANGED=$(git diff --name-only HEAD@{1} HEAD | grep -E '^package(-lock)?\.json$')
+
+if [ -n "$PACKAGE_JSON_CHANGED" ]; then
+  echo "📦 Dependencies changed - running npm install..."
+  npm install
+  echo "✅ Dependencies updated successfully!"
+fi
+
