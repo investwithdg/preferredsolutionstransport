@@ -3,7 +3,13 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { PageHeader } from '@/app/components/shared/PageHeader';
 import { Button } from '@/app/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/app/components/ui/card';
 import { StatusBadge } from '@/app/components/shared/StatusBadge';
 import { Badge } from '@/app/components/ui/badge';
 import {
@@ -17,11 +23,25 @@ import {
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Separator } from '@/app/components/ui/separator';
-import { 
-  LayoutDashboard, 
-  Users, 
-  TruckIcon, 
-  Package, 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/app/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select';
+import {
+  LayoutDashboard,
+  Users,
+  TruckIcon,
+  Package,
   DollarSign,
   UserPlus,
   Edit,
@@ -30,14 +50,20 @@ import {
   AlertCircle,
   FileText,
   Download,
-  Filter
+  Filter,
+  Ban,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
 type User = {
   id: string;
+  auth_id?: string;
   email: string;
   role: string;
   created_at: string;
+  banned?: boolean;
+  email_confirmed?: boolean;
+  last_sign_in_at?: string;
 };
 
 type Driver = {
@@ -75,7 +101,17 @@ type Props = {
 
 type Tab = 'overview' | 'users' | 'drivers' | 'orders' | 'pricing' | 'logs';
 
-function HealthStatusItem({ title, description, ok, extra }: { title: string; description: string; ok: boolean; extra?: ReactNode }) {
+function HealthStatusItem({
+  title,
+  description,
+  ok,
+  extra,
+}: {
+  title: string;
+  description: string;
+  ok: boolean;
+  extra?: ReactNode;
+}) {
   return (
     <div className="rounded-2xl border border-border/60 bg-muted/30 p-4 shadow-soft-sm">
       <div className="flex items-start justify-between gap-4">
@@ -106,6 +142,19 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
   const [isHealthLoading, setIsHealthLoading] = useState(false);
   const [healthError, setHealthError] = useState<string | null>(null);
 
+  // User management state
+  const [users, setUsers] = useState<User[]>(initialUsers);
+  const [isCreateUserOpen, setIsCreateUserOpen] = useState(false);
+  const [isEditUserOpen, setIsEditUserOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<User | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [newUser, setNewUser] = useState({
+    email: '',
+    password: '',
+    role: 'recipient' as 'admin' | 'dispatcher' | 'driver' | 'recipient',
+    name: '',
+  });
+
   const tabs = [
     { id: 'overview' as Tab, name: 'Overview', icon: LayoutDashboard },
     { id: 'users' as Tab, name: 'Users', icon: Users },
@@ -123,9 +172,33 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
       if (isDemoMode) {
         const now = Date.now();
         const demoLogs = [
-          { id: 'log-1', event_type: 'order_created', order_id: 'demo-order-1', actor: 'system', source: 'web', payload: { note: 'Demo order created' }, created_at: new Date(now - 3600000).toISOString() },
-          { id: 'log-2', event_type: 'driver_assigned', order_id: 'demo-order-3', actor: 'dispatcher@demo.com', source: 'dashboard', payload: { driver_id: 'demo-driver-1' }, created_at: new Date(now - 1800000).toISOString() },
-          { id: 'log-3', event_type: 'status_updated', order_id: 'demo-order-3', actor: 'demo-driver-1', source: 'driver_app', payload: { status: 'PickedUp' }, created_at: new Date(now - 600000).toISOString() },
+          {
+            id: 'log-1',
+            event_type: 'order_created',
+            order_id: 'demo-order-1',
+            actor: 'system',
+            source: 'web',
+            payload: { note: 'Demo order created' },
+            created_at: new Date(now - 3600000).toISOString(),
+          },
+          {
+            id: 'log-2',
+            event_type: 'driver_assigned',
+            order_id: 'demo-order-3',
+            actor: 'dispatcher@demo.com',
+            source: 'dashboard',
+            payload: { driver_id: 'demo-driver-1' },
+            created_at: new Date(now - 1800000).toISOString(),
+          },
+          {
+            id: 'log-3',
+            event_type: 'status_updated',
+            order_id: 'demo-order-3',
+            actor: 'demo-driver-1',
+            source: 'driver_app',
+            payload: { status: 'PickedUp' },
+            created_at: new Date(now - 600000).toISOString(),
+          },
         ];
         setLogs(demoLogs);
       } else {
@@ -134,7 +207,7 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
         if (logFilter.orderId) params.append('orderId', logFilter.orderId);
         if (logFilter.dateFrom) params.append('dateFrom', logFilter.dateFrom);
         if (logFilter.dateTo) params.append('dateTo', logFilter.dateTo);
-        
+
         const response = await fetch(`/api/admin/logs?${params.toString()}`);
         if (response.ok) {
           const data = await response.json();
@@ -178,13 +251,128 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
     if (activeTab === 'overview') {
       fetchHealth();
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab]);
+
+  // User Management Functions
+  const fetchUsers = async () => {
+    try {
+      const response = await fetch('/api/admin/users');
+      if (response.ok) {
+        const data = await response.json();
+        setUsers(data.users || []);
+      }
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast.error('Failed to fetch users');
+    }
+  };
+
+  const handleCreateUser = async () => {
+    if (!newUser.email || !newUser.password) {
+      toast.error('Email and password are required');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newUser),
+      });
+
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to create user');
+      }
+
+      toast.success('User created successfully');
+      setIsCreateUserOpen(false);
+      setNewUser({ email: '', password: '', role: 'recipient', name: '' });
+      await fetchUsers();
+    } catch (error: any) {
+      console.error('Error creating user:', error);
+      toast.error(error.message || 'Failed to create user');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleUpdateUserRole = async (userId: string, newRole: string) => {
+    setIsSubmitting(true);
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, role: newRole }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to update user role');
+      }
+
+      toast.success('User role updated');
+      await fetchUsers();
+      setIsEditUserOpen(false);
+      setSelectedUser(null);
+    } catch (error) {
+      console.error('Error updating user:', error);
+      toast.error('Failed to update user role');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleBanUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to ban this user?')) return;
+
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId, action: 'ban' }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to ban user');
+      }
+
+      toast.success('User banned');
+      await fetchUsers();
+    } catch (error) {
+      console.error('Error banning user:', error);
+      toast.error('Failed to ban user');
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    if (!confirm('Are you sure you want to delete this user? This action cannot be undone.'))
+      return;
+
+    try {
+      const response = await fetch('/api/admin/users', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete user');
+      }
+
+      toast.success('User deleted');
+      await fetchUsers();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error('Failed to delete user');
+    }
+  };
 
   // Export orders to CSV
   const exportOrdersCSV = () => {
     const headers = ['Order ID', 'Customer', 'Driver', 'Status', 'Amount', 'Created At'];
-    const rows = initialOrders.map(order => [
+    const rows = initialOrders.map((order) => [
       order.id.slice(0, 8),
       order.customers?.name || 'N/A',
       order.drivers?.name || 'Unassigned',
@@ -192,12 +380,12 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
       `$${order.price_total?.toFixed(2) || '0.00'}`,
       order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A',
     ]);
-    
+
     const csvContent = [
       headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -210,7 +398,7 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
   // Export logs to CSV
   const exportLogsCSV = () => {
     const headers = ['Event ID', 'Order ID', 'Event Type', 'Actor', 'Source', 'Created At'];
-    const rows = logs.map(log => [
+    const rows = logs.map((log) => [
       log.event_id || log.id.slice(0, 8),
       log.order_id?.slice(0, 8) || 'N/A',
       log.event_type,
@@ -218,12 +406,12 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
       log.source,
       log.created_at ? new Date(log.created_at).toLocaleString() : 'N/A',
     ]);
-    
+
     const csvContent = [
       headers.join(','),
-      ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+      ...rows.map((row) => row.map((cell) => `"${cell}"`).join(',')),
     ].join('\n');
-    
+
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -234,14 +422,14 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
   };
 
   return (
-    <div className="container max-w-[1600px] mx-auto py-8 px-4 sm:px-6 lg:px-8" data-testid="admin-dashboard">
+    <div
+      className="container max-w-[1600px] mx-auto py-8 px-4 sm:px-6 lg:px-8"
+      data-testid="admin-dashboard"
+    >
       <PageHeader
         title="Admin Dashboard"
         description="Manage users, drivers, orders, and system configuration"
-        breadcrumbs={[
-          { label: 'Home', href: '/' },
-          { label: 'Admin' },
-        ]}
+        breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Admin' }]}
       />
 
       {/* Tab Navigation */}
@@ -256,9 +444,10 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                 className={`
                   flex items-center gap-2 px-4 py-3 text-sm font-medium transition-colors whitespace-nowrap
                   border-b-2 -mb-[1px]
-                  ${activeTab === tab.id
-                    ? 'border-accent text-accent'
-                    : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
+                  ${
+                    activeTab === tab.id
+                      ? 'border-accent text-accent'
+                      : 'border-transparent text-muted-foreground hover:text-foreground hover:border-border'
                   }
                 `}
                 data-testid={`tab-${tab.id}`}
@@ -295,7 +484,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Total Revenue</p>
-                      <p className="text-2xl font-bold text-foreground mt-1">${stats.totalRevenue.toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-foreground mt-1">
+                        ${stats.totalRevenue.toFixed(2)}
+                      </p>
                     </div>
                     <DollarSign className="h-8 w-8 text-success" />
                   </div>
@@ -307,7 +498,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Active Orders</p>
-                      <p className="text-2xl font-bold text-foreground mt-1">{stats.activeOrders}</p>
+                      <p className="text-2xl font-bold text-foreground mt-1">
+                        {stats.activeOrders}
+                      </p>
                     </div>
                     <TruckIcon className="h-8 w-8 text-accent" />
                   </div>
@@ -319,7 +512,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                   <div className="flex items-center justify-between">
                     <div>
                       <p className="text-sm text-muted-foreground">Total Drivers</p>
-                      <p className="text-2xl font-bold text-foreground mt-1">{stats.totalDrivers}</p>
+                      <p className="text-2xl font-bold text-foreground mt-1">
+                        {stats.totalDrivers}
+                      </p>
                     </div>
                     <TruckIcon className="h-8 w-8 text-muted-foreground" />
                   </div>
@@ -395,9 +590,17 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                       ok={!!systemHealth.notifications?.email}
                       extra={
                         <div className="flex flex-wrap gap-2 mt-2">
-                          <Badge variant={systemHealth.notifications?.email ? 'success' : 'destructive'}>Email</Badge>
-                          <Badge variant={systemHealth.notifications?.sms ? 'success' : 'warning'}>SMS</Badge>
-                          <Badge variant={systemHealth.notifications?.push ? 'success' : 'warning'}>Push</Badge>
+                          <Badge
+                            variant={systemHealth.notifications?.email ? 'success' : 'destructive'}
+                          >
+                            Email
+                          </Badge>
+                          <Badge variant={systemHealth.notifications?.sms ? 'success' : 'warning'}>
+                            SMS
+                          </Badge>
+                          <Badge variant={systemHealth.notifications?.push ? 'success' : 'warning'}>
+                            Push
+                          </Badge>
                         </div>
                       }
                     />
@@ -407,9 +610,7 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                     Health data will appear here once the check completes.
                   </p>
                 )}
-                {healthError && (
-                  <p className="mt-4 text-xs text-destructive">{healthError}</p>
-                )}
+                {healthError && <p className="mt-4 text-xs text-destructive">{healthError}</p>}
               </CardContent>
             </Card>
 
@@ -434,9 +635,7 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                   <TableBody>
                     {initialOrders.slice(0, 10).map((order) => (
                       <TableRow key={order.id}>
-                        <TableCell className="font-mono text-sm">
-                          #{order.id.slice(0, 8)}
-                        </TableCell>
+                        <TableCell className="font-mono text-sm">#{order.id.slice(0, 8)}</TableCell>
                         <TableCell>{order.customers?.name || 'N/A'}</TableCell>
                         <TableCell>{order.drivers?.name || 'Unassigned'}</TableCell>
                         <TableCell>
@@ -446,7 +645,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                           ${order.price_total?.toFixed(2) || '0.00'}
                         </TableCell>
                         <TableCell className="text-muted-foreground text-sm">
-                          {order.created_at ? new Date(order.created_at).toLocaleDateString() : 'N/A'}
+                          {order.created_at
+                            ? new Date(order.created_at).toLocaleDateString()
+                            : 'N/A'}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -459,57 +660,188 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
 
         {/* Users Tab */}
         {activeTab === 'users' && (
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>User Management</CardTitle>
-                  <CardDescription>Manage platform users and their roles</CardDescription>
+          <>
+            <Card>
+              <CardHeader>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <CardTitle>User Management</CardTitle>
+                    <CardDescription>Manage platform users and their roles</CardDescription>
+                  </div>
+                  <Button variant="accent" onClick={() => setIsCreateUserOpen(true)}>
+                    <UserPlus className="h-4 w-4 mr-2" />
+                    Add User
+                  </Button>
                 </div>
-                <Button variant="accent">
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add User
-                </Button>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Role</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {initialUsers.map((user) => (
-                    <TableRow key={user.id}>
-                      <TableCell className="font-medium">{user.email}</TableCell>
-                      <TableCell>
-                        <Badge variant="accent" className="capitalize">
-                          {user.role}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-muted-foreground text-sm">
-                        {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <Button variant="ghost" size="sm">
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button variant="ghost" size="sm">
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                          </Button>
-                        </div>
-                      </TableCell>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Role</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Created</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </CardContent>
-          </Card>
+                  </TableHeader>
+                  <TableBody>
+                    {users.map((user: any) => (
+                      <TableRow key={user.id}>
+                        <TableCell className="font-medium">{user.email}</TableCell>
+                        <TableCell>
+                          <Badge variant="accent" className="capitalize">
+                            {user.role}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={user.banned ? 'destructive' : 'success'}>
+                            {user.banned ? 'Banned' : 'Active'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground text-sm">
+                          {user.created_at ? new Date(user.created_at).toLocaleDateString() : 'N/A'}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => {
+                                setSelectedUser(user);
+                                setIsEditUserOpen(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleBanUser(user.auth_id)}
+                            >
+                              <Ban className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleDeleteUser(user.auth_id)}
+                            >
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+
+            {/* Create User Dialog */}
+            <Dialog open={isCreateUserOpen} onOpenChange={setIsCreateUserOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Create New User</DialogTitle>
+                  <DialogDescription>
+                    Add a new user to the platform with a specific role.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="user@example.com"
+                      value={newUser.email}
+                      onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="name">Name (Optional)</Label>
+                    <Input
+                      id="name"
+                      placeholder="John Doe"
+                      value={newUser.name}
+                      onChange={(e) => setNewUser({ ...newUser, name: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      placeholder="••••••••"
+                      value={newUser.password}
+                      onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="role">Role</Label>
+                    <Select
+                      value={newUser.role}
+                      onValueChange={(value: any) => setNewUser({ ...newUser, role: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="recipient">Customer</SelectItem>
+                        <SelectItem value="driver">Driver</SelectItem>
+                        <SelectItem value="dispatcher">Dispatcher</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex gap-2 pt-4">
+                    <Button
+                      variant="outline"
+                      className="flex-1"
+                      onClick={() => setIsCreateUserOpen(false)}
+                    >
+                      Cancel
+                    </Button>
+                    <Button className="flex-1" onClick={handleCreateUser} disabled={isSubmitting}>
+                      {isSubmitting ? 'Creating...' : 'Create User'}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+
+            {/* Edit User Dialog */}
+            <Dialog open={isEditUserOpen} onOpenChange={setIsEditUserOpen}>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Edit User Role</DialogTitle>
+                  <DialogDescription>Change the role for {selectedUser?.email}</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-role">Role</Label>
+                    <Select
+                      defaultValue={selectedUser?.role}
+                      onValueChange={(value) => {
+                        if (selectedUser) {
+                          handleUpdateUserRole(selectedUser.auth_id || selectedUser.id, value);
+                        }
+                      }}
+                    >
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="recipient">Customer</SelectItem>
+                        <SelectItem value="driver">Driver</SelectItem>
+                        <SelectItem value="dispatcher">Dispatcher</SelectItem>
+                        <SelectItem value="admin">Admin</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          </>
         )}
 
         {/* Drivers Tab */}
@@ -540,7 +872,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                 </TableHeader>
                 <TableBody>
                   {initialDrivers.map((driver) => {
-                    const activeOrders = driver.orders?.filter(o => !['Delivered', 'Canceled'].includes(o.status)) || [];
+                    const activeOrders =
+                      driver.orders?.filter((o) => !['Delivered', 'Canceled'].includes(o.status)) ||
+                      [];
                     return (
                       <TableRow key={driver.id}>
                         <TableCell className="font-medium">{driver.name}</TableCell>
@@ -549,7 +883,7 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                           {driver.vehicle_details || 'N/A'}
                         </TableCell>
                         <TableCell>
-                          <Badge variant={activeOrders.length > 0 ? "accent" : "secondary"}>
+                          <Badge variant={activeOrders.length > 0 ? 'accent' : 'secondary'}>
                             {activeOrders.length}
                           </Badge>
                         </TableCell>
@@ -594,9 +928,7 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                 <TableBody>
                   {initialOrders.map((order) => (
                     <TableRow key={order.id}>
-                      <TableCell className="font-mono text-sm">
-                        #{order.id.slice(0, 8)}
-                      </TableCell>
+                      <TableCell className="font-mono text-sm">#{order.id.slice(0, 8)}</TableCell>
                       <TableCell>{order.customers?.name || 'N/A'}</TableCell>
                       <TableCell>{order.drivers?.name || 'Unassigned'}</TableCell>
                       <TableCell>
@@ -629,12 +961,14 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                 <div className="flex items-start gap-3 rounded-2xl border border-warning/50 bg-warning/10 p-4">
                   <AlertCircle className="h-5 w-5 text-warning flex-shrink-0 mt-0.5" />
                   <div>
-                    <h3 className="text-sm font-medium text-foreground mb-1">
-                      Configuration Note
-                    </h3>
+                    <h3 className="text-sm font-medium text-foreground mb-1">Configuration Note</h3>
                     <p className="text-sm text-muted-foreground">
-                      Pricing is currently configured in <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">lib/config.ts</code>.
-                      Future versions will support database-driven pricing rules with real-time updates.
+                      Pricing is currently configured in{' '}
+                      <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">
+                        lib/config.ts
+                      </code>
+                      . Future versions will support database-driven pricing rules with real-time
+                      updates.
                     </p>
                   </div>
                 </div>
@@ -646,7 +980,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                   <div className="space-y-2">
                     <Label htmlFor="base-fee">Base Fee</Label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        $
+                      </span>
                       <Input
                         id="base-fee"
                         type="number"
@@ -660,7 +996,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                   <div className="space-y-2">
                     <Label htmlFor="per-mile">Per Mile Rate</Label>
                     <div className="relative">
-                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
+                      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        $
+                      </span>
                       <Input
                         id="per-mile"
                         type="number"
@@ -681,7 +1019,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                         defaultValue="10"
                         className="pr-8"
                       />
-                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">%</span>
+                      <span className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        %
+                      </span>
                     </div>
                   </div>
                 </div>
@@ -715,9 +1055,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                   <Download className="h-4 w-4" />
                   Export Orders (CSV)
                 </Button>
-                <Button 
-                  onClick={exportLogsCSV} 
-                  variant="outline" 
+                <Button
+                  onClick={exportLogsCSV}
+                  variant="outline"
                   className="gap-2"
                   disabled={logs.length === 0}
                 >
@@ -733,7 +1073,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                 <div className="flex items-center justify-between">
                   <div>
                     <CardTitle>System Event Logs</CardTitle>
-                    <CardDescription>View and filter all system events and activities</CardDescription>
+                    <CardDescription>
+                      View and filter all system events and activities
+                    </CardDescription>
                   </div>
                   <Button onClick={fetchLogs} variant="accent" size="sm" className="gap-2">
                     <Filter className="h-4 w-4" />
@@ -750,7 +1092,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                       id="event-type-filter"
                       placeholder="e.g. email_sent"
                       value={logFilter.eventType}
-                      onChange={(e) => setLogFilter(prev => ({ ...prev, eventType: e.target.value }))}
+                      onChange={(e) =>
+                        setLogFilter((prev) => ({ ...prev, eventType: e.target.value }))
+                      }
                     />
                   </div>
                   <div className="space-y-2">
@@ -759,7 +1103,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                       id="order-id-filter"
                       placeholder="Enter order ID"
                       value={logFilter.orderId}
-                      onChange={(e) => setLogFilter(prev => ({ ...prev, orderId: e.target.value }))}
+                      onChange={(e) =>
+                        setLogFilter((prev) => ({ ...prev, orderId: e.target.value }))
+                      }
                     />
                   </div>
                   <div className="space-y-2">
@@ -768,7 +1114,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                       id="date-from-filter"
                       type="date"
                       value={logFilter.dateFrom}
-                      onChange={(e) => setLogFilter(prev => ({ ...prev, dateFrom: e.target.value }))}
+                      onChange={(e) =>
+                        setLogFilter((prev) => ({ ...prev, dateFrom: e.target.value }))
+                      }
                     />
                   </div>
                   <div className="space-y-2">
@@ -777,7 +1125,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                       id="date-to-filter"
                       type="date"
                       value={logFilter.dateTo}
-                      onChange={(e) => setLogFilter(prev => ({ ...prev, dateTo: e.target.value }))}
+                      onChange={(e) =>
+                        setLogFilter((prev) => ({ ...prev, dateTo: e.target.value }))
+                      }
                     />
                   </div>
                 </div>
@@ -790,7 +1140,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                 ) : logs.length === 0 ? (
                   <div className="text-center py-12">
                     <FileText className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                    <p className="text-muted-foreground">No logs found. Click "Refresh Logs" to load system events.</p>
+                    <p className="text-muted-foreground">
+                      No logs found. Click "Refresh Logs" to load system events.
+                    </p>
                   </div>
                 ) : (
                   <div className="overflow-x-auto">
