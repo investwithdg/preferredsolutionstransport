@@ -34,6 +34,7 @@ export function useRealtimeDrivers(initialDrivers: Driver[] = []): UseRealtimeDr
   const [error, setError] = useState<string | null>(null);
 
   const supabase = createClient();
+  const isDevelopment = process.env.NODE_ENV !== 'production';
 
   // Fetch drivers with active order counts
   const fetchDrivers = async () => {
@@ -100,7 +101,9 @@ export function useRealtimeDrivers(initialDrivers: Driver[] = []): UseRealtimeDr
           table: 'drivers',
         },
         (payload: any) => {
-          console.log('Real-time driver update:', payload);
+          if (isDevelopment) {
+            console.debug('Real-time driver update:', payload);
+          }
           // Refetch to update active order counts
           fetchDrivers();
         }
@@ -114,7 +117,9 @@ export function useRealtimeDrivers(initialDrivers: Driver[] = []): UseRealtimeDr
         },
         (payload: any) => {
           // When orders change, update driver availability
-          console.log('Order change affecting drivers:', payload);
+          if (isDevelopment) {
+            console.debug('Order change affecting drivers:', payload);
+          }
           fetchDrivers();
         }
       )
@@ -136,4 +141,3 @@ export function useRealtimeDrivers(initialDrivers: Driver[] = []): UseRealtimeDr
     refresh: fetchDrivers,
   };
 }
-

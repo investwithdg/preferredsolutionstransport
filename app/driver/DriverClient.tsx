@@ -31,9 +31,9 @@ import { toast } from 'sonner';
 import { watchLocation, clearWatch } from '@/lib/google-maps/tracking';
 import { usePushNotifications } from '@/app/hooks/usePushNotifications';
 import { useRealtimeOrders } from '@/app/hooks/useRealtimeOrders';
+import type { Order as RealtimeOrder } from '@/app/hooks/useRealtimeOrders';
 import { useDemo } from '@/app/demo/DemoContext';
 import { ProofOfDeliveryModal } from '@/app/components/delivery/ProofOfDeliveryModal';
-import { uploadProofOfDelivery } from '@/lib/proof-of-delivery/storage';
 import { 
   Package, 
   MapPin, 
@@ -49,29 +49,7 @@ import {
   BellOff
 } from 'lucide-react';
 
-interface Order {
-  id: string;
-  status: string;
-  price_total: number;
-  currency: string;
-  created_at: string;
-  updated_at: string;
-  customers: {
-    name?: string;
-    email?: string;
-    phone?: string;
-  } | null;
-  quotes: {
-    pickup_address?: string;
-    dropoff_address?: string;
-    distance_mi?: number;
-  } | null;
-  drivers: {
-    id: string;
-    name: string;
-    phone?: string;
-  } | null;
-}
+type Order = RealtimeOrder;
 
 interface Driver {
   id: string;
@@ -484,6 +462,14 @@ export default function DriverClient() {
                   const nextStatus = getNextStatus(order.status);
                   const actionData = getStatusActionLabel(order.status);
                   const ActionIcon = actionData?.icon;
+                  const currencyLabel = (order.currency || 'usd').toUpperCase();
+                  const updatedLabel = order.updated_at ? new Date(order.updated_at).toLocaleString() : 'N/A';
+                  const directionsUrl =
+                    order.quotes?.pickup_address && order.quotes?.dropoff_address
+                      ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
+                          order.quotes.pickup_address || ''
+                        )}&destination=${encodeURIComponent(order.quotes.dropoff_address || '')}&travelmode=driving`
+                      : null;
                   
                   return (
                     <Card key={order.id} className="overflow-hidden hover:shadow-soft-lg transition-shadow" data-testid={`order-${order.id}`}>
@@ -556,7 +542,7 @@ export default function DriverClient() {
                                   </Badge>
                                   <Badge variant="secondary">
                                     <DollarSign className="h-3 w-3 mr-1" />
-                                    {order.price_total.toFixed(2)} {order.currency.toUpperCase()}
+                                    {order.price_total.toFixed(2)} {currencyLabel}
                                   </Badge>
                                 </div>
                               )}
@@ -567,72 +553,91 @@ export default function DriverClient() {
                         <Separator className="mb-4" />
 
                         {/* Action Buttons */}
-                        <div className="flex items-center justify-between">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
                           <div className="text-xs text-muted-foreground flex items-center gap-2">
                             <Clock className="h-3 w-3" />
-                            Updated {new Date(order.updated_at).toLocaleString()}
+                            Updated {updatedLabel}
                           </div>
-                          {nextStatus && actionData && (
-                            <>
-                              {order.status === 'InTransit' ? (
-                                // For InTransit status, open PoD modal instead of direct status update
-                                <Button
-                                  variant="accent"
-                                  size="lg"
-                                  onClick={() => handleOpenPodModal(order)}
-                                  disabled={isUpdating === order.id}
-                                  className="min-w-[180px]"
-                                  data-testid={`update-status-${order.id}`}
+                          <div className="flex items-center gap-3">
+                            {directionsUrl && (
+                              <Button
+                                asChild
+                                variant="outline"
+                                size="sm"
+                                className="min-w-[160px]"
+                              >
+                                <a
+                                  href={directionsUrl}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
                                 >
-                                  {ActionIcon && <ActionIcon className="h-4 w-4 mr-2" />}
-                                  {actionData.label}
-                                </Button>
-                              ) : (
-                                // For other statuses, use confirmation dialog
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="accent"
-                                      size="lg"
-                                      disabled={isUpdating === order.id}
-                                      className="min-w-[180px]"
-                                      data-testid={`update-status-${order.id}`}
-                                    >
-                                      {isUpdating === order.id ? (
-                                        'Updating...'
-                                      ) : (
-                                        <>
-                                          {ActionIcon && <ActionIcon className="h-4 w-4 mr-2" />}
-                                          {actionData.label}
-                                        </>
-                                      )}
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle className="flex items-center gap-2">
-                                        {ActionIcon && <ActionIcon className="h-5 w-5 text-accent" />}
-                                        {actionData.label}?
-                                      </AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Are you sure you want to update the order status to <strong>{nextStatus}</strong>? 
-                                        This will notify the customer and dispatcher.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancel</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => updateOrderStatus(order.id, nextStatus)}
-                                        className="bg-accent hover:bg-accent/90"
+                                  <Navigation className="h-4 w-4 mr-2" />
+                                  Directions
+                                </a>
+                              </Button>
+                            )}
+                            {nextStatus && actionData && (
+                              <>
+                                {order.status === 'InTransit' ? (
+                                  // For InTransit status, open PoD modal instead of direct status update
+                                  <Button
+                                    variant="accent"
+                                    size="lg"
+                                    onClick={() => handleOpenPodModal(order)}
+                                    disabled={isUpdating === order.id}
+                                    className="min-w-[180px]"
+                                    data-testid={`update-status-${order.id}`}
+                                  >
+                                    {ActionIcon && <ActionIcon className="h-4 w-4 mr-2" />}
+                                    {actionData.label}
+                                  </Button>
+                                ) : (
+                                  // For other statuses, use confirmation dialog
+                                  <AlertDialog>
+                                    <AlertDialogTrigger asChild>
+                                      <Button
+                                        variant="accent"
+                                        size="lg"
+                                        disabled={isUpdating === order.id}
+                                        className="min-w-[180px]"
+                                        data-testid={`update-status-${order.id}`}
                                       >
-                                        Confirm
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
-                              )}
-                            </>
-                          )}
+                                        {isUpdating === order.id ? (
+                                          'Updating...'
+                                        ) : (
+                                          <>
+                                            {ActionIcon && <ActionIcon className="h-4 w-4 mr-2" />}
+                                            {actionData.label}
+                                          </>
+                                        )}
+                                      </Button>
+                                    </AlertDialogTrigger>
+                                    <AlertDialogContent>
+                                      <AlertDialogHeader>
+                                        <AlertDialogTitle className="flex items-center gap-2">
+                                          {ActionIcon && <ActionIcon className="h-5 w-5 text-accent" />}
+                                          {actionData.label}?
+                                        </AlertDialogTitle>
+                                        <AlertDialogDescription>
+                                          Are you sure you want to update the order status to <strong>{nextStatus}</strong>? 
+                                          This will notify the customer and dispatcher.
+                                        </AlertDialogDescription>
+                                      </AlertDialogHeader>
+                                      <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                        <AlertDialogAction
+                                          onClick={() => updateOrderStatus(order.id, nextStatus)}
+                                          className="bg-accent hover:bg-accent/90"
+                                        >
+                                          Confirm
+                                        </AlertDialogAction>
+                                      </AlertDialogFooter>
+                                    </AlertDialogContent>
+                                  </AlertDialog>
+                                )}
+                              </>
+                            )}
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -741,7 +746,6 @@ export default function DriverClient() {
             setSelectedOrderForPod(null);
           }}
           orderId={selectedOrderForPod.id}
-          driverId={selectedDriverId}
           customerName={selectedOrderForPod.customers?.name || ''}
           onSubmit={handleSubmitPod}
         />

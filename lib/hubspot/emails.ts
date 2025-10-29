@@ -7,6 +7,7 @@ type OrderData = {
   orderId: string;
   customerName: string;
   customerEmail: string;
+  customerPhone?: string;
   pickupAddress: string;
   dropoffAddress: string;
   distance: number;
@@ -273,6 +274,72 @@ export function driverAssignedEmail(order: OrderData, driver: DriverData): { sub
 }
 
 /**
+ * Driver-facing notification for new assignments
+ */
+export function driverAssignmentNotificationEmail(order: OrderData, driver: DriverData): { subject: string; html: string } {
+  const content = `
+    <div class="header">
+      <h1>🚚 New Delivery Assigned</h1>
+    </div>
+    <div class="content">
+      <p>Hi ${driver.name || 'there'},</p>
+      <p>You have a new delivery assignment. Review the details below and update the status in your driver dashboard when you&apos;re on the way.</p>
+      
+      <div class="info-box">
+        <h3>Order Overview</h3>
+        <div class="info-row">
+          <span class="info-label">Order ID</span>
+          <span class="info-value">#${order.orderId.slice(0, 8)}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Pickup</span>
+          <span class="info-value">${order.pickupAddress}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Dropoff</span>
+          <span class="info-value">${order.dropoffAddress}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Distance</span>
+          <span class="info-value">${order.distance} miles</span>
+        </div>
+      </div>
+
+      <div class="info-box">
+        <h3>Customer Contact</h3>
+        <div class="info-row">
+          <span class="info-label">Name</span>
+          <span class="info-value">${order.customerName}</span>
+        </div>
+        <div class="info-row">
+          <span class="info-label">Email</span>
+          <span class="info-value"><a href="mailto:${order.customerEmail}">${order.customerEmail}</a></span>
+        </div>
+        ${order.customerPhone ? `
+        <div class="info-row">
+          <span class="info-label">Phone</span>
+          <span class="info-value"><a href="tel:${order.customerPhone}">${order.customerPhone}</a></span>
+        </div>
+        ` : ''}
+      </div>
+
+      <center>
+        <a href="${order.trackingUrl}" class="button">Open Driver Dashboard</a>
+      </center>
+
+      <p style="margin-top: 24px; font-size: 14px; color: #6b7280;">
+        Please let dispatch know immediately if you cannot complete this delivery.
+      </p>
+    </div>
+  `;
+
+  return {
+    subject: `New Delivery Assignment - Order #${order.orderId.slice(0, 8)}`,
+    html: baseTemplate(content),
+  };
+}
+
+/**
  * Order status update email
  */
 export function statusUpdateEmail(
@@ -371,4 +438,3 @@ export function formatStatusDisplay(status: string): string {
 
   return statusMap[status] || status;
 }
-

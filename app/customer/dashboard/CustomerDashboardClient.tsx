@@ -70,6 +70,8 @@ export default function CustomerDashboardClient({ customer, orders: initialOrder
     initialOrders,
   });
 
+  const nextActiveOrder = orders.find(order => !['Delivered', 'Canceled'].includes(order.status));
+
   // Filter logic
   const filteredOrders = orders.filter(order => {
     // Status filter
@@ -127,12 +129,22 @@ export default function CustomerDashboardClient({ customer, orders: initialOrder
             { label: 'My Orders' },
           ]}
           action={
-            <Button asChild variant="accent" size="lg">
-              <Link href="/quote">
-                <Plus className="h-4 w-4 mr-2" />
-                Request New Quote
-              </Link>
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-2">
+              {nextActiveOrder && (
+                <Button asChild variant="outline" size="lg">
+                  <Link href={`/track/${nextActiveOrder.id}`}>
+                    <TruckIcon className="h-4 w-4 mr-2" />
+                    Track Active Order
+                  </Link>
+                </Button>
+              )}
+              <Button asChild variant="accent" size="lg">
+                <Link href="/quote">
+                  <Plus className="h-4 w-4 mr-2" />
+                  Request New Quote
+                </Link>
+              </Button>
+            </div>
           }
         />
         <RealtimeIndicator isActive={true} lastUpdate={lastUpdate} />

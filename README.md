@@ -78,8 +78,6 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - Pricing optimization tools
 
 **🚧 Future Enhancements**
-- Photo upload for proof of delivery
-- Signature capture
 - Customer ratings and reviews
 - Recurring delivery schedules
 - Multi-stop deliveries
@@ -94,8 +92,9 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 - **Dispatcher Queue**: Real-time view of orders ready for dispatch
 - **Driver Assignment**: Dispatchers can assign available drivers to orders
 - **Driver Dashboard**: Drivers can view assigned orders and update their status
-- **Admin Dashboard**: Complete management interface for users, drivers, orders, pricing, and logs
+- **Admin Dashboard**: Complete management interface for users, drivers, orders, pricing, logs, and system health checks
 - **Customer Tracking**: **Live map tracking** with driver location and ETA
+- **Track Portal**: Public /track lookup for customers and guests to validate orders and open live tracking
 - **Customer Dashboard**: Order history and active order management for customers
 - **HubSpot Sync**: Automatic contact and deal creation with **configurable pipelines and stages**
 - **Database**: Full audit trail and event logging
@@ -103,6 +102,7 @@ A modern, full-service delivery platform built with Next.js, Supabase, and Strip
 
 ### NEW: Notifications & Tracking (Phase 1-3)
 - **📧 Email Notifications**: Automated emails via HubSpot for order confirmation, driver assignment, and status updates
+- **📬 Driver Alerts**: Real-time driver email + SMS notifications (Twilio optional) for assignments and status changes
 - **🗺️ Live Driver Tracking**: Real-time Google Maps integration showing driver location with automatic ETA calculation
 - **📍 Background Location**: Automatic location updates every 30 seconds for active deliveries
 - **📱 PWA Support**: Installable mobile app with offline capabilities and background sync
@@ -140,7 +140,8 @@ cp env.example .env.local
 - `STRIPE_SECRET_KEY` & `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Payment processing
 - `HUBSPOT_PRIVATE_APP_TOKEN` - CRM integration + email notifications
 - `NEXT_PUBLIC_APP_URL` - Your app URL (for email tracking links, default: http://localhost:3000)
- - `NEXT_PUBLIC_DEMO_MODE` - Enable demo UI (role switcher, demo data). Keep false in production
+- `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` - Optional SMS alerts for drivers (use Messaging Service SID instead of `TWILIO_FROM_NUMBER` if preferred)
+- `NEXT_PUBLIC_DEMO_MODE` - Enable demo UI (role switcher, demo data). Keep false in production
 
 **NEW for Phase 1-3:**
 - Google Maps now requires **Maps JavaScript API, Geocoding API, and Geometry Library** enabled

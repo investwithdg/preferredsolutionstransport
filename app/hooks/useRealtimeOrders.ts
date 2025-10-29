@@ -17,6 +17,7 @@ export interface Order {
   created_at: string | null;
   updated_at?: string | null;
   hubspot_deal_id?: string | null;
+  hubspot_metadata?: Record<string, any> | null;
   customers?: {
     id?: string;
     name?: string | null;
@@ -67,6 +68,7 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
   const supabase = createClient();
 
   const isDemoMode = typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_DEMO_MODE === 'true');
+  const isDevelopment = process.env.NODE_ENV !== 'production';
 
   // Fetch orders from database (skipped in demo when initialOrders provided)
   const fetchOrders = async () => {
@@ -145,7 +147,9 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
           ...(status && { filter: `status=eq.${status}` }),
         },
         (payload: any) => {
-          console.log('Real-time order update:', payload);
+          if (isDevelopment) {
+            console.debug('Real-time order update:', payload);
+          }
           
           if (payload.eventType === 'INSERT') {
             // Fetch the full order with relations
@@ -161,7 +165,9 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
         }
       )
       .subscribe((status: any) => {
-        console.log('Real-time subscription status:', status);
+        if (isDevelopment) {
+          console.debug('Real-time subscription status:', status);
+        }
       });
 
     // Cleanup
@@ -190,4 +196,3 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
     lastUpdate,
   };
 }
-

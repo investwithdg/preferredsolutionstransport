@@ -67,7 +67,8 @@ export function usePushNotifications({ driverId }: UsePushNotificationsProps) {
         return;
       }
 
-      const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
+      const rawServerKey = urlBase64ToUint8Array(vapidPublicKey);
+      const applicationServerKey = new Uint8Array(rawServerKey);
 
       const subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,

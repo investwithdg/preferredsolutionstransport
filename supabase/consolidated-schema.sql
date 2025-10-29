@@ -85,6 +85,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
   stripe_checkout_session_id text,
   driver_id uuid, -- Will be linked to drivers table below
   hubspot_deal_id text,
+  hubspot_metadata jsonb DEFAULT '{}'::jsonb,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );

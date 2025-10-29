@@ -8,7 +8,7 @@ import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Separator } from '@/app/components/ui/separator';
 import { Badge } from '@/app/components/ui/badge';
-import { User, Phone, Truck, Package, DollarSign, Calendar, Edit, Save, X } from 'lucide-react';
+import { User, Truck, Package, DollarSign, Calendar, Edit, Save, X } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Driver {
@@ -16,7 +16,7 @@ interface Driver {
   name: string;
   phone: string | null;
   vehicle_details: any;
-  created_at: string;
+  created_at: string | null;
   is_available: boolean;
 }
 
@@ -34,6 +34,9 @@ export default function DriverProfileClient({
   const [driver, setDriver] = useState(initialDriver);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const memberSince = driver.created_at
+    ? new Date(driver.created_at).toLocaleDateString('en-US', { month: 'long', year: 'numeric' })
+    : 'N/A';
   const [formData, setFormData] = useState({
     name: driver.name,
     phone: driver.phone || '',
@@ -194,10 +197,7 @@ export default function DriverProfileClient({
                 Account Information
               </h4>
               <p className="text-sm text-muted-foreground">
-                Member since {new Date(driver.created_at).toLocaleDateString('en-US', {
-                  month: 'long',
-                  year: 'numeric'
-                })}
+                Member since {memberSince}
               </p>
             </div>
           </CardContent>
@@ -293,4 +293,3 @@ export default function DriverProfileClient({
     </div>
   );
 }
-

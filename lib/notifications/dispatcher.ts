@@ -1,3 +1,8 @@
+import { createHubSpotClient, sendHubSpotEmail } from '@/lib/hubspot/client';
+import { driverAssignmentNotificationEmail, statusUpdateEmail } from '@/lib/hubspot/emails';
+import { createServiceRoleClient } from '@/lib/supabase/server';
+import { isTwilioConfigured, sendSms } from './providers/twilio';
+
 /**
  * Dispatcher Notification Service
  * 
@@ -15,10 +20,14 @@ interface DriverAssignmentParams {
   driverId: string;
   orderId: string;
   customerName: string;
+  customerEmail?: string;
+  customerPhone?: string;
   pickupAddress: string;
   dropoffAddress: string;
   distance?: number;
   scheduledPickupTime?: string;
+  priceTotal?: number;
+  currency?: string;
   driverName?: string;
   driverEmail?: string;
   driverPhone?: string;
@@ -30,9 +39,15 @@ interface OrderStatusChangeParams {
   customerName?: string;
   customerEmail?: string;
   customerPhone?: string;
+  pickupAddress?: string;
+  dropoffAddress?: string;
+  distance?: number;
+  priceTotal?: number;
+  currency?: string;
   newStatus: string;
   previousStatus?: string;
   driverName?: string;
+  driverPhone?: string;
   estimatedDeliveryTime?: string;
 }
 
@@ -44,39 +59,137 @@ interface DispatcherAlertParams {
   metadata?: Record<string, any>;
 }
 
+const STATUS_LABELS: Record<string, string> = {
+  ReadyForDispatch: 'Ready for dispatch',
+  Assigned: 'Driver assigned',
+  Accepted: 'Accepted by driver',
+  PickedUp: 'Picked up',
+  InTransit: 'In transit',
+  Delivered: 'Delivered',
+  Canceled: 'Cancelled',
+};
+
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+
+async function resolveDriverContact(driverId: string): Promise<{ email?: string; phone?: string }> {
+  try {
+    const supabase = createServiceRoleClient();
+    const { data: driverRecord } = await supabase
+      .from('drivers')
+      .select('user_id, phone')
+      .eq('id', driverId)
+      .single();
+
+    const result: { email?: string; phone?: string } = {};
+
+    if (driverRecord?.phone) {
+      result.phone = driverRecord.phone;
+    }
+
+    if (driverRecord?.user_id) {
+      const { data: userDetails } = await supabase.auth.admin.getUserById(driverRecord.user_id);
+      if (userDetails?.user?.email) {
+        result.email = userDetails.user.email;
+      }
+    }
+
+    return result;
+  } catch (error) {
+    console.error('[Notifications] Failed to resolve driver contact info:', error);
+    return {};
+  }
+}
+
+function normalizePhoneNumber(phone?: string): string | null {
+  if (!phone) return null;
+  const trimmed = phone.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('+')) {
+    return trimmed.replace(/\s+/g, '');
+  }
+  const digits = trimmed.replace(/[^\d]/g, '');
+  if (!digits) return null;
+  if (digits.startsWith('1') && digits.length === 11) {
+    return `+${digits}`;
+  }
+  if (digits.length === 10) {
+    return `+1${digits}`;
+  }
+  return `+${digits}`;
+}
+
 /**
  * Notify driver when they are assigned to an order
  * 
  * @param params - Driver assignment notification parameters
  */
 export async function notifyDriverAssignment(params: DriverAssignmentParams): Promise<void> {
+  const hubspotClient = createHubSpotClient();
+
+  let driverEmail = params.driverEmail;
+  let driverPhone = params.driverPhone;
+
+  if ((!driverEmail || !driverPhone) && params.driverId) {
+    const resolved = await resolveDriverContact(params.driverId);
+    driverEmail = driverEmail || resolved.email;
+    driverPhone = driverPhone || resolved.phone;
+  }
+
+  const orderSummary = {
+    orderId: params.orderId,
+    customerName: params.customerName,
+    customerEmail: params.customerEmail || 'support@preferredsolutions.com',
+    customerPhone: params.customerPhone,
+    pickupAddress: params.pickupAddress,
+    dropoffAddress: params.dropoffAddress,
+    distance: params.distance || 0,
+    priceTotal: params.priceTotal || 0,
+    currency: (params.currency || 'usd').toLowerCase(),
+    trackingUrl: `${APP_URL}/driver`,
+    createdAt: new Date(),
+  };
+
+  if (hubspotClient && driverEmail) {
+    try {
+      const driverTemplate = driverAssignmentNotificationEmail(orderSummary, {
+        name: params.driverName || 'Driver',
+        phone: driverPhone || '',
+      });
+
+      await sendHubSpotEmail(hubspotClient, {
+        to: driverEmail,
+        subject: driverTemplate.subject,
+        htmlContent: driverTemplate.html,
+      });
+    } catch (error) {
+      console.error('[Notifications] Failed to send driver assignment email:', error);
+    }
+  } else {
+    console.warn('[Notifications] Driver email not available; assignment email skipped.');
+  }
+
+  const normalizedPhone = normalizePhoneNumber(driverPhone);
+  if (normalizedPhone && isTwilioConfigured()) {
+    const smsBody = `New delivery assigned: ${params.pickupAddress} → ${params.dropoffAddress}. Order #${params.orderId.slice(-8)}.`;
+    const smsSent = await sendSms(normalizedPhone, smsBody);
+    if (!smsSent) {
+      console.warn('[Notifications] Driver assignment SMS failed to send.');
+    }
+  }
+
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('📧 [Notification Stub] Driver Assignment');
+  console.log('📧 Driver Assignment Notification Dispatched');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('Driver ID:', params.driverId);
   console.log('Driver Name:', params.driverName || 'N/A');
-  console.log('Driver Email:', params.driverEmail || 'N/A');
-  console.log('Driver Phone:', params.driverPhone || 'N/A');
+  console.log('Driver Email:', driverEmail || 'N/A');
+  console.log('Driver Phone:', driverPhone || 'N/A');
   console.log('Order ID:', params.orderId);
   console.log('Customer:', params.customerName);
   console.log('Pickup:', params.pickupAddress);
   console.log('Dropoff:', params.dropoffAddress);
-  if (params.distance) {
-    console.log('Distance:', `${params.distance} miles`);
-  }
-  if (params.scheduledPickupTime) {
-    console.log('Scheduled Pickup:', params.scheduledPickupTime);
-  }
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
-  
-  // TODO: Implement actual email/SMS sending
-  // Example email content:
-  // Subject: New Delivery Assignment - Order #${orderId.slice(-8)}
-  // Body: You have been assigned a new delivery...
-  
-  // Example SMS content:
-  // "New delivery assigned! Order #${orderId.slice(-8)}. Pickup: ${pickupAddress}. Check app for details."
 }
 
 /**
@@ -85,33 +198,72 @@ export async function notifyDriverAssignment(params: DriverAssignmentParams): Pr
  * @param params - Order status change notification parameters
  */
 export async function notifyOrderStatusChange(params: OrderStatusChangeParams): Promise<void> {
+  const statusDisplay =
+    STATUS_LABELS[params.newStatus] ||
+    params.newStatus.replace(/([A-Z])/g, ' $1').trim();
+  const hubspotClient = createHubSpotClient();
+
+  if (hubspotClient && params.customerEmail) {
+    try {
+      const orderSummary = {
+        orderId: params.orderId,
+        customerName: params.customerName || 'Customer',
+        customerEmail: params.customerEmail,
+        customerPhone: params.customerPhone,
+        pickupAddress: params.pickupAddress || 'N/A',
+        dropoffAddress: params.dropoffAddress || 'N/A',
+        distance: params.distance || 0,
+        priceTotal: params.priceTotal || 0,
+        currency: (params.currency || 'usd').toLowerCase(),
+        trackingUrl: `${APP_URL}/track/${params.orderId}`,
+        createdAt: new Date(),
+      };
+
+      const statusTemplate = statusUpdateEmail(
+        orderSummary,
+        {
+          status: params.newStatus,
+          statusDisplay,
+          timestamp: new Date(),
+        },
+        params.driverName
+          ? {
+              name: params.driverName,
+              phone: params.driverPhone || '',
+            }
+          : undefined
+      );
+
+      await sendHubSpotEmail(hubspotClient, {
+        to: params.customerEmail,
+        subject: statusTemplate.subject,
+        htmlContent: statusTemplate.html,
+      });
+    } catch (error) {
+      console.error('[Notifications] Failed to send status update email:', error);
+    }
+  }
+
+  const normalizedPhone = normalizePhoneNumber(params.customerPhone);
+  if (normalizedPhone && isTwilioConfigured()) {
+    const smsBody = `Order #${params.orderId.slice(-8)} update: ${statusDisplay}.`;
+    const smsSent = await sendSms(normalizedPhone, smsBody);
+    if (!smsSent) {
+      console.warn('[Notifications] Order status SMS failed to send.');
+    }
+  }
+
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-  console.log('📧 [Notification Stub] Order Status Change');
+  console.log('📧 Order Status Notification Dispatched');
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('Order ID:', params.orderId);
   console.log('Customer ID:', params.customerId);
-  console.log('Customer Name:', params.customerName || 'N/A');
   console.log('Customer Email:', params.customerEmail || 'N/A');
   console.log('Customer Phone:', params.customerPhone || 'N/A');
   console.log('Previous Status:', params.previousStatus || 'N/A');
   console.log('New Status:', params.newStatus);
-  if (params.driverName) {
-    console.log('Driver:', params.driverName);
-  }
-  if (params.estimatedDeliveryTime) {
-    console.log('Estimated Delivery:', params.estimatedDeliveryTime);
-  }
   console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
   console.log('');
-  
-  // TODO: Implement actual email/SMS sending
-  // Example email content based on status:
-  // - Assigned: "Your order has been assigned to a driver"
-  // - PickedUp: "Your order is on its way"
-  // - Delivered: "Your order has been delivered"
-  
-  // Example SMS content:
-  // "Order #${orderId.slice(-8)} update: ${newStatus}"
 }
 
 /**
@@ -185,4 +337,3 @@ export async function notifyMultipleDrivers(
   // TODO: Implement batch notification
   // Should handle rate limiting and delivery confirmation
 }
-

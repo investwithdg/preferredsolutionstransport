@@ -1,8 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { StatusBadge } from '@/app/components/shared/StatusBadge';
-import { Button } from '@/app/components/ui/button';
 import { Separator } from '@/app/components/ui/separator';
-import { MapPin, User, Phone, DollarSign, Package, Calendar } from 'lucide-react';
+import { MapPin, User, Phone, DollarSign, Package } from 'lucide-react';
 
 interface Order {
   id: string;
@@ -141,4 +140,3 @@ export function OrderDetailCard({ order, showActions = false, actions, className
     </Card>
   );
 }
-

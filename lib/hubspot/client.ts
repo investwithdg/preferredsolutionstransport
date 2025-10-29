@@ -3,7 +3,7 @@ import type { SimplePublicObjectInput } from '@hubspot/api-client/lib/codegen/cr
 import type { ContactProperties, DealProperties, OrderSyncData, SyncResult } from './types';
 import { getCachedContactProperties, getCachedDealProperties } from './schemas';
 import { validateProperties, filterValidProperties, formatValidationErrors } from './validator';
-import { mapOrderToContactProperties, mapOrderToDealProperties } from './property-mappings';
+import { mapOrderToContactProperties, mapOrderToDealProperties, getDealPipelineForStatus, getDeliveryStatusForStatus } from './property-mappings';
 
 export function createHubSpotClient() {
   if (!process.env.HUBSPOT_PRIVATE_APP_TOKEN) {
@@ -286,20 +286,33 @@ export async function syncOrderToHubSpot(
     }
 
     const success = errors.length === 0;
+
+    const hubspotMetadata = buildOrderHubSpotMetadata(orderData, {
+      dealId: dealId || existingDealId,
+      contactId,
+      success,
+      warnings: [...warnings],
+    });
     
-    // Store HubSpot IDs back to Supabase if client provided
-    if (supabaseClient && success) {
+    // Store HubSpot IDs and metadata back to Supabase if client provided
+    if (supabaseClient) {
       try {
+        const orderUpdate: Record<string, any> = {
+          hubspot_metadata: hubspotMetadata,
+        };
+
         // Update order with HubSpot deal ID
-        if (dealId) {
-          await supabaseClient
-            .from('orders')
-            .update({ hubspot_deal_id: dealId })
-            .eq('id', orderData.orderId);
+        if (success && dealId) {
+          orderUpdate.hubspot_deal_id = dealId;
         }
-        
+
+        await supabaseClient
+          .from('orders')
+          .update(orderUpdate)
+          .eq('id', orderData.orderId);
+
         // Update customer with HubSpot contact ID
-        if (contactId) {
+        if (success && contactId) {
           await supabaseClient
             .from('customers')
             .update({ hubspot_contact_id: contactId })
@@ -376,4 +389,38 @@ function stripHtml(html: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .trim();
+}
+
+function buildOrderHubSpotMetadata(
+  orderData: OrderSyncData,
+  options: { dealId?: string; contactId?: string; success: boolean; warnings: string[] }
+) {
+  const toIso = (value?: Date) => (value ? new Date(value).toISOString() : null);
+
+  return {
+    dealId: options.dealId || null,
+    contactId: options.contactId || null,
+    pipelineStage: getDealPipelineForStatus(orderData.status),
+    deliveryStatus: getDeliveryStatusForStatus(orderData.status),
+    deliveryRoute: orderData.deliveryRoute || null,
+    deliveryLocation: orderData.deliveryLocation || null,
+    deliveryType: orderData.deliveryType || null,
+    weightBracket: orderData.weightBracket || null,
+    specialDeliveryInstructions: orderData.specialDeliveryInstructions || null,
+    scheduledPickupTime: toIso(orderData.scheduledPickupTime),
+    scheduledDeliveryTime: toIso(orderData.scheduledDeliveryTime),
+    actualPickupTime: toIso(orderData.actualPickupTime),
+    actualDeliveryTime: toIso(orderData.actualDeliveryTime),
+    vehicleType: orderData.vehicleType || null,
+    driverName: orderData.driverName || null,
+    driverPhone: orderData.driverPhone || null,
+    quoteSource: orderData.quoteSource || null,
+    recurringFrequency: orderData.recurringFrequency || null,
+    rushRequested: orderData.rushRequested ?? null,
+    servicesProposed: orderData.servicesProposed || null,
+    snapshotAuditSent: orderData.snapshotAuditSent || null,
+    lastSyncedAt: new Date().toISOString(),
+    syncStatus: options.success ? 'synced' : 'error',
+    syncWarnings: options.warnings,
+  };
 }

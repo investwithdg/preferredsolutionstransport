@@ -152,12 +152,11 @@ export function DemoProvider({ children }: { children: React.ReactNode }) {
       // Send push notification in demo mode
       const assignedOrder = updatedOrders.find(o => o.id === orderId);
       if (assignedOrder && 'Notification' in window && Notification.permission === 'granted') {
-        // Find the driver name
         const driverName = DEMO_DRIVERS.find(d => d.id === driverId)?.name || 'Driver';
         
         // Create notification
         const notification = new Notification('🚚 New Delivery Assignment', {
-          body: `Order #${orderId.slice(-8)} - ${assignedOrder.quotes.pickup_address} to ${assignedOrder.quotes.dropoff_address}`,
+          body: `${driverName} assigned to Order #${orderId.slice(-8)} – ${assignedOrder.quotes.pickup_address} → ${assignedOrder.quotes.dropoff_address}`,
           icon: '/icon-192x192.png',
           badge: '/icon-192x192.png',
           tag: `order-${orderId}`,
@@ -214,5 +213,4 @@ export function useDemo() {
   }
   return context;
 }
-
 

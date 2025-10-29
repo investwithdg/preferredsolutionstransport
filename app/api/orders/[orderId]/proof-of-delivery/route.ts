@@ -1,18 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createServerClient } from '@/lib/supabase/server';
+import { createServerClient, createServiceRoleClient } from '@/lib/supabase/server';
 import { uploadProofOfDelivery, getProofOfDelivery } from '@/lib/proof-of-delivery/storage';
-import { syncOrderToHubSpot } from '@/lib/hubspot/client';
+import { createHubSpotClient, syncOrderToHubSpot } from '@/lib/hubspot/client';
+import type { OrderSyncData } from '@/lib/hubspot/types';
 
 /**
  * GET /api/orders/[orderId]/proof-of-delivery
  * Retrieve proof of delivery for an order
  */
 export async function GET(
-  request: NextRequest,
+  _request: NextRequest,
   { params }: { params: { orderId: string } }
 ) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
 
     // Verify authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -54,7 +55,10 @@ export async function POST(
   { params }: { params: { orderId: string } }
 ) {
   try {
-    const supabase = createServerClient();
+    const supabase = await createServerClient();
+    const supabaseClient = supabase as any;
+    const serviceSupabase = createServiceRoleClient();
+    const serviceClient = serviceSupabase as any;
 
     // Verify authentication
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -66,7 +70,7 @@ export async function POST(
     }
 
     // Get driver ID from user
-    const { data: driver, error: driverError } = await supabase
+    const { data: driver, error: driverError } = await supabaseClient
       .from('drivers')
       .select('id')
       .eq('user_id', user.id)
@@ -122,7 +126,7 @@ export async function POST(
     }
 
     // Verify order exists and is assigned to this driver
-    const { data: order, error: orderError } = await supabase
+    const { data: order, error: orderError } = await supabaseClient
       .from('orders')
       .select('id, driver_id, status, customer_id, hubspot_deal_id')
       .eq('id', orderId)
@@ -135,6 +139,8 @@ export async function POST(
       );
     }
 
+    const existingDealId = (order as any).hubspot_deal_id || undefined;
+
     if (order.driver_id !== driver.id) {
       return NextResponse.json(
         { error: 'Order not assigned to this driver' },
@@ -143,8 +149,8 @@ export async function POST(
     }
 
     // Check if PoD already exists
-    const { data: existingPod } = await supabase
-      .from('delivery_proof')
+    const { data: existingPod } = await supabaseClient
+      .from('delivery_proof' as any)
       .select('id')
       .eq('order_id', orderId)
       .single();
@@ -167,7 +173,7 @@ export async function POST(
     });
 
     // Update order status to Delivered
-    const { error: updateError } = await supabase
+    const { error: updateError } = await supabaseClient
       .from('orders')
       .update({
         status: 'Delivered',
@@ -180,10 +186,11 @@ export async function POST(
       // Don't fail the request - PoD is already saved
     }
 
-    // Sync to HubSpot if deal ID exists
-    if (order.hubspot_deal_id) {
+    // Sync to HubSpot
+    const hubspotClient = createHubSpotClient();
+    if (hubspotClient) {
       try {
-        const { data: orderDetails } = await supabase
+        const { data: orderDetails } = await serviceClient
           .from('orders')
           .select(`
             *,
@@ -195,21 +202,44 @@ export async function POST(
           .single();
 
         if (orderDetails) {
+          const metadata = (orderDetails as any).hubspot_metadata || {};
+          const orderSyncData: OrderSyncData = {
+            orderId: orderDetails.id,
+            customerId: orderDetails.customer_id || order.customer_id || '',
+            customerEmail: orderDetails.customers?.email || '',
+            customerName: orderDetails.customers?.name || undefined,
+            customerPhone: orderDetails.customers?.phone || undefined,
+            priceTotal: orderDetails.price_total || 0,
+            currency: orderDetails.currency || 'usd',
+            status: 'Delivered',
+            pickupAddress: orderDetails.quotes?.pickup_address || undefined,
+            dropoffAddress: orderDetails.quotes?.dropoff_address || undefined,
+            distanceMiles: orderDetails.quotes?.distance_mi || undefined,
+            driverId: orderDetails.driver_id || undefined,
+            driverName: orderDetails.drivers?.name || undefined,
+            driverPhone: orderDetails.drivers?.phone || undefined,
+            createdAt: new Date(orderDetails.created_at || new Date().toISOString()),
+            updatedAt: new Date(),
+            actualDeliveryTime: new Date(),
+            deliveryRoute: metadata?.deliveryRoute || (orderDetails.quotes?.pickup_address && orderDetails.quotes?.dropoff_address
+              ? `${orderDetails.quotes.pickup_address} → ${orderDetails.quotes.dropoff_address}`
+              : undefined),
+            deliveryLocation: metadata?.deliveryLocation || orderDetails.quotes?.dropoff_address || undefined,
+            deliveryType: metadata?.deliveryType || undefined,
+            weightBracket: metadata?.weightBracket || undefined,
+            specialDeliveryInstructions: metadata?.specialDeliveryInstructions || (orderDetails.quotes as any)?.special_instructions || undefined,
+            quoteSource: metadata?.quoteSource || undefined,
+            recurringFrequency: metadata?.recurringFrequency || undefined,
+            rushRequested: typeof metadata?.rushRequested === 'boolean' ? metadata.rushRequested : undefined,
+            servicesProposed: metadata?.servicesProposed || undefined,
+            snapshotAuditSent: metadata?.snapshotAuditSent || undefined,
+          };
+
           await syncOrderToHubSpot(
-            {
-              orderId: orderDetails.id,
-              customerEmail: orderDetails.customers?.email || '',
-              customerName: orderDetails.customers?.name || '',
-              customerPhone: orderDetails.customers?.phone || '',
-              priceTotal: orderDetails.price_total,
-              status: 'Delivered',
-              pickupAddress: orderDetails.quotes?.pickup_address,
-              dropoffAddress: orderDetails.quotes?.dropoff_address,
-              distanceMiles: orderDetails.quotes?.distance_mi,
-              driverName: orderDetails.drivers?.name,
-              driverPhone: orderDetails.drivers?.phone,
-            },
-            order.hubspot_deal_id
+            hubspotClient,
+            orderSyncData,
+            existingDealId,
+            serviceSupabase
           );
         }
       } catch (syncError) {
@@ -237,4 +267,3 @@ export async function POST(
     );
   }
 }
-

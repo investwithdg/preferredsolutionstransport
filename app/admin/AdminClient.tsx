@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { PageHeader } from '@/app/components/shared/PageHeader';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
@@ -75,6 +75,23 @@ type Props = {
 
 type Tab = 'overview' | 'users' | 'drivers' | 'orders' | 'pricing' | 'logs';
 
+function HealthStatusItem({ title, description, ok, extra }: { title: string; description: string; ok: boolean; extra?: ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-muted/30 p-4 shadow-soft-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-semibold text-foreground">{title}</p>
+          <p className="text-xs text-muted-foreground mt-1">{description}</p>
+        </div>
+        <Badge variant={ok ? 'success' : 'destructive'} className="uppercase">
+          {ok ? 'Connected' : 'Check'}
+        </Badge>
+      </div>
+      {extra}
+    </div>
+  );
+}
+
 export default function AdminClient({ initialUsers, initialDrivers, initialOrders, stats }: Props) {
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [logs, setLogs] = useState<any[]>([]);
@@ -85,6 +102,9 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
     dateFrom: '',
     dateTo: '',
   });
+  const [systemHealth, setSystemHealth] = useState<any | null>(null);
+  const [isHealthLoading, setIsHealthLoading] = useState(false);
+  const [healthError, setHealthError] = useState<string | null>(null);
 
   const tabs = [
     { id: 'overview' as Tab, name: 'Overview', icon: LayoutDashboard },
@@ -128,6 +148,24 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
     }
   };
 
+  const fetchHealth = async () => {
+    setIsHealthLoading(true);
+    setHealthError(null);
+    try {
+      const response = await fetch('/api/admin/health');
+      if (!response.ok) {
+        throw new Error('Health check failed');
+      }
+      const data = await response.json();
+      setSystemHealth(data);
+    } catch (error) {
+      console.error('Error fetching system health:', error);
+      setHealthError(error instanceof Error ? error.message : 'Unable to load system health');
+    } finally {
+      setIsHealthLoading(false);
+    }
+  };
+
   // Load logs when logs tab becomes active
   const handleTabChange = (tabId: Tab) => {
     setActiveTab(tabId);
@@ -135,6 +173,13 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
       fetchLogs();
     }
   };
+
+  useEffect(() => {
+    if (activeTab === 'overview') {
+      fetchHealth();
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
 
   // Export orders to CSV
   const exportOrdersCSV = () => {
@@ -293,6 +338,80 @@ export default function AdminClient({ initialUsers, initialDrivers, initialOrder
                 </CardContent>
               </Card>
             </div>
+
+            {/* System Health */}
+            <Card>
+              <CardHeader className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+                <div>
+                  <CardTitle>System Health</CardTitle>
+                  <CardDescription>Connection status for core integrations</CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  {isHealthLoading && (
+                    <Badge variant="secondary" className="uppercase">
+                      Checking…
+                    </Badge>
+                  )}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={fetchHealth}
+                    disabled={isHealthLoading}
+                  >
+                    Refresh
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {systemHealth ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <HealthStatusItem
+                      title="Database"
+                      description="Supabase connectivity"
+                      ok={!!systemHealth.database?.ok}
+                    />
+                    <HealthStatusItem
+                      title="HubSpot"
+                      description={
+                        systemHealth.hubspot?.missing?.length
+                          ? `Missing: ${systemHealth.hubspot.missing.join(', ')}`
+                          : 'Private app token & pipeline detected'
+                      }
+                      ok={!!systemHealth.hubspot?.configured}
+                    />
+                    <HealthStatusItem
+                      title="Stripe"
+                      description="Secret key configured"
+                      ok={!!systemHealth.stripe?.configured}
+                    />
+                    <HealthStatusItem
+                      title="Google Maps"
+                      description="Client & server API keys"
+                      ok={!!systemHealth.googleMaps?.configured}
+                    />
+                    <HealthStatusItem
+                      title="Notifications"
+                      description="Available channels"
+                      ok={!!systemHealth.notifications?.email}
+                      extra={
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          <Badge variant={systemHealth.notifications?.email ? 'success' : 'destructive'}>Email</Badge>
+                          <Badge variant={systemHealth.notifications?.sms ? 'success' : 'warning'}>SMS</Badge>
+                          <Badge variant={systemHealth.notifications?.push ? 'success' : 'warning'}>Push</Badge>
+                        </div>
+                      }
+                    />
+                  </div>
+                ) : (
+                  <p className="text-sm text-muted-foreground">
+                    Health data will appear here once the check completes.
+                  </p>
+                )}
+                {healthError && (
+                  <p className="mt-4 text-xs text-destructive">{healthError}</p>
+                )}
+              </CardContent>
+            </Card>
 
             {/* Recent Orders */}
             <Card>

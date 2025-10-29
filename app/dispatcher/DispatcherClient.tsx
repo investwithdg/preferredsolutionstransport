@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { PageHeader } from '@/app/components/shared/PageHeader';
 import { EmptyState } from '@/app/components/shared/EmptyState';
 import { Button } from '@/app/components/ui/button';
@@ -22,8 +22,8 @@ import {
 } from '@/app/components/ui/table';
 import { Badge } from '@/app/components/ui/badge';
 import { OrderRouteModal } from '@/app/components/modals/OrderRouteModal';
-import { Truck, Package, CheckCircle2, AlertCircle, Map } from 'lucide-react';
-import { getDealPipelineForStatus } from '@/lib/hubspot/property-mappings';
+import { Truck, Package, CheckCircle2, AlertCircle, Map, FileText } from 'lucide-react';
+import { getDealPipelineForStatus, getDeliveryStatusForStatus } from '@/lib/hubspot/property-mappings';
 import { useRealtimeOrders } from '@/app/hooks/useRealtimeOrders';
 import { useRealtimeDrivers } from '@/app/hooks/useRealtimeDrivers';
 import { RealtimeIndicator } from '@/app/components/shared/SyncStatusIndicator';
@@ -72,11 +72,30 @@ interface Order {
     name?: string;
     phone?: string;
   } | null;
+  hubspot_metadata?: Record<string, any> | null;
 }
 
 interface DispatcherClientProps {
   initialOrders: Order[];
   drivers: Driver[];
+}
+
+function MetadataCard({ title, items }: { title: string; items: { label: string; value: ReactNode }[] }) {
+  return (
+    <div className="rounded-2xl border border-border/60 bg-card/60 p-4 shadow-soft-sm">
+      <h3 className="text-sm font-semibold text-foreground mb-3">{title}</h3>
+      <div className="space-y-2">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-start justify-between gap-3 text-xs sm:text-sm">
+            <span className="text-muted-foreground">{item.label}</span>
+            <span className="font-medium text-foreground text-right">
+              {item.value && item.value !== '' ? item.value : '—'}
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export default function DispatcherClient({ initialOrders, drivers: initialDrivers }: DispatcherClientProps) {
@@ -91,6 +110,15 @@ export default function DispatcherClient({ initialOrders, drivers: initialDriver
   const [selectedIds, setSelectedIds] = useState<Record<string, boolean>>({});
   const [bulkDriver, setBulkDriver] = useState<string>('');
   const [issueOrder, setIssueOrder] = useState<Order | null>(null);
+  const [orderForHubSpotDetails, setOrderForHubSpotDetails] = useState<Order | null>(null);
+  const formatDateTime = (value?: string | null) => {
+    if (!value) return 'Not set';
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return 'Not set';
+    return date.toLocaleString();
+  };
+  const hubspotMetadata = orderForHubSpotDetails?.hubspot_metadata as Record<string, any> | null;
+  const hasHubspotMetadata = !!(hubspotMetadata && Object.keys(hubspotMetadata).length > 0);
   
   // Get initial orders from demo context in demo mode
   const demoReadyOrders = isDemoMode ? demoOrders.filter(o => o.status === 'ReadyForDispatch') as unknown as Order[] : [];
@@ -432,6 +460,16 @@ export default function DispatcherClient({ initialOrders, drivers: initialDriver
                             <span className="text-xs font-medium text-muted-foreground">To:</span>
                             <p className="text-sm">{order.quotes?.dropoff_address || 'N/A'}</p>
                           </div>
+                          {order.hubspot_metadata?.deliveryType && (
+                            <Badge variant="outline" className="text-xs uppercase">
+                              {order.hubspot_metadata.deliveryType}
+                            </Badge>
+                          )}
+                          {order.hubspot_metadata?.specialDeliveryInstructions && (
+                            <p className="text-xs text-muted-foreground italic">
+                              “{order.hubspot_metadata.specialDeliveryInstructions}”
+                            </p>
+                          )}
                         </div>
                       </TableCell>
                       <TableCell>
@@ -478,6 +516,14 @@ export default function DispatcherClient({ initialOrders, drivers: initialDriver
                               <a href={`tel:${order.drivers.phone}`}>Driver</a>
                             </Button>
                           )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setOrderForHubSpotDetails(order)}
+                            title="View HubSpot properties"
+                          >
+                            <FileText className="h-4 w-4" />
+                          </Button>
                           <Button variant="outline" size="sm" onClick={() => setIssueOrder(order)} title="Flag / Hold / Cancel">
                             Issues
                           </Button>
@@ -536,7 +582,7 @@ export default function DispatcherClient({ initialOrders, drivers: initialDriver
                 orders={orders as any}
                 drivers={drivers as any}
                 driverLocations={driverLocations}
-                onSelect={(orderId, driverId) => {
+                onSelect={(orderId, _driverId) => {
                   if (orderId) {
                     const found = orders.find(o => o.id === orderId);
                     if (found) setSelectedOrderForMap(found);
@@ -559,6 +605,88 @@ export default function DispatcherClient({ initialOrders, drivers: initialDriver
           distance={selectedOrderForMap.quotes?.distance_mi}
         />
       )}
+
+      {/* HubSpot Properties Dialog */}
+      <Dialog open={!!orderForHubSpotDetails} onOpenChange={(open) => !open && setOrderForHubSpotDetails(null)}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              HubSpot details – #{orderForHubSpotDetails ? orderForHubSpotDetails.id.slice(-8) : '—'}
+            </DialogTitle>
+          </DialogHeader>
+          {hasHubspotMetadata ? (
+            <div className="space-y-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <MetadataCard
+                  title="Pipeline"
+                  items={[
+                    { label: 'Stage', value: hubspotMetadata?.pipelineStage || getDealPipelineForStatus(orderForHubSpotDetails?.status || 'ReadyForDispatch') },
+                    { label: 'Delivery Status', value: hubspotMetadata?.deliveryStatus || getDeliveryStatusForStatus(orderForHubSpotDetails?.status || 'ReadyForDispatch') },
+                  ]}
+                />
+                <MetadataCard
+                  title="Driver & Vehicle"
+                  items={[
+                    { label: 'Driver', value: hubspotMetadata?.driverName || 'Unassigned' },
+                    { label: 'Phone', value: hubspotMetadata?.driverPhone || 'Not provided' },
+                    { label: 'Vehicle Type', value: hubspotMetadata?.vehicleType || 'Not set' },
+                  ]}
+                />
+              </div>
+
+              <MetadataCard
+                title="Delivery details"
+                items={[
+                  { label: 'Route', value: hubspotMetadata?.deliveryRoute || 'Not set' },
+                  { label: 'Destination', value: hubspotMetadata?.deliveryLocation || orderForHubSpotDetails?.quotes?.dropoff_address || 'Not set' },
+                  { label: 'Type', value: hubspotMetadata?.deliveryType || 'Standard' },
+                  { label: 'Weight Bracket', value: hubspotMetadata?.weightBracket || 'Not set' },
+                  { label: 'Special Instructions', value: hubspotMetadata?.specialDeliveryInstructions || 'None' },
+                ]}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <MetadataCard
+                  title="Schedule"
+                  items={[
+                    { label: 'Scheduled Pickup', value: formatDateTime(hubspotMetadata?.scheduledPickupTime) },
+                    { label: 'Scheduled Delivery', value: formatDateTime(hubspotMetadata?.scheduledDeliveryTime) },
+                    { label: 'Actual Pickup', value: formatDateTime(hubspotMetadata?.actualPickupTime) },
+                    { label: 'Actual Delivery', value: formatDateTime(hubspotMetadata?.actualDeliveryTime) },
+                  ]}
+                />
+                <MetadataCard
+                  title="Quote attributes"
+                  items={[
+                    { label: 'Source', value: hubspotMetadata?.quoteSource || 'Website' },
+                    { label: 'Recurring', value: hubspotMetadata?.recurringFrequency || 'One-time' },
+                    { label: 'Rush Requested', value: hubspotMetadata?.rushRequested ? 'Yes' : 'No' },
+                    { label: 'Services Proposed', value: hubspotMetadata?.servicesProposed || 'Standard delivery' },
+                  ]}
+                />
+              </div>
+
+              <MetadataCard
+                title="Sync status"
+                items={[
+                  { label: 'Last synced', value: formatDateTime(hubspotMetadata?.lastSyncedAt) },
+                  { label: 'Status', value: hubspotMetadata?.syncStatus || 'unknown' },
+                  { label: 'Warnings', value: hubspotMetadata?.syncWarnings?.length ? hubspotMetadata.syncWarnings.join(', ') : 'None' },
+                  { label: 'HubSpot Deal ID', value: hubspotMetadata?.dealId || orderForHubSpotDetails?.hubspot_deal_id || 'Not linked' },
+                ]}
+              />
+            </div>
+          ) : (
+            <div className="py-6">
+              <EmptyState
+                icon={AlertCircle}
+                title="No HubSpot metadata yet"
+                description="This order has not been synced with HubSpot or metadata is unavailable."
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
 
       {/* Issues Dialog */}
       {issueOrder && (
@@ -614,45 +742,3 @@ function SuggestionChips({ order, drivers, algorithm, getSuggestions, driverLoca
   );
 }
 
-function AuditPanel() {
-  const [logs, setLogs] = useState<any[]>([]);
-  const [loading, setLoading] = useState(false);
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch('/api/admin/logs');
-      if (res.ok) {
-        const data = await res.json();
-        setLogs(data.logs || []);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { load(); }, []);
-
-  return (
-    <Card id="audit">
-      <CardContent className="p-4">
-        <div className="flex items-center justify-between mb-2">
-          <h3 className="text-sm font-semibold">Audit Log</h3>
-          <Button variant="outline" size="sm" onClick={load} disabled={loading}>{loading ? 'Loading...' : 'Refresh'}</Button>
-        </div>
-        {logs.length === 0 ? (
-          <p className="text-xs text-muted-foreground">No audit events</p>
-        ) : (
-          <div className="text-xs max-h-64 overflow-auto space-y-1">
-            {logs.slice(0, 50).map((l: any) => (
-              <div key={l.id} className="flex items-center justify-between border-b border-border/50 py-1">
-                <span className="font-mono">{l.event_type}</span>
-                <span className="text-muted-foreground">{l.created_at ? new Date(l.created_at).toLocaleString() : ''}</span>
-              </div>
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}

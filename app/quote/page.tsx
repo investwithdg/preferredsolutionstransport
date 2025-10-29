@@ -28,7 +28,7 @@ import {
   TrendingUp
 } from 'lucide-react';
 
-function GoogleMapsAutocompleteInput({ value, onChange, id, name, label, required, icon: Icon, sessionToken }: {
+function GoogleMapsAutocompleteInput({ value, onChange, id, name, label, required, icon: Icon }: {
   value: string;
   onChange: (value: string) => void;
   id: string;
@@ -36,7 +36,6 @@ function GoogleMapsAutocompleteInput({ value, onChange, id, name, label, require
   label: string;
   required?: boolean;
   icon?: React.ElementType;
-  sessionToken?: google.maps.places.AutocompleteSessionToken | null;
 }) {
   const [autocomplete, setAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
 

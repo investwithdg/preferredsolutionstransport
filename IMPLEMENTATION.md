@@ -622,3 +622,14 @@ Ensure real-time is enabled for your tables in Supabase:
 - **Design System**: See `DESIGN_SYSTEM.md` for UI component guidelines
 - **Environment Variables**: See `env.example` for all configuration options
 
+
+### Tracking Portal & Verification
+- New public `/track` route with client at `app/track/page.tsx` for customers or guests to look up orders.
+- `/api/track/verify` validates order ID + optional email before redirecting to live view (`/track/[orderId]`).
+- Uses `createServiceRoleClient` on the backend to guard against unauthorized access while keeping the portal unauthenticated.
+
+### Driver & Customer Notifications (Twilio + HubSpot)
+- `lib/notifications/dispatcher.ts` now sends actual HubSpot emails and Twilio SMS alerts for driver assignment and status changes.
+- Optional Twilio configuration is read from `TWILIO_*` env vars; if missing, SMS sending is skipped gracefully.
+- Admin health endpoint `/api/admin/health` surfaces configuration gaps (Stripe, HubSpot, Google Maps, Twilio, Supabase).
+- Driver dashboard (`app/driver/DriverClient.tsx`) adds Google Maps directions links plus ensures PoD submission flows through the new API.

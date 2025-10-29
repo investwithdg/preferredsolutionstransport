@@ -68,6 +68,12 @@ export default async function RootLayout({
                   </Link>
                 </div>
                 <div className="flex items-center space-x-2">
+                  <Link
+                    href="/track"
+                    className="text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded-xl text-sm font-medium transition-colors"
+                  >
+                    Track Order
+                  </Link>
                   <Link 
                     href="/quote" 
                     className="text-foreground hover:text-accent hover:bg-accent/10 px-3 py-2 rounded-xl text-sm font-medium transition-colors"

@@ -313,6 +313,13 @@ To map your actual HubSpot pipeline stages:
 
 ### HubSpot Webhook Configuration (Bi-Directional Sync)
 
+### Twilio SMS Configuration (Optional)
+1. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and either `TWILIO_FROM_NUMBER` **or** `TWILIO_MESSAGING_SERVICE_SID` in your environment.
+2. Ensure the sending number/service is enabled for SMS in the Twilio Console.
+3. Deploy environment changes and refresh the Admin dashboard → System Health to confirm `SMS` channel is active.
+4. Driver alerts use the Twilio REST API directly; check Twilio logs if messages are not delivered.
+
+
 Your app uses a **hybrid data model** where:
 - **HubSpot owns**: CRM data (contacts, deal stages, pipeline, custom properties edited by your sales team)
 - **Supabase owns**: Operational data (real-time driver tracking, order status changes, GPS coordinates)
@@ -623,7 +630,9 @@ npm run smoke.sh           # Quick smoke test
 - `POST /api/orders/assign` → assigns driver to order
 - `PATCH /api/orders/:orderId/status` → updates order status
 - `POST /api/orders/by-driver` → get orders by driver
-- `GET /api/health` → health check endpoint
+- `POST /api/track/verify` → validate public tracking lookups (guest + customer)
+- `GET /api/health` → legacy health check endpoint
+- `GET /api/admin/health` → system health diagnostics (admin only)
 - `GET /api/admin/logs` → retrieve system logs (admin only)
 
 ### Testing API Endpoints

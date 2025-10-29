@@ -3,7 +3,7 @@ import { redirect } from 'next/navigation';
 import DriverProfileClient from './DriverProfileClient';
 
 export default async function DriverProfilePage() {
-  const supabase = createServerClient();
+  const supabase = await createServerClient();
 
   // Get current user
   const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -40,15 +40,17 @@ export default async function DriverProfilePage() {
     );
   }
 
-  // Calculate statistics
-  const totalDeliveries = driver.orders.filter((o: any) => o.status === 'Delivered').length;
-  const totalEarnings = driver.orders
+  const isAvailable = driver.orders.every((o: any) => ['Delivered', 'Canceled'].includes(o.status));
+  const driverWithAvailability = { ...driver, is_available: isAvailable };
+
+  const totalDeliveries = driverWithAvailability.orders.filter((o: any) => o.status === 'Delivered').length;
+  const totalEarnings = driverWithAvailability.orders
     .filter((o: any) => o.status === 'Delivered')
     .reduce((sum: number, o: any) => sum + (o.price_total || 0), 0);
 
   return (
     <DriverProfileClient 
-      driver={driver}
+      driver={driverWithAvailability}
       totalDeliveries={totalDeliveries}
       totalEarnings={totalEarnings}
     />

@@ -16,7 +16,6 @@ interface ProofOfDeliveryModalProps {
   open: boolean;
   onClose: () => void;
   orderId: string;
-  driverId: string;
   customerName?: string;
   onSubmit: (data: {
     photos: Blob[];
@@ -30,7 +29,6 @@ export function ProofOfDeliveryModal({
   open,
   onClose,
   orderId,
-  driverId,
   customerName = '',
   onSubmit
 }: ProofOfDeliveryModalProps) {
@@ -249,4 +247,3 @@ export function ProofOfDeliveryModal({
     </Dialog>
   );
 }
-

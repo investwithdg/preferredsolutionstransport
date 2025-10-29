@@ -31,7 +31,7 @@ export interface ProofOfDeliveryResult {
 export async function uploadProofOfDelivery(
   data: ProofOfDeliveryData
 ): Promise<ProofOfDeliveryResult> {
-  const supabase = createClient();
+  const supabase = createClient() as any;
   
   // Validate photos
   if (data.photos.length === 0 && !data.signature) {
@@ -108,7 +108,7 @@ export async function uploadProofOfDelivery(
 
     // Save metadata to database
     const { data: podData, error: dbError } = await supabase
-      .from('delivery_proof')
+      .from('delivery_proof' as any)
       .insert({
         order_id: data.orderId,
         driver_id: data.driverId,
@@ -125,8 +125,10 @@ export async function uploadProofOfDelivery(
       throw new Error(`Failed to save PoD metadata: ${dbError.message}`);
     }
 
+    const podRecord = podData as any;
+
     return {
-      id: podData.id,
+      id: podRecord.id,
       photoUrls,
       signatureUrl
     };
@@ -145,10 +147,10 @@ export async function uploadProofOfDelivery(
  * @returns PoD data or null if not found
  */
 export async function getProofOfDelivery(orderId: string) {
-  const supabase = createClient();
+  const supabase = createClient() as any;
 
   const { data, error } = await supabase
-    .from('delivery_proof')
+    .from('delivery_proof' as any)
     .select(`
       *,
       drivers:driver_id (
@@ -161,40 +163,40 @@ export async function getProofOfDelivery(orderId: string) {
 
   if (error) {
     if (error.code === 'PGRST116') {
-      // No PoD found
       return null;
     }
     throw new Error(`Failed to fetch PoD: ${error.message}`);
   }
 
-  // Generate signed URLs for private access
+  const record = data as any;
+
   const signedPhotoUrls = await Promise.all(
-    (data.photo_urls || []).map(async (url: string) => {
+    (record.photo_urls || []).map(async (url: string) => {
       const path = extractPathFromUrl(url);
       if (!path) return url;
 
       const { data: signedData } = await supabase.storage
         .from(BUCKET_NAME)
-        .createSignedUrl(path, 3600); // 1 hour expiry
+        .createSignedUrl(path, 3600);
 
       return signedData?.signedUrl || url;
     })
   );
 
-  let signedSignatureUrl = data.signature_url;
-  if (data.signature_url) {
-    const path = extractPathFromUrl(data.signature_url);
+  let signedSignatureUrl = record.signature_url;
+  if (record.signature_url) {
+    const path = extractPathFromUrl(record.signature_url);
     if (path) {
       const { data: signedData } = await supabase.storage
         .from(BUCKET_NAME)
         .createSignedUrl(path, 3600);
 
-      signedSignatureUrl = signedData?.signedUrl || data.signature_url;
+      signedSignatureUrl = signedData?.signedUrl || record.signature_url;
     }
   }
 
   return {
-    ...data,
+    ...record,
     photo_urls: signedPhotoUrls,
     signature_url: signedSignatureUrl
   };
@@ -206,10 +208,10 @@ export async function getProofOfDelivery(orderId: string) {
  * @returns True if PoD exists
  */
 export async function hasProofOfDelivery(orderId: string): Promise<boolean> {
-  const supabase = createClient();
+  const supabase = createClient() as any;
 
   const { data, error } = await supabase
-    .from('delivery_proof')
+    .from('delivery_proof' as any)
     .select('id')
     .eq('order_id', orderId)
     .single();
@@ -228,7 +230,7 @@ async function cleanupFailedUpload(
   orderId: string,
   timestamp: number
 ): Promise<void> {
-  const supabase = createClient();
+  const supabase = createClient() as any;
   const folderPath = `${driverId}/${orderId}`;
 
   try {
@@ -241,8 +243,8 @@ async function cleanupFailedUpload(
 
     // Filter files with matching timestamp
     const filesToDelete = files
-      .filter(file => file.name.includes(String(timestamp)))
-      .map(file => `${folderPath}/${file.name}`);
+      .filter((file: any) => file.name.includes(String(timestamp)))
+      .map((file: any) => `${folderPath}/${file.name}`);
 
     if (filesToDelete.length > 0) {
       await supabase.storage
@@ -274,11 +276,11 @@ function extractPathFromUrl(url: string): string | null {
  * @param podId - PoD record ID
  */
 export async function deleteProofOfDelivery(podId: string): Promise<void> {
-  const supabase = createClient();
+  const supabase = createClient() as any;
 
   // Get PoD data first to delete files
   const { data: pod, error: fetchError } = await supabase
-    .from('delivery_proof')
+    .from('delivery_proof' as any)
     .select('photo_urls, signature_url, driver_id, order_id')
     .eq('id', podId)
     .single();
@@ -312,7 +314,7 @@ export async function deleteProofOfDelivery(podId: string): Promise<void> {
 
   // Delete database record
   const { error: dbError } = await supabase
-    .from('delivery_proof')
+    .from('delivery_proof' as any)
     .delete()
     .eq('id', podId);
 

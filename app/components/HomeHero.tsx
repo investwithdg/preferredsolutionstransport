@@ -10,12 +10,6 @@ export default function HomeHero() {
   const router = useRouter();
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY;
   
-  // Debug logging
-  useEffect(() => {
-    console.log('[Google Maps Debug] API Key present:', !!apiKey);
-    console.log('[Google Maps Debug] API Key length:', apiKey?.length || 0);
-  }, [apiKey]);
-  
   const { isLoaded, loadError } = useGoogleMaps();
 
   const [pickupAutocomplete, setPickupAutocomplete] = useState<google.maps.places.Autocomplete | null>(null);
@@ -30,17 +24,9 @@ export default function HomeHero() {
     }
   }, [isLoaded]);
   
-  // Log any load errors
   useEffect(() => {
     if (loadError) {
       console.error('[Google Maps Debug] Load error:', loadError);
-    }
-    if (isLoaded) {
-      console.log('[Google Maps Debug] Successfully loaded');
-      console.log('[Google Maps Debug] Libraries available:', {
-        maps: !!window.google?.maps,
-        places: !!window.google?.maps?.places,
-      });
     }
   }, [isLoaded, loadError]);
 
@@ -148,10 +134,18 @@ export default function HomeHero() {
               </div>
             )}
           </form>
+          <p className="mt-3 text-sm text-blue-100">
+            Tracking an existing delivery?{' '}
+            <button
+              type="button"
+              onClick={() => router.push('/track')}
+              className="font-semibold hover:underline"
+            >
+              Go to order tracking
+            </button>
+          </p>
         </div>
       </div>
     </div>
   );
 }
-
-
