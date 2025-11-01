@@ -67,10 +67,10 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
 
   const supabase = createClient();
 
-  const isDemoMode = typeof window !== 'undefined' && (process.env.NEXT_PUBLIC_DEMO_MODE === 'true');
+  const isDemoMode = typeof window !== 'undefined' && process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
   const isDevelopment = process.env.NODE_ENV !== 'production';
 
-  // Fetch orders from database (skipped in demo when initialOrders provided)
+  // Fetch orders from unified endpoint (skipped in demo when initialOrders provided)
   const fetchOrders = async () => {
     if (isDemoMode && initialOrders.length > 0) {
       setOrders(initialOrders);
@@ -81,36 +81,41 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
     setError(null);
 
     try {
-      let query = supabase
-        .from('orders')
-        .select(`
-          *,
-          customers (*),
-          quotes (*),
-          drivers (id, name, phone)
-        `)
-        .order('created_at', { ascending: false });
+      // Build query parameters
+      const params = new URLSearchParams();
+      if (customerId) params.set('customer_id', customerId);
+      if (driverId) params.set('driver_id', driverId);
+      if (status) params.set('status', status);
 
-      if (customerId) {
-        query = query.eq('customer_id', customerId);
+      // Use unified endpoint that returns filtered metadata
+      const response = await fetch(`/api/orders/unified?${params.toString()}`);
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch orders: ${response.statusText}`);
       }
 
-      if (driverId) {
-        query = query.eq('driver_id', driverId);
-      }
+      const result = await response.json();
 
-      if (status) {
-        query = query.eq('status', status as any);
-      }
+      // Transform to match expected format
+      const transformedOrders = (result.orders || []).map((order: any) => ({
+        ...order,
+        customers: order.customer,
+        quotes: order.quote,
+        drivers: order.driver,
+        // hubspot_metadata is already filtered by role
+      }));
 
-      const { data, error: fetchError } = await query;
-
-      if (fetchError) {
-        throw fetchError;
-      }
-
-      setOrders(data || []);
+      setOrders(transformedOrders);
       setLastUpdate(new Date());
+
+      // Log metadata availability for debugging
+      if (isDevelopment && result.metadata) {
+        console.debug('Orders fetched with role:', result.metadata.user_role);
+        console.debug(
+          'Available HubSpot fields:',
+          result.metadata.available_fields?.hubspot_metadata_fields
+        );
+      }
     } catch (err) {
       console.error('Error fetching orders:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch orders');
@@ -150,7 +155,7 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
           if (isDevelopment) {
             console.debug('Real-time order update:', payload);
           }
-          
+
           if (payload.eventType === 'INSERT') {
             // Fetch the full order with relations
             fetchOrders();
@@ -159,7 +164,7 @@ export function useRealtimeOrders(options: UseRealtimeOrdersOptions = {}): UseRe
             fetchOrders();
           } else if (payload.eventType === 'DELETE') {
             // Remove deleted order
-            setOrders(prev => prev.filter(o => o.id !== payload.old.id));
+            setOrders((prev) => prev.filter((o) => o.id !== payload.old.id));
             setLastUpdate(new Date());
           }
         }

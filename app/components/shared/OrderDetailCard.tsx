@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { StatusBadge } from '@/app/components/shared/StatusBadge';
+import { HubSpotLink } from '@/app/components/shared/HubSpotLink';
 import { Separator } from '@/app/components/ui/separator';
 import { MapPin, User, Phone, DollarSign, Package } from 'lucide-react';
 
@@ -9,10 +10,14 @@ interface Order {
   price_total: number;
   currency?: string;
   created_at: string | null;
+  hubspot_deal_id?: string | null;
+  hubspot_metadata?: Record<string, any> | null;
   customers?: {
+    id?: string;
     name?: string | null;
     email?: string;
     phone?: string | null;
+    hubspot_contact_id?: string | null;
   } | null;
   quotes?: {
     pickup_address?: string;
@@ -32,26 +37,39 @@ interface OrderDetailCardProps {
   className?: string;
 }
 
-export function OrderDetailCard({ order, showActions = false, actions, className }: OrderDetailCardProps) {
+export function OrderDetailCard({
+  order,
+  showActions = false,
+  actions,
+  className,
+}: OrderDetailCardProps) {
   return (
     <Card className={className}>
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
           <div>
-            <CardTitle className="text-heading-md">
-              Order #{order.id.slice(0, 8)}
-            </CardTitle>
+            <CardTitle className="text-heading-md">Order #{order.id.slice(0, 8)}</CardTitle>
             <p className="text-sm text-muted-foreground mt-1">
-              {order.created_at ? new Date(order.created_at).toLocaleDateString('en-US', {
-                month: 'short',
-                day: 'numeric',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              }) : 'N/A'}
+              {order.created_at
+                ? new Date(order.created_at).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : 'N/A'}
             </p>
           </div>
-          <StatusBadge status={order.status} />
+          <div className="flex flex-col items-end gap-2">
+            <StatusBadge status={order.status} />
+            <HubSpotLink
+              orderId={order.id}
+              hubspotDealId={order.hubspot_deal_id ?? undefined}
+              hubspotContactId={order.customers?.hubspot_contact_id ?? undefined}
+              customerId={order.customers?.id ?? undefined}
+            />
+          </div>
         </div>
       </CardHeader>
 
@@ -64,9 +82,7 @@ export function OrderDetailCard({ order, showActions = false, actions, className
               Customer
             </h4>
             <div className="pl-6 space-y-1">
-              <p className="text-sm text-foreground">
-                {order.customers.name || 'N/A'}
-              </p>
+              <p className="text-sm text-foreground">{order.customers.name ?? 'N/A'}</p>
               {order.customers.phone && (
                 <p className="text-sm text-muted-foreground flex items-center gap-2">
                   <Phone className="h-3 w-3" />
@@ -127,17 +143,35 @@ export function OrderDetailCard({ order, showActions = false, actions, className
           </p>
         </div>
 
+        {/* HubSpot Metadata (for roles that can see it) */}
+        {order.hubspot_metadata && Object.keys(order.hubspot_metadata).length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <h4 className="text-sm font-medium text-foreground">Delivery Instructions</h4>
+              <div className="pl-6 space-y-1 text-sm text-muted-foreground">
+                {order.hubspot_metadata.specialDeliveryInstructions && (
+                  <p>{order.hubspot_metadata.specialDeliveryInstructions}</p>
+                )}
+                {order.hubspot_metadata.recurringFrequency && (
+                  <p>Recurring: {order.hubspot_metadata.recurringFrequency}</p>
+                )}
+                {order.hubspot_metadata.rushRequested && (
+                  <p className="text-orange-600 font-medium">Rush delivery requested</p>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
         {/* Actions */}
         {showActions && actions && (
           <>
             <Separator />
-            <div className="space-y-2">
-              {actions}
-            </div>
+            <div className="space-y-2">{actions}</div>
           </>
         )}
       </CardContent>
     </Card>
   );
 }
-

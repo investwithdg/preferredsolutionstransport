@@ -3,7 +3,14 @@ import type { SimplePublicObjectInput } from '@hubspot/api-client/lib/codegen/cr
 import type { ContactProperties, DealProperties, OrderSyncData, SyncResult } from './types';
 import { getCachedContactProperties, getCachedDealProperties } from './schemas';
 import { validateProperties, filterValidProperties, formatValidationErrors } from './validator';
-import { mapOrderToContactProperties, mapOrderToDealProperties, getDealPipelineForStatus, getDeliveryStatusForStatus } from './property-mappings';
+import {
+  mapOrderToContactProperties,
+  mapOrderToDealProperties,
+  getDealPipelineForStatus,
+  getDeliveryStatusForStatus,
+} from './property-mappings';
+
+export type HubSpotClient = Client;
 
 export function createHubSpotClient() {
   if (!process.env.HUBSPOT_PRIVATE_APP_TOKEN) {
@@ -19,7 +26,7 @@ export function createHubSpotClient() {
  */
 export async function upsertHubSpotContact(
   hubspotClient: Client,
-  { email, name, phone }: { email: string; name?: string; phone?: string; }
+  { email, name, phone }: { email: string; name?: string; phone?: string }
 ): Promise<string | undefined> {
   try {
     const contactInput: any = {
@@ -94,22 +101,25 @@ export async function sendHubSpotEmail(
 ): Promise<boolean> {
   try {
     // HubSpot Single Send API
-    const response = await fetch('https://api.hubapi.com/marketing/v3/transactional/single-email/send', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${process.env.HUBSPOT_PRIVATE_APP_TOKEN}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        emailId: null, // Use custom HTML instead of template
-        message: {
-          to: emailData.to,
-          subject: emailData.subject,
-          html: emailData.htmlContent,
-          text: emailData.textContent || stripHtml(emailData.htmlContent),
+    const response = await fetch(
+      'https://api.hubapi.com/marketing/v3/transactional/single-email/send',
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${process.env.HUBSPOT_PRIVATE_APP_TOKEN}`,
+          'Content-Type': 'application/json',
         },
-      }),
-    });
+        body: JSON.stringify({
+          emailId: null, // Use custom HTML instead of template
+          message: {
+            to: emailData.to,
+            subject: emailData.subject,
+            html: emailData.htmlContent,
+            text: emailData.textContent || stripHtml(emailData.htmlContent),
+          },
+        }),
+      }
+    );
 
     if (!response.ok) {
       const error = await response.text();
@@ -205,12 +215,12 @@ export async function syncOrderToHubSpot(
     try {
       const contactDefinitions = await getCachedContactProperties(hubspotClient);
       const validation = validateProperties(contactProperties, contactDefinitions);
-      
+
       if (!validation.valid) {
         console.warn('Contact validation warnings:', formatValidationErrors(validation.errors));
-        warnings.push(...validation.errors.map(e => e.message));
+        warnings.push(...validation.errors.map((e) => e.message));
       }
-      
+
       if (validation.warnings) {
         warnings.push(...validation.warnings);
       }
@@ -243,13 +253,13 @@ export async function syncOrderToHubSpot(
     try {
       const dealDefinitions = await getCachedDealProperties(hubspotClient);
       const validation = validateProperties(dealProperties, dealDefinitions);
-      
+
       if (!validation.valid) {
         console.warn('Deal validation errors:', formatValidationErrors(validation.errors));
         // Don't fail on validation errors, just filter invalid properties
-        warnings.push(...validation.errors.map(e => e.message));
+        warnings.push(...validation.errors.map((e) => e.message));
       }
-      
+
       if (validation.warnings) {
         warnings.push(...validation.warnings);
       }
@@ -266,7 +276,11 @@ export async function syncOrderToHubSpot(
 
     if (existingDealId) {
       // Update existing deal
-      const updated = await updateHubSpotDeal(hubspotClient, existingDealId, validatedDealProps as any);
+      const updated = await updateHubSpotDeal(
+        hubspotClient,
+        existingDealId,
+        validatedDealProps as any
+      );
       if (!updated) {
         errors.push('Failed to update existing deal');
       }
@@ -277,7 +291,7 @@ export async function syncOrderToHubSpot(
         { properties: validatedDealProps } as SimplePublicObjectInput,
         contactId
       );
-      
+
       if (deal?.id) {
         dealId = deal.id;
       } else {
@@ -293,7 +307,7 @@ export async function syncOrderToHubSpot(
       success,
       warnings: [...warnings],
     });
-    
+
     // Store HubSpot IDs and metadata back to Supabase if client provided
     if (supabaseClient) {
       try {
@@ -306,10 +320,7 @@ export async function syncOrderToHubSpot(
           orderUpdate.hubspot_deal_id = dealId;
         }
 
-        await supabaseClient
-          .from('orders')
-          .update(orderUpdate)
-          .eq('id', orderData.orderId);
+        await supabaseClient.from('orders').update(orderUpdate).eq('id', orderData.orderId);
 
         // Update customer with HubSpot contact ID
         if (success && contactId) {
@@ -323,7 +334,7 @@ export async function syncOrderToHubSpot(
         warnings.push('HubSpot IDs not stored in database');
       }
     }
-    
+
     return {
       success,
       contactId,
@@ -347,7 +358,7 @@ export async function findDealByOrderId(
 ): Promise<string | undefined> {
   try {
     const orderIdProp = process.env.HUBSPOT_PROP_ORDER_ID || 'order_id';
-    
+
     const searchResponse = await hubspotClient.crm.deals.searchApi.doSearch({
       filterGroups: [
         {
