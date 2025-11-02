@@ -28,11 +28,15 @@ export async function GET(req: NextRequest) {
     }
 
     if (code) {
-      const res = NextResponse.next();
+      // Create response object for redirect - we'll use this to preserve cookies
+      let redirectPath = '/customer/dashboard';
+      const redirectUrl = new URL(redirectPath, origin);
+      const res = NextResponse.redirect(redirectUrl);
+      
       const supabase = createRouteHandlerClient(req, res);
       
       console.log('[Auth Callback Debug] Exchanging code for session...');
-      // Exchange code for session
+      // Exchange code for session - this will set cookies on the res object
       const { data: { session }, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
       
       if (exchangeError) {
@@ -42,7 +46,15 @@ export async function GET(req: NextRequest) {
           status: exchangeError.status,
           name: exchangeError.name
         });
-        return NextResponse.redirect(`${origin}/auth/sign-in?error=auth_failed&message=${encodeURIComponent(exchangeError.message)}`);
+        const errorRedirectUrl = new URL(`/auth/sign-in?error=auth_failed&message=${encodeURIComponent(exchangeError.message)}`, origin);
+        const errorRes = NextResponse.redirect(errorRedirectUrl);
+        
+        // Copy any cookies that might have been set
+        res.cookies.getAll().forEach(cookie => {
+          errorRes.cookies.set(cookie);
+        });
+        
+        return errorRes;
       }
 
       if (session?.user) {
@@ -93,7 +105,15 @@ export async function GET(req: NextRequest) {
             }
           } else {
             // No role specified, redirect to role selection page
-            return NextResponse.redirect(`${origin}/auth/oauth-role-select`);
+            const roleSelectUrl = new URL('/auth/oauth-role-select', origin);
+            const roleSelectRes = NextResponse.redirect(roleSelectUrl);
+            
+            // Copy all cookies from the original response to preserve session
+            res.cookies.getAll().forEach(cookie => {
+              roleSelectRes.cookies.set(cookie);
+            });
+            
+            return roleSelectRes;
           }
         }
 
@@ -107,9 +127,7 @@ export async function GET(req: NextRequest) {
         // Customer record is linked via email (no auth_email field in schema)
         // No additional action needed for recipients
 
-        // Redirect based on user role
-        let redirectPath = '/customer/dashboard';
-        
+        // Update redirect path based on user role
         if (userRole === 'driver') {
           redirectPath = '/driver';
         } else if (userRole === 'dispatcher' || userRole === 'admin') {
@@ -118,7 +136,18 @@ export async function GET(req: NextRequest) {
           redirectPath = '/customer/dashboard';
         }
 
-        return NextResponse.redirect(`${origin}${redirectPath}`);
+        // Update the redirect URL with the correct path
+        const finalRedirectUrl = new URL(redirectPath, origin);
+        // We need to create a new response with the updated redirect URL
+        // but preserve all the cookies that were set
+        const finalRes = NextResponse.redirect(finalRedirectUrl);
+        
+        // Copy all cookies from the original response to the final response
+        res.cookies.getAll().forEach(cookie => {
+          finalRes.cookies.set(cookie);
+        });
+        
+        return finalRes;
       }
     }
 
