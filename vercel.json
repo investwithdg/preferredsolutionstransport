@@ -1,7 +1,6 @@
 {
   "buildCommand": "NEXT_TELEMETRY_DISABLED=1 npm run build",
   "framework": "nextjs",
-  "installCommand": "rm -rf node_modules && npm install",
   "functions": {
     "app/api/**/*.ts": {
       "maxDuration": 30
