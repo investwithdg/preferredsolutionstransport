@@ -2,7 +2,13 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
@@ -10,6 +16,7 @@ import { Separator } from '@/app/components/ui/separator';
 import { toast } from 'sonner';
 import { Mail, Loader2, TruckIcon, User, Lock, Chrome } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { getAuthRedirectUrl } from '@/lib/auth-helpers';
 import Link from 'next/link';
 
 export default function CustomerSignUpPage() {
@@ -29,7 +36,7 @@ export default function CustomerSignUpPage() {
 
   const handleEmailPasswordSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (formData.password !== formData.confirmPassword) {
       toast.error('Passwords do not match');
       return;
@@ -51,7 +58,7 @@ export default function CustomerSignUpPage() {
             name: formData.name,
             role: 'recipient', // Default role for customers
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback?role=recipient`,
+          emailRedirectTo: `${getAuthRedirectUrl('/auth/callback')}?role=recipient`,
         },
       });
 
@@ -59,20 +66,21 @@ export default function CustomerSignUpPage() {
 
       if (data.user) {
         // Create user record in public.users table
-        const { error: userError } = await supabase
-          .from('users')
-          .upsert({
+        const { error: userError } = await supabase.from('users').upsert(
+          {
             auth_id: data.user.id,
             email: formData.email,
             role: 'recipient',
-          }, { onConflict: 'auth_id' });
+          },
+          { onConflict: 'auth_id' }
+        );
 
         if (userError) console.error('Error creating user record:', userError);
 
         toast.success('Account created!', {
           description: 'Please check your email to verify your account.',
         });
-        
+
         // Redirect to sign-in after a short delay
         setTimeout(() => router.push('/auth/sign-in'), 2000);
       }
@@ -91,7 +99,7 @@ export default function CustomerSignUpPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?role=recipient`,
+          redirectTo: `${getAuthRedirectUrl('/auth/callback')}?role=recipient`,
         },
       });
 
@@ -110,7 +118,7 @@ export default function CustomerSignUpPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?role=recipient`,
+          redirectTo: `${getAuthRedirectUrl('/auth/callback')}?role=recipient`,
         },
       });
 
@@ -134,9 +142,7 @@ export default function CustomerSignUpPage() {
           <h1 className="text-display font-semibold text-foreground mb-2">
             Create Customer Account
           </h1>
-          <p className="text-body text-muted-foreground">
-            Sign up to track your deliveries
-          </p>
+          <p className="text-body text-muted-foreground">Sign up to track your deliveries</p>
         </div>
 
         <Card className="shadow-soft-lg">
@@ -145,9 +151,7 @@ export default function CustomerSignUpPage() {
               <User className="h-5 w-5 text-accent" />
               Customer Registration
             </CardTitle>
-            <CardDescription>
-              Create your account to start booking deliveries
-            </CardDescription>
+            <CardDescription>Create your account to start booking deliveries</CardDescription>
           </CardHeader>
           <CardContent>
             {/* Social Sign Up */}
@@ -170,14 +174,16 @@ export default function CustomerSignUpPage() {
                 disabled={isLoading}
               >
                 <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
                 Continue with Facebook
               </Button>
             </div>
 
             <Separator className="my-6">
-              <span className="px-2 text-xs text-muted-foreground bg-card">Or sign up with email</span>
+              <span className="px-2 text-xs text-muted-foreground bg-card">
+                Or sign up with email
+              </span>
             </Separator>
 
             {/* Email/Password Sign Up Form */}
@@ -285,7 +291,10 @@ export default function CustomerSignUpPage() {
               </p>
               <p className="text-muted-foreground">
                 Are you a driver?{' '}
-                <Link href="/auth/signup/driver" className="text-accent font-medium hover:underline">
+                <Link
+                  href="/auth/signup/driver"
+                  className="text-accent font-medium hover:underline"
+                >
                   Driver sign up
                 </Link>
               </p>
@@ -296,4 +305,3 @@ export default function CustomerSignUpPage() {
     </div>
   );
 }
-

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { createRouteHandlerClient } from '@/lib/supabase/route';
+import { getBaseUrl } from '@/lib/auth-helpers';
 
 export const runtime = 'nodejs';
 
@@ -11,7 +12,7 @@ export async function GET(req: NextRequest) {
     const roleParam = requestUrl.searchParams.get('role'); // Get role from query param
     const error = requestUrl.searchParams.get('error');
     const errorDescription = requestUrl.searchParams.get('error_description');
-    const origin = process.env.NEXT_PUBLIC_SITE_URL || requestUrl.origin;
+    const origin = process.env.NEXT_PUBLIC_SITE_URL || getBaseUrl();
 
     console.log('[Auth Callback Debug] Full URL:', requestUrl.toString());
     console.log('[Auth Callback Debug] Code:', code ? 'Present' : 'Missing');
@@ -30,19 +31,24 @@ export async function GET(req: NextRequest) {
     if (code) {
       const res = NextResponse.next();
       const supabase = createRouteHandlerClient(req, res);
-      
+
       console.log('[Auth Callback Debug] Exchanging code for session...');
       // Exchange code for session
-      const { data: { session }, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
-      
+      const {
+        data: { session },
+        error: exchangeError,
+      } = await supabase.auth.exchangeCodeForSession(code);
+
       if (exchangeError) {
         console.error('[Auth Callback Debug] Code exchange error:', exchangeError);
         console.error('[Auth Callback Debug] Error details:', {
           message: exchangeError.message,
           status: exchangeError.status,
-          name: exchangeError.name
+          name: exchangeError.name,
         });
-        return NextResponse.redirect(`${origin}/auth/sign-in?error=auth_failed&message=${encodeURIComponent(exchangeError.message)}`);
+        return NextResponse.redirect(
+          `${origin}/auth/sign-in?error=auth_failed&message=${encodeURIComponent(exchangeError.message)}`
+        );
       }
 
       if (session?.user) {
@@ -64,13 +70,14 @@ export async function GET(req: NextRequest) {
           // Check if they came from a specific signup flow (role param in URL)
           if (roleParam && ['recipient', 'driver', 'dispatcher'].includes(roleParam)) {
             // Create user record with the specified role
-            const { error: upsertError } = await service
-              .from('users')
-              .upsert({
+            const { error: upsertError } = await service.from('users').upsert(
+              {
                 auth_id: authId,
                 email: email,
                 role: roleParam as 'recipient' | 'driver' | 'dispatcher',
-              }, { onConflict: 'auth_id' });
+              },
+              { onConflict: 'auth_id' }
+            );
 
             if (!upsertError) {
               userRole = roleParam as 'admin' | 'dispatcher' | 'driver' | 'recipient';
@@ -109,7 +116,7 @@ export async function GET(req: NextRequest) {
 
         // Redirect based on user role
         let redirectPath = '/customer/dashboard';
-        
+
         if (userRole === 'driver') {
           redirectPath = '/driver';
         } else if (userRole === 'dispatcher' || userRole === 'admin') {
@@ -130,5 +137,3 @@ export async function GET(req: NextRequest) {
     return NextResponse.redirect(`${origin}/auth/sign-in?error=unexpected`);
   }
 }
-
-

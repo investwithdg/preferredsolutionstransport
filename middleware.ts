@@ -2,14 +2,15 @@ import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
 import { isDemoEnabled } from '@/lib/config';
+import { getBaseUrl } from '@/lib/auth-helpers';
 import type { Database } from '@/lib/supabase/types';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-  
+
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
   const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-  
+
   const supabase = createServerClient<Database>(url, anon, {
     cookies: {
       get(name: string) {
@@ -25,17 +26,26 @@ export async function middleware(req: NextRequest) {
       },
     },
   });
-  
+
   await supabase.auth.getSession();
 
   const { pathname } = req.nextUrl;
-  
+
+  // Debug: log environment context once per request
+  if (process.env.NODE_ENV !== 'production') {
+    console.info('[Auth Middleware] path:', pathname, ' envBaseUrl:', getBaseUrl());
+  }
+
   // Check if demo mode is enabled via env and cookie
   const isDemoMode = isDemoEnabled() && req.cookies.get('demo-mode')?.value === 'true';
 
   // Protect dispatcher, driver, customer, and admin routes
-  if (pathname.startsWith('/dispatcher') || pathname.startsWith('/driver') || pathname.startsWith('/admin') || pathname.startsWith('/customer')) {
-    
+  if (
+    pathname.startsWith('/dispatcher') ||
+    pathname.startsWith('/driver') ||
+    pathname.startsWith('/admin') ||
+    pathname.startsWith('/customer')
+  ) {
     // Skip auth check in demo mode
     if (isDemoMode) {
       return res;
@@ -43,7 +53,7 @@ export async function middleware(req: NextRequest) {
     const {
       data: { session },
     } = await supabase.auth.getSession();
-    
+
     if (!session) {
       const url = req.nextUrl.clone();
       url.pathname = '/auth/sign-in';
@@ -70,7 +80,8 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith('/driver')) {
       if (role !== 'driver' && role !== 'admin' && role !== 'dispatcher') {
         const url = req.nextUrl.clone();
-        url.pathname = role === 'dispatcher' || role === 'admin' ? '/dispatcher' : '/customer/dashboard';
+        url.pathname =
+          role === 'dispatcher' || role === 'admin' ? '/dispatcher' : '/customer/dashboard';
         return NextResponse.redirect(url);
       }
     }
@@ -86,7 +97,12 @@ export async function middleware(req: NextRequest) {
     if (pathname.startsWith('/admin')) {
       if (role !== 'admin') {
         const url = req.nextUrl.clone();
-        url.pathname = role === 'driver' ? '/driver' : role === 'dispatcher' ? '/dispatcher' : '/customer/dashboard';
+        url.pathname =
+          role === 'driver'
+            ? '/driver'
+            : role === 'dispatcher'
+              ? '/dispatcher'
+              : '/customer/dashboard';
         return NextResponse.redirect(url);
       }
     }
@@ -98,5 +114,3 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: ['/dispatcher/:path*', '/driver/:path*', '/admin/:path*', '/customer/:path*'],
 };
-
-

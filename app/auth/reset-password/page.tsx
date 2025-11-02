@@ -3,7 +3,14 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
+import { getAuthRedirectUrl } from '@/lib/auth-helpers';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
@@ -28,7 +35,7 @@ export default function ResetPasswordPage() {
     setIsLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/callback?reset=true`,
+        redirectTo: `${getAuthRedirectUrl('/auth/callback')}?reset=true`,
       });
 
       if (error) {
@@ -56,11 +63,10 @@ export default function ResetPasswordPage() {
           <div className="mx-auto w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
             <ShieldCheck className="h-8 w-8 text-accent" />
           </div>
-          <h1 className="text-display font-semibold text-foreground mb-2">
-            Reset Password
-          </h1>
+          <h1 className="text-display font-semibold text-foreground mb-2">Reset Password</h1>
           <p className="text-body text-muted-foreground">
-            Enter the email associated with your account and we&apos;ll send instructions to reset your password.
+            Enter the email associated with your account and we&apos;ll send instructions to reset
+            your password.
           </p>
         </div>
 
@@ -112,7 +118,8 @@ export default function ResetPasswordPage() {
 
               {isSent && (
                 <p className="text-xs text-muted-foreground text-center">
-                  Email sent to <span className="font-medium text-foreground">{email}</span>. Please follow the instructions to create a new password.
+                  Email sent to <span className="font-medium text-foreground">{email}</span>. Please
+                  follow the instructions to create a new password.
                 </p>
               )}
             </form>
@@ -128,10 +135,7 @@ export default function ResetPasswordPage() {
                 <ArrowLeft className="h-3 w-3" />
                 Back
               </button>
-              <a
-                href="/auth/sign-in"
-                className="hover:text-accent font-medium transition-colors"
-              >
+              <a href="/auth/sign-in" className="hover:text-accent font-medium transition-colors">
                 Return to sign in
               </a>
             </div>

@@ -2,15 +2,28 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/app/components/ui/card';
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Separator } from '@/app/components/ui/separator';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/app/components/ui/select';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/app/components/ui/select';
 import { toast } from 'sonner';
 import { Mail, Loader2, TruckIcon, Lock, Chrome, Car, Shield, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
+import { getAuthRedirectUrl } from '@/lib/auth-helpers';
 
 type UserRole = 'recipient' | 'driver' | 'dispatcher';
 
@@ -18,7 +31,7 @@ export default function SignInPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const supabase = createClient();
-  
+
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -30,14 +43,14 @@ export default function SignInPage() {
     if (roleParam === 'driver' || roleParam === 'dispatcher' || roleParam === 'recipient') {
       setSelectedRole(roleParam);
     }
-    
+
     // Check for auth errors from callback
     const error = searchParams.get('error');
     const message = searchParams.get('message');
-    
+
     if (error) {
       console.error('[Sign In Debug] Auth error from callback:', error, message);
-      
+
       // Display user-friendly error messages
       if (error === 'auth_failed') {
         toast.error('Authentication failed', {
@@ -49,7 +62,8 @@ export default function SignInPage() {
         });
       } else if (error === 'server_error') {
         toast.error('Server error', {
-          description: 'There was a problem with the authentication server. Please try again later.',
+          description:
+            'There was a problem with the authentication server. Please try again later.',
         });
       } else {
         toast.error('Sign in failed', {
@@ -61,7 +75,7 @@ export default function SignInPage() {
 
   const handlePasswordSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!email || !password) {
       toast.error('Please enter your email and password');
       return;
@@ -79,14 +93,15 @@ export default function SignInPage() {
 
       if (data.user) {
         toast.success('Sign in successful!');
-        
+
         // Redirect based on role
-        const redirectPath = selectedRole === 'driver' 
-          ? '/driver' 
-          : selectedRole === 'dispatcher' 
-          ? '/dispatcher' 
-          : '/customer/dashboard';
-        
+        const redirectPath =
+          selectedRole === 'driver'
+            ? '/driver'
+            : selectedRole === 'dispatcher'
+              ? '/dispatcher'
+              : '/customer/dashboard';
+
         router.push(redirectPath);
       }
     } catch (error: any) {
@@ -100,17 +115,20 @@ export default function SignInPage() {
 
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
-    
+
     // Debug logging
     console.log('[Google OAuth Debug] Starting sign in process');
     console.log('[Google OAuth Debug] Selected role:', selectedRole);
-    console.log('[Google OAuth Debug] Redirect URL:', `${window.location.origin}/auth/callback?role=${selectedRole}`);
-    
+    console.log(
+      '[Google OAuth Debug] Redirect URL:',
+      `${window.location.origin}/auth/callback?role=${selectedRole}`
+    );
+
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?role=${selectedRole}`,
+          redirectTo: `${getAuthRedirectUrl('/auth/callback')}?role=${selectedRole}`,
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -122,11 +140,11 @@ export default function SignInPage() {
         console.error('[Google OAuth Debug] OAuth error:', error);
         throw error;
       }
-      
+
       console.log('[Google OAuth Debug] OAuth initiated successfully:', data);
     } catch (error: any) {
       console.error('[Google OAuth Debug] Sign in failed:', error);
-      
+
       // More detailed error messages
       let errorMessage = 'Please try again';
       if (error.message?.includes('OAuth')) {
@@ -134,7 +152,7 @@ export default function SignInPage() {
       } else if (error.message?.includes('redirect')) {
         errorMessage = 'Invalid redirect URL configuration.';
       }
-      
+
       toast.error('Google sign in failed', {
         description: error.message || errorMessage,
       });
@@ -148,7 +166,7 @@ export default function SignInPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo: `${window.location.origin}/auth/callback?role=${selectedRole}`,
+          redirectTo: `${getAuthRedirectUrl('/auth/callback')}?role=${selectedRole}`,
         },
       });
 
@@ -170,9 +188,7 @@ export default function SignInPage() {
           <div className="mx-auto w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mb-4">
             <TruckIcon className="h-8 w-8 text-accent" />
           </div>
-          <h1 className="text-display font-semibold text-foreground mb-2">
-            Welcome Back
-          </h1>
+          <h1 className="text-display font-semibold text-foreground mb-2">Welcome Back</h1>
           <p className="text-body text-muted-foreground">
             Sign in to Preferred Solutions Transport
           </p>
@@ -192,7 +208,10 @@ export default function SignInPage() {
             {/* Role Selector */}
             <div className="space-y-2 mb-6">
               <Label htmlFor="role">I am signing in as a</Label>
-              <Select value={selectedRole} onValueChange={(value) => setSelectedRole(value as UserRole)}>
+              <Select
+                value={selectedRole}
+                onValueChange={(value) => setSelectedRole(value as UserRole)}
+              >
                 <SelectTrigger id="role">
                   <SelectValue placeholder="Select your role" />
                 </SelectTrigger>
@@ -239,14 +258,16 @@ export default function SignInPage() {
                 disabled={isLoading}
               >
                 <svg className="h-4 w-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
-                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z" />
                 </svg>
                 Continue with Facebook
               </Button>
             </div>
 
             <Separator className="my-6">
-              <span className="px-2 text-xs text-muted-foreground bg-card">Or sign in with email</span>
+              <span className="px-2 text-xs text-muted-foreground bg-card">
+                Or sign in with email
+              </span>
             </Separator>
 
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -329,7 +350,10 @@ export default function SignInPage() {
             <div className="space-y-3 text-center text-sm">
               <p className="text-muted-foreground">
                 Need access to another portal?{' '}
-                <a href="mailto:support@preferredsolutions.com" className="text-accent font-medium hover:underline">
+                <a
+                  href="mailto:support@preferredsolutions.com"
+                  className="text-accent font-medium hover:underline"
+                >
                   Contact support
                 </a>
               </p>

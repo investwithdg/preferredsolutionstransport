@@ -15,6 +15,7 @@
     "typecheck": "tsc --noEmit",
     "validate": "npm-run-all --parallel typecheck lint",
     "validate:ci": "npm-run-all --parallel typecheck lint",
+    "validate:auth": "node scripts/validate-auth-config.js",
     "depcheck": "npx depcheck --ignores=@sentry/nextjs",
     "tsprune": "npx ts-prune",
     "analyze": "ANALYZE=true next build",
