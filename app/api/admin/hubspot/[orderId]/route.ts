@@ -13,11 +13,14 @@ export const dynamic = 'force-dynamic';
  *
  * Only accessible by admin users.
  */
-export async function GET(_request: NextRequest, context: { params: { orderId: string } }) {
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ orderId: string }> }
+) {
   try {
     const supabase = await createServerClientRSC();
     const supabaseDb = supabase as any;
-    const { orderId } = context.params;
+    const { orderId } = await params;
 
     // Check authentication
     const {
