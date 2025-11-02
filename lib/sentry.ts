@@ -2,20 +2,29 @@
 // This file provides minimal error tracking and performance monitoring
 // Only loads if SENTRY_DSN environment variable is set
 
-import { init, captureException, captureMessage, setTag, setUser } from '@sentry/nextjs';
+// Optional import - Sentry is an optionalDependency
+ 
+let Sentry: any = null;
+
+// Lazy load Sentry only if installed
+try {
+  Sentry = require('@sentry/nextjs');
+} catch {
+  // Sentry not installed, no-op - silence is intentional
+}
+ 
 
 let isInitialized = false;
 
 export function initSentry() {
-  if (isInitialized || typeof window === 'undefined') return;
+  if (isInitialized || typeof window === 'undefined' || !Sentry) return;
 
   const dsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
   if (!dsn) {
-    console.log('Sentry DSN not found, skipping initialization');
-    return;
+    return; // Sentry DSN not configured
   }
 
-  init({
+  Sentry.init({
     dsn,
     environment: process.env.NODE_ENV,
     tracesSampleRate: process.env.NODE_ENV === 'production' ? 0.1 : 1.0,
@@ -26,7 +35,7 @@ export function initSentry() {
       // Add performance monitoring
       // Add more integrations as needed
     ],
-    beforeSend(event) {
+    beforeSend(event: any) {
       // Filter out development errors and sensitive data
       if (process.env.NODE_ENV === 'development') {
         return null;
@@ -42,14 +51,11 @@ export function initSentry() {
   });
 
   isInitialized = true;
-  if (process.env.NODE_ENV !== 'production') {
-    console.log('Sentry initialized');
-  }
 }
 
 // Error capture helpers
 export function captureApiError(error: unknown, context: string, extra?: Record<string, any>) {
-  if (!isInitialized) return;
+  if (!isInitialized || !Sentry) return;
 
   const errorData = {
     contexts: {
@@ -65,14 +71,14 @@ export function captureApiError(error: unknown, context: string, extra?: Record<
   };
 
   if (error instanceof Error) {
-    captureException(error, errorData);
+    Sentry.captureException(error, errorData);
   } else {
-    captureMessage(`API Error in ${context}: ${String(error)}`, errorData as any);
+    Sentry.captureMessage(`API Error in ${context}: ${String(error)}`, errorData as any);
   }
 }
 
 export function captureWebhookError(error: unknown, eventType: string, eventId?: string) {
-  if (!isInitialized) return;
+  if (!isInitialized || !Sentry) return;
 
   const errorData = {
     contexts: {
@@ -88,26 +94,26 @@ export function captureWebhookError(error: unknown, eventType: string, eventId?:
   };
 
   if (error instanceof Error) {
-    captureException(error, errorData);
+    Sentry.captureException(error, errorData);
   } else {
-    captureMessage(`Webhook Error for ${eventType}: ${String(error)}`, errorData as any);
+    Sentry.captureMessage(`Webhook Error for ${eventType}: ${String(error)}`, errorData as any);
   }
 }
 
 // User context helpers
 export function setSentryUser(userId: string, email?: string) {
-  if (!isInitialized) return;
+  if (!isInitialized || !Sentry) return;
 
-  setUser({
+  Sentry.setUser({
     id: userId,
     email,
   });
 }
 
 export function setSentryTag(key: string, value: string) {
-  if (!isInitialized) return;
+  if (!isInitialized || !Sentry) return;
 
-  setTag(key, value);
+  Sentry.setTag(key, value);
 }
 
 // Feature flag helpers (for future use)
@@ -119,17 +125,15 @@ export function getFeatureFlag(flagName: string, defaultValue: boolean = false):
 }
 
 // Performance monitoring helpers
-export function startSentryTransaction(name: string, operation: string) {
+export function startSentryTransaction(_name: string, _operation: string) {
   if (!isInitialized) return null;
 
   // TODO: Use Sentry.startTransaction when available
-  console.log(`Transaction started: ${name} (${operation})`);
   return null;
 }
 
-export function finishSentryTransaction(transaction: any) {
-  if (!isInitialized || !transaction) return;
+export function finishSentryTransaction(_transaction: any) {
+  if (!isInitialized || !_transaction) return;
 
   // TODO: Use transaction.finish() when available
-  console.log('Transaction finished');
 }
