@@ -2,6 +2,10 @@ import DriverClient from './DriverClient';
 import { createServerClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
 
+// Force dynamic rendering because this page reads auth cookies via Supabase
+export const dynamic = 'force-dynamic';
+export const revalidate = 0;
+
 export default async function DriverPage() {
   const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
 
