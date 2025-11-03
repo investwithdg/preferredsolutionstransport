@@ -7,29 +7,57 @@ import type { Database } from '@/lib/supabase/types';
 
 export async function middleware(req: NextRequest) {
   const res = NextResponse.next();
-
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-  const supabase = createServerClient<Database>(url, anon, {
-    cookies: {
-      get(name: string) {
-        return req.cookies.get(name)?.value;
-      },
-      set(name: string, value: string, options: CookieOptions) {
-        req.cookies.set({ name, value, ...options });
-        res.cookies.set({ name, value, ...options });
-      },
-      remove(name: string, options: CookieOptions) {
-        req.cookies.set({ name, value: '', ...options });
-        res.cookies.set({ name, value: '', ...options });
-      },
-    },
-  });
-
-  await supabase.auth.getSession();
-
   const { pathname } = req.nextUrl;
+
+  // Check for required environment variables
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anon = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+
+  if (!url || !anon) {
+    console.error('[Middleware] Missing Supabase environment variables', {
+      hasUrl: !!url,
+      hasAnon: !!anon,
+      pathname,
+    });
+
+    // If accessing protected routes, redirect to an error page
+    if (
+      pathname.startsWith('/dispatcher') ||
+      pathname.startsWith('/driver') ||
+      pathname.startsWith('/admin') ||
+      pathname.startsWith('/customer')
+    ) {
+      const errorUrl = req.nextUrl.clone();
+      errorUrl.pathname = '/offline';
+      errorUrl.searchParams.set('error', 'config');
+      return NextResponse.redirect(errorUrl);
+    }
+
+    return res;
+  }
+
+  try {
+    const supabase = createServerClient<Database>(url, anon, {
+      cookies: {
+        get(name: string) {
+          return req.cookies.get(name)?.value;
+        },
+        set(name: string, value: string, options: CookieOptions) {
+          req.cookies.set({ name, value, ...options });
+          res.cookies.set({ name, value, ...options });
+        },
+        remove(name: string, options: CookieOptions) {
+          req.cookies.set({ name, value: '', ...options });
+          res.cookies.set({ name, value: '', ...options });
+        },
+      },
+    });
+
+    await supabase.auth.getSession();
+  } catch (error) {
+    console.error('[Middleware] Supabase client error:', error);
+    // Continue anyway - let the page handle the error
+  }
 
   // Debug: log environment context once per request
   if (process.env.NODE_ENV !== 'production') {
@@ -50,61 +78,92 @@ export async function middleware(req: NextRequest) {
     if (isDemoMode) {
       return res;
     }
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
 
-    if (!session) {
-      const url = req.nextUrl.clone();
-      url.pathname = '/auth/sign-in';
-      return NextResponse.redirect(url);
+    // Skip if Supabase is not configured
+    if (!url || !anon) {
+      return res;
     }
 
-    // Fetch role from public.users (self record allowed by RLS)
-    const { data: userRow } = await supabase
-      .from('users' as any)
-      .select('role')
-      .eq('auth_id', session.user.id)
-      .single();
+    try {
+      const supabase = createServerClient<Database>(url, anon, {
+        cookies: {
+          get(name: string) {
+            return req.cookies.get(name)?.value;
+          },
+          set(name: string, value: string, options: CookieOptions) {
+            req.cookies.set({ name, value, ...options });
+            res.cookies.set({ name, value, ...options });
+          },
+          remove(name: string, options: CookieOptions) {
+            req.cookies.set({ name, value: '', ...options });
+            res.cookies.set({ name, value: '', ...options });
+          },
+        },
+      });
 
-    const role = (userRow as any)?.role as string | undefined;
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
 
-    if (pathname.startsWith('/dispatcher')) {
-      if (role !== 'admin' && role !== 'dispatcher') {
-        const url = req.nextUrl.clone();
-        url.pathname = role === 'driver' ? '/driver' : '/customer/dashboard';
-        return NextResponse.redirect(url);
+      if (!session) {
+        const redirectUrl = req.nextUrl.clone();
+        redirectUrl.pathname = '/auth/sign-in';
+        return NextResponse.redirect(redirectUrl);
       }
-    }
 
-    if (pathname.startsWith('/driver')) {
-      if (role !== 'driver' && role !== 'admin' && role !== 'dispatcher') {
-        const url = req.nextUrl.clone();
-        url.pathname =
-          role === 'dispatcher' || role === 'admin' ? '/dispatcher' : '/customer/dashboard';
-        return NextResponse.redirect(url);
-      }
-    }
+      // Fetch role from public.users (self record allowed by RLS)
+      const { data: userRow } = await supabase
+        .from('users' as any)
+        .select('role')
+        .eq('auth_id', session.user.id)
+        .single();
 
-    if (pathname.startsWith('/customer')) {
-      if (role !== 'recipient' && role !== 'admin') {
-        const url = req.nextUrl.clone();
-        url.pathname = role === 'driver' ? '/driver' : '/dispatcher';
-        return NextResponse.redirect(url);
-      }
-    }
+      const role = (userRow as any)?.role as string | undefined;
 
-    if (pathname.startsWith('/admin')) {
-      if (role !== 'admin') {
-        const url = req.nextUrl.clone();
-        url.pathname =
-          role === 'driver'
-            ? '/driver'
-            : role === 'dispatcher'
-              ? '/dispatcher'
-              : '/customer/dashboard';
-        return NextResponse.redirect(url);
+      if (pathname.startsWith('/dispatcher')) {
+        if (role !== 'admin' && role !== 'dispatcher') {
+          const redirectUrl = req.nextUrl.clone();
+          redirectUrl.pathname = role === 'driver' ? '/driver' : '/customer/dashboard';
+          return NextResponse.redirect(redirectUrl);
+        }
       }
+
+      if (pathname.startsWith('/driver')) {
+        if (role !== 'driver' && role !== 'admin' && role !== 'dispatcher') {
+          const redirectUrl = req.nextUrl.clone();
+          redirectUrl.pathname =
+            role === 'dispatcher' || role === 'admin' ? '/dispatcher' : '/customer/dashboard';
+          return NextResponse.redirect(redirectUrl);
+        }
+      }
+
+      if (pathname.startsWith('/customer')) {
+        if (role !== 'recipient' && role !== 'admin') {
+          const redirectUrl = req.nextUrl.clone();
+          redirectUrl.pathname = role === 'driver' ? '/driver' : '/dispatcher';
+          return NextResponse.redirect(redirectUrl);
+        }
+      }
+
+      if (pathname.startsWith('/admin')) {
+        if (role !== 'admin') {
+          const redirectUrl = req.nextUrl.clone();
+          redirectUrl.pathname =
+            role === 'driver'
+              ? '/driver'
+              : role === 'dispatcher'
+                ? '/dispatcher'
+                : '/customer/dashboard';
+          return NextResponse.redirect(redirectUrl);
+        }
+      }
+    } catch (error) {
+      console.error('[Middleware] Auth check error:', error);
+      // On error, redirect to sign-in
+      const redirectUrl = req.nextUrl.clone();
+      redirectUrl.pathname = '/auth/sign-in';
+      redirectUrl.searchParams.set('error', 'auth_failed');
+      return NextResponse.redirect(redirectUrl);
     }
   }
 
