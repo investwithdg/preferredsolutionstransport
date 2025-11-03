@@ -36,28 +36,14 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  try {
-    const supabase = createServerClient<Database>(url, anon, {
-      cookies: {
-        get(name: string) {
-          return req.cookies.get(name)?.value;
-        },
-        set(name: string, value: string, options: CookieOptions) {
-          req.cookies.set({ name, value, ...options });
-          res.cookies.set({ name, value, ...options });
-        },
-        remove(name: string, options: CookieOptions) {
-          req.cookies.set({ name, value: '', ...options });
-          res.cookies.set({ name, value: '', ...options });
-        },
-      },
-    });
-
-    await supabase.auth.getSession();
-  } catch (error) {
-    console.error('[Middleware] Supabase client error:', error);
-    // Continue anyway - let the page handle the error
-  }
+  // ------------------------------------------------------------
+  // NOTE: We intentionally defer Supabase client creation until
+  // we know we are on a protected route (see below). Creating it
+  // here once for *every* request caused duplicate cookie writes
+  // that corrupted the session. The protected-route block now
+  // creates the client a single time and re-uses it for all
+  // checks. This avoids ERR_FAILED after sign-in.
+  // ------------------------------------------------------------
 
   // Debug: log environment context once per request
   if (process.env.NODE_ENV !== 'production') {
