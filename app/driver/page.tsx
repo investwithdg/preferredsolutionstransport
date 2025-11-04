@@ -79,7 +79,8 @@ export default async function DriverPage() {
     } = await supabase.auth.getSession();
 
     if (!session) {
-      redirect('/auth/sign-in');
+      // Important: Do not swallow Next.js redirect errors
+      return redirect('/auth/sign-in');
     }
 
     return (
@@ -120,7 +121,11 @@ export default async function DriverPage() {
         </div>
       </div>
     );
-  } catch (error) {
+  } catch (error: any) {
+    // Re-throw Next.js special errors (redirect/notFound) so the framework can handle them
+    if (error && typeof error === 'object' && 'digest' in error) {
+      throw error;
+    }
     console.error('Driver page error:', error);
     return (
       <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">

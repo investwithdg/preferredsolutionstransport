@@ -106,6 +106,13 @@ export async function middleware(req: NextRequest) {
 
       const role = (userRow as any)?.role as string | undefined;
 
+      // If the user has no role yet, send them to role selection page to avoid redirect loops
+      if (!role) {
+        const redirectUrl = req.nextUrl.clone();
+        redirectUrl.pathname = '/auth/oauth-role-select';
+        return NextResponse.redirect(redirectUrl);
+      }
+
       if (pathname.startsWith('/dispatcher')) {
         if (role !== 'admin' && role !== 'dispatcher') {
           const redirectUrl = req.nextUrl.clone();

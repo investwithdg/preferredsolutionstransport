@@ -92,9 +92,22 @@ export default function SignInPage() {
       if (error) throw error;
 
       if (data.user) {
+        // Ensure role record exists on the server to prevent middleware redirect loops
+        try {
+          await fetch('/api/auth/ensure-role', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ role: selectedRole }),
+            credentials: 'include',
+          });
+        } catch (e) {
+          // Non-fatal - continue with redirect
+          console.warn('[Sign In] ensure-role call failed', e);
+        }
+
         toast.success('Sign in successful!');
 
-        // Redirect based on role
+        // Redirect based on intended role (middleware will validate)
         const redirectPath =
           selectedRole === 'driver'
             ? '/driver'
