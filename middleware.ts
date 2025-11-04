@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { isDemoEnabled } from '@/lib/config';
-import { getBaseUrl } from '@/lib/auth-helpers';
 import type { Database } from '@/lib/supabase/types';
 
 export async function middleware(req: NextRequest) {
@@ -36,23 +34,6 @@ export async function middleware(req: NextRequest) {
     return res;
   }
 
-  // ------------------------------------------------------------
-  // NOTE: We intentionally defer Supabase client creation until
-  // we know we are on a protected route (see below). Creating it
-  // here once for *every* request caused duplicate cookie writes
-  // that corrupted the session. The protected-route block now
-  // creates the client a single time and re-uses it for all
-  // checks. This avoids ERR_FAILED after sign-in.
-  // ------------------------------------------------------------
-
-  // Debug: log environment context once per request
-  if (process.env.NODE_ENV !== 'production') {
-    console.info('[Auth Middleware] path:', pathname, ' envBaseUrl:', getBaseUrl());
-  }
-
-  // Check if demo mode is enabled via env and cookie
-  const isDemoMode = isDemoEnabled() && req.cookies.get('demo-mode')?.value === 'true';
-
   // Protect dispatcher, driver, customer, and admin routes
   if (
     pathname.startsWith('/dispatcher') ||
@@ -60,11 +41,6 @@ export async function middleware(req: NextRequest) {
     pathname.startsWith('/admin') ||
     pathname.startsWith('/customer')
   ) {
-    // Skip auth check in demo mode
-    if (isDemoMode) {
-      return res;
-    }
-
     // Skip if Supabase is not configured
     if (!url || !anon) {
       return res;

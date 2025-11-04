@@ -3,25 +3,6 @@ import { redirect } from 'next/navigation';
 import CustomerDashboardClient from './CustomerDashboardClient';
 
 export default async function CustomerDashboardPage() {
-  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
-
-  if (isDemoMode) {
-    const { generateDemoOrders } = await import('@/app/demo/demoData');
-    const orders = generateDemoOrders();
-    const customer = {
-      id: 'demo-customer-1',
-      name: 'Demo Customer',
-      email: 'customer@demo.com',
-      phone: '(555) 555-0199',
-    } as any;
-    return (
-      <CustomerDashboardClient
-        customer={customer}
-        orders={orders as any}
-      />
-    );
-  }
-
   const supabase = await createServerClient();
   const {
     data: { session },

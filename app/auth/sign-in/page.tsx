@@ -92,26 +92,33 @@ export default function SignInPage() {
       if (error) throw error;
 
       if (data.user) {
-        // Ensure role record exists on the server to prevent middleware redirect loops
+        // Ensure role record exists on the server and get the ACTUAL role
+        let actualRole = selectedRole;
         try {
-          await fetch('/api/auth/ensure-role', {
+          const response = await fetch('/api/auth/ensure-role', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ role: selectedRole }),
             credentials: 'include',
           });
+
+          if (response.ok) {
+            const result = await response.json();
+            // Use the actual role from the database, not the selected role
+            actualRole = result.role || selectedRole;
+          }
         } catch (e) {
-          // Non-fatal - continue with redirect
+          // Non-fatal - continue with redirect using selected role
           console.warn('[Sign In] ensure-role call failed', e);
         }
 
         toast.success('Sign in successful!');
 
-        // Redirect based on intended role (middleware will validate)
+        // Redirect based on ACTUAL role from database (not selected role)
         const redirectPath =
-          selectedRole === 'driver'
+          actualRole === 'driver'
             ? '/driver'
-            : selectedRole === 'dispatcher'
+            : actualRole === 'dispatcher' || actualRole === 'admin'
               ? '/dispatcher'
               : '/customer/dashboard';
 
