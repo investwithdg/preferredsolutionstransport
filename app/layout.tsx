@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { createServerClient } from '@/lib/supabase/server';
 import { Toaster } from '@/app/components/ui/sonner';
 import { ClientLayout } from '@/app/components/ClientLayout';
+import { RoleSwitcher } from '@/app/components/RoleSwitcher';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -124,6 +125,7 @@ export default async function RootLayout({
                           My Orders
                         </Link>
                       )}
+                      <RoleSwitcher currentRole={role} />
                       <form action="/auth/sign-out" method="post" className="inline">
                         <button
                           type="submit"

@@ -3,14 +3,6 @@ import { redirect } from 'next/navigation';
 import DispatcherWrapper from './DispatcherWrapper';
 
 export default async function DispatcherPage() {
-  // Check if demo mode is enabled
-  const isDemoMode = process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
-
-  if (isDemoMode) {
-    // In demo mode, skip auth and return wrapper with empty data
-    return <DispatcherWrapper initialOrders={[]} drivers={[]} />;
-  }
-
   const cookieClient = await createServerClient();
   const {
     data: { session },
