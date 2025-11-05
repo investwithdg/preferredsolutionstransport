@@ -171,7 +171,7 @@ export default function DispatcherClient({
 
   // Get initial orders from demo context in demo mode
   const demoReadyOrders = isDemoMode
-    ? (demoOrders.filter((o) => o.status === 'ReadyForDispatch') as unknown as Order[])
+    ? (demoOrders.filter((o: any) => o.status === 'ReadyForDispatch') as unknown as Order[])
     : [];
 
   // Real-time subscriptions

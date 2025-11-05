@@ -34,19 +34,19 @@ import { useRealtimeOrders } from '@/app/hooks/useRealtimeOrders';
 import type { Order as RealtimeOrder } from '@/app/hooks/useRealtimeOrders';
 import { useDemo } from '@/app/demo/DemoContext';
 import { ProofOfDeliveryModal } from '@/app/components/delivery/ProofOfDeliveryModal';
-import { 
-  Package, 
-  MapPin, 
-  User, 
-  Phone, 
-  DollarSign, 
+import {
+  Package,
+  MapPin,
+  User,
+  Phone,
+  DollarSign,
   Clock,
   CheckCircle,
   TruckIcon,
   Navigation,
   AlertCircle,
   Bell,
-  BellOff
+  BellOff,
 } from 'lucide-react';
 
 type Order = RealtimeOrder;
@@ -70,25 +70,26 @@ export default function DriverClient() {
   const [selectedOrderForPod, setSelectedOrderForPod] = useState<Order | null>(null);
   const locationWatchIdRef = useRef<number | null>(null);
   const lastLocationUpdateRef = useRef<number>(0);
-  
+
   // Push notification hook
-  const pushNotifications = usePushNotifications({ 
-    driverId: selectedDriverId 
+  const pushNotifications = usePushNotifications({
+    driverId: selectedDriverId,
   });
 
   // Use real-time orders hook with driver filter
   // In demo mode, use shared demo orders filtered by selected driver
-  const demoDriverOrders = isDemoMode && selectedDriverId 
-    ? demoOrders.filter(o => o.driver_id === selectedDriverId) as unknown as Order[]
-    : [];
-  
-  const { 
-    orders, 
-    isLoading, 
-    refresh: refreshOrders 
-  } = useRealtimeOrders({ 
+  const demoDriverOrders =
+    isDemoMode && selectedDriverId
+      ? (demoOrders.filter((o: any) => o.driver_id === selectedDriverId) as unknown as Order[])
+      : [];
+
+  const {
+    orders,
+    isLoading,
+    refresh: refreshOrders,
+  } = useRealtimeOrders({
     driverId: selectedDriverId || undefined,
-    initialOrders: isDemoMode ? demoDriverOrders : []
+    initialOrders: isDemoMode ? demoDriverOrders : [],
   });
 
   const fetchDrivers = useCallback(async () => {
@@ -105,7 +106,7 @@ export default function DriverClient() {
   useEffect(() => {
     if (isDemoMode) {
       // In demo mode, use demo drivers
-      const demoDriverList = demoDrivers.map(driver => ({
+      const demoDriverList = demoDrivers.map((driver: any) => ({
         id: driver.id,
         name: driver.name,
         phone: '(555) 123-4567',
@@ -114,7 +115,7 @@ export default function DriverClient() {
         is_available: true,
       }));
       setDrivers(demoDriverList);
-      
+
       // Auto-select the current demo driver
       if (currentDriverId) {
         setSelectedDriverId(currentDriverId);
@@ -144,7 +145,7 @@ export default function DriverClient() {
 
       const requestBody = {
         status: newStatus,
-        notes: `Status updated by driver via dashboard`
+        notes: `Status updated by driver via dashboard`,
       };
 
       // Attempt online first
@@ -173,10 +174,16 @@ export default function DriverClient() {
         if ('serviceWorker' in navigator && 'caches' in window) {
           const cache = await caches.open('pending-updates');
           const request = new Request(`/api/orders/${orderId}/status`, { method: 'PATCH' });
-          await cache.put(request, new Response(JSON.stringify({
-            status: newStatus,
-            notes: `Status updated by driver via dashboard`
-          }), { headers: { 'Content-Type': 'application/json' } }));
+          await cache.put(
+            request,
+            new Response(
+              JSON.stringify({
+                status: newStatus,
+                notes: `Status updated by driver via dashboard`,
+              }),
+              { headers: { 'Content-Type': 'application/json' } }
+            )
+          );
 
           // Register background sync
           const registration = await navigator.serviceWorker.ready;
@@ -203,21 +210,31 @@ export default function DriverClient() {
 
   const getNextStatus = (currentStatus: string) => {
     switch (currentStatus) {
-      case 'Assigned': return 'Accepted';
-      case 'Accepted': return 'PickedUp';
-      case 'PickedUp': return 'InTransit';
-      case 'InTransit': return 'Delivered';
-      default: return null;
+      case 'Assigned':
+        return 'Accepted';
+      case 'Accepted':
+        return 'PickedUp';
+      case 'PickedUp':
+        return 'InTransit';
+      case 'InTransit':
+        return 'Delivered';
+      default:
+        return null;
     }
   };
 
   const getStatusActionLabel = (currentStatus: string) => {
     switch (currentStatus) {
-      case 'Assigned': return { label: 'Accept Order', icon: CheckCircle };
-      case 'Accepted': return { label: 'Mark Picked Up', icon: Package };
-      case 'PickedUp': return { label: 'Start Transit', icon: Navigation };
-      case 'InTransit': return { label: 'Mark Delivered', icon: CheckCircle };
-      default: return null;
+      case 'Assigned':
+        return { label: 'Accept Order', icon: CheckCircle };
+      case 'Accepted':
+        return { label: 'Mark Picked Up', icon: Package };
+      case 'PickedUp':
+        return { label: 'Start Transit', icon: Navigation };
+      case 'InTransit':
+        return { label: 'Mark Delivered', icon: CheckCircle };
+      default:
+        return null;
     }
   };
 
@@ -236,7 +253,7 @@ export default function DriverClient() {
 
     // Create FormData for API
     const formData = new FormData();
-    
+
     // Add photos
     data.photos.forEach((photo, index) => {
       formData.append(`photo_${index}`, photo, `photo_${index}.jpg`);
@@ -254,7 +271,7 @@ export default function DriverClient() {
     // Submit to API
     const response = await fetch(`/api/orders/${selectedOrderForPod.id}/proof-of-delivery`, {
       method: 'POST',
-      body: formData
+      body: formData,
     });
 
     if (!response.ok) {
@@ -266,8 +283,8 @@ export default function DriverClient() {
     await refreshOrders();
   };
 
-  const activeOrders = orders.filter(o => !['Delivered', 'Canceled'].includes(o.status));
-  const completedOrders = orders.filter(o => ['Delivered', 'Canceled'].includes(o.status));
+  const activeOrders = orders.filter((o) => !['Delivered', 'Canceled'].includes(o.status));
+  const completedOrders = orders.filter((o) => ['Delivered', 'Canceled'].includes(o.status));
 
   // Start location tracking for active orders
   useEffect(() => {
@@ -322,7 +339,17 @@ export default function DriverClient() {
                   // Queue location update for offline sync
                   const cache = await caches.open('pending-updates');
                   const req = new Request('/api/drivers/location', { method: 'POST' });
-                  await cache.put(req, new Response(JSON.stringify({ driverId: selectedDriverId, lat: position.coords.latitude, lng: position.coords.longitude }), { headers: { 'Content-Type': 'application/json' } }));
+                  await cache.put(
+                    req,
+                    new Response(
+                      JSON.stringify({
+                        driverId: selectedDriverId,
+                        lat: position.coords.latitude,
+                        lng: position.coords.longitude,
+                      }),
+                      { headers: { 'Content-Type': 'application/json' } }
+                    )
+                  );
                   const registration = await navigator.serviceWorker.ready;
                   if ('sync' in registration) {
                     await (registration as any).sync.register('sync-location-updates');
@@ -359,47 +386,47 @@ export default function DriverClient() {
   }, [selectedDriverId, activeOrders]);
 
   return (
-    <div className="container max-w-[1200px] mx-auto py-8 px-4 sm:px-6 lg:px-8" data-testid="driver-dashboard">
+    <div
+      className="container max-w-[1200px] mx-auto py-8 px-4 sm:px-6 lg:px-8"
+      data-testid="driver-dashboard"
+    >
       <PageHeader
         title="Driver Dashboard"
         description="Manage your assigned deliveries with quick status updates"
-        breadcrumbs={[
-          { label: 'Home', href: '/' },
-          { label: 'Driver' },
-        ]}
+        breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Driver' }]}
       />
 
       {/* Driver Selection (Demo Mode) */}
       {isDemoMode && (
-      <Card className="mb-8 bg-muted/50 border-2 border-dashed">
-        <CardContent className="p-6">
-          <div className="flex items-center gap-4">
-            <div className="rounded-full bg-background p-3">
-              <TruckIcon className="h-6 w-6 text-muted-foreground" />
+        <Card className="mb-8 bg-muted/50 border-2 border-dashed">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="rounded-full bg-background p-3">
+                <TruckIcon className="h-6 w-6 text-muted-foreground" />
+              </div>
+              <div className="flex-1">
+                <label
+                  htmlFor="driver-select"
+                  className="text-sm font-medium text-foreground mb-2 block"
+                >
+                  Select Driver (Demo Mode)
+                </label>
+                <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
+                  <SelectTrigger id="driver-select" className="w-full max-w-md">
+                    <SelectValue placeholder="Choose a driver..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {drivers.map((driver) => (
+                      <SelectItem key={driver.id} value={driver.id}>
+                        {driver.name} ({driver.active_orders_count} active orders)
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             </div>
-            <div className="flex-1">
-              <label htmlFor="driver-select" className="text-sm font-medium text-foreground mb-2 block">
-                Select Driver (Demo Mode)
-              </label>
-              <Select
-                value={selectedDriverId}
-                onValueChange={setSelectedDriverId}
-              >
-                <SelectTrigger id="driver-select" className="w-full max-w-md">
-                  <SelectValue placeholder="Choose a driver..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {drivers.map((driver) => (
-                    <SelectItem key={driver.id} value={driver.id}>
-                      {driver.name} ({driver.active_orders_count} active orders)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
       )}
 
       {/* Push Notification Settings */}
@@ -416,26 +443,29 @@ export default function DriverClient() {
                   )}
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-foreground">
-                    Push Notifications
-                  </p>
+                  <p className="text-sm font-medium text-foreground">Push Notifications</p>
                   <p className="text-xs text-muted-foreground">
-                    {pushNotifications.isSubscribed 
-                      ? 'You will receive alerts for new order assignments' 
+                    {pushNotifications.isSubscribed
+                      ? 'You will receive alerts for new order assignments'
                       : 'Enable to receive instant alerts for new deliveries'}
                   </p>
                 </div>
               </div>
               <Button
-                variant={pushNotifications.isSubscribed ? "secondary" : "accent"}
+                variant={pushNotifications.isSubscribed ? 'secondary' : 'accent'}
                 size="sm"
-                onClick={pushNotifications.isSubscribed 
-                  ? pushNotifications.unsubscribe 
-                  : pushNotifications.subscribe}
+                onClick={
+                  pushNotifications.isSubscribed
+                    ? pushNotifications.unsubscribe
+                    : pushNotifications.subscribe
+                }
                 disabled={pushNotifications.isLoading}
               >
-                {pushNotifications.isLoading ? 'Loading...' : 
-                 pushNotifications.isSubscribed ? 'Disable' : 'Enable'}
+                {pushNotifications.isLoading
+                  ? 'Loading...'
+                  : pushNotifications.isSubscribed
+                    ? 'Disable'
+                    : 'Enable'}
               </Button>
             </div>
           </CardContent>
@@ -463,16 +493,22 @@ export default function DriverClient() {
                   const actionData = getStatusActionLabel(order.status);
                   const ActionIcon = actionData?.icon;
                   const currencyLabel = (order.currency || 'usd').toUpperCase();
-                  const updatedLabel = order.updated_at ? new Date(order.updated_at).toLocaleString() : 'N/A';
+                  const updatedLabel = order.updated_at
+                    ? new Date(order.updated_at).toLocaleString()
+                    : 'N/A';
                   const directionsUrl =
                     order.quotes?.pickup_address && order.quotes?.dropoff_address
                       ? `https://www.google.com/maps/dir/?api=1&origin=${encodeURIComponent(
                           order.quotes.pickup_address || ''
                         )}&destination=${encodeURIComponent(order.quotes.dropoff_address || '')}&travelmode=driving`
                       : null;
-                  
+
                   return (
-                    <Card key={order.id} className="overflow-hidden hover:shadow-soft-lg transition-shadow" data-testid={`order-${order.id}`}>
+                    <Card
+                      key={order.id}
+                      className="overflow-hidden hover:shadow-soft-lg transition-shadow"
+                      data-testid={`order-${order.id}`}
+                    >
                       <CardHeader className="bg-muted/30 pb-4">
                         <div className="flex items-start justify-between">
                           <div>
@@ -480,7 +516,10 @@ export default function DriverClient() {
                               Order #{order.id.slice(-8)}
                             </CardTitle>
                             <p className="text-xs text-muted-foreground mt-1">
-                              Created {order.created_at ? new Date(order.created_at).toLocaleString() : 'N/A'}
+                              Created{' '}
+                              {order.created_at
+                                ? new Date(order.created_at).toLocaleString()
+                                : 'N/A'}
                             </p>
                           </div>
                           <StatusBadge status={order.status} />
@@ -506,7 +545,10 @@ export default function DriverClient() {
                               {order.customers?.phone && (
                                 <div className="flex items-center gap-2">
                                   <Phone className="h-3 w-3 text-muted-foreground" />
-                                  <a href={`tel:${order.customers.phone}`} className="text-accent hover:underline font-medium">
+                                  <a
+                                    href={`tel:${order.customers.phone}`}
+                                    className="text-accent hover:underline font-medium"
+                                  >
                                     {order.customers.phone}
                                   </a>
                                 </div>
@@ -525,14 +567,18 @@ export default function DriverClient() {
                                 <MapPin className="h-4 w-4 text-success flex-shrink-0 mt-0.5" />
                                 <div>
                                   <span className="text-muted-foreground block">Pickup:</span>
-                                  <span className="font-medium">{order.quotes?.pickup_address}</span>
+                                  <span className="font-medium">
+                                    {order.quotes?.pickup_address}
+                                  </span>
                                 </div>
                               </div>
                               <div className="flex items-start gap-2">
                                 <MapPin className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
                                 <div>
                                   <span className="text-muted-foreground block">Dropoff:</span>
-                                  <span className="font-medium">{order.quotes?.dropoff_address}</span>
+                                  <span className="font-medium">
+                                    {order.quotes?.dropoff_address}
+                                  </span>
                                 </div>
                               </div>
                               {order.quotes?.distance_mi && (
@@ -560,17 +606,8 @@ export default function DriverClient() {
                           </div>
                           <div className="flex items-center gap-3">
                             {directionsUrl && (
-                              <Button
-                                asChild
-                                variant="outline"
-                                size="sm"
-                                className="min-w-[160px]"
-                              >
-                                <a
-                                  href={directionsUrl}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                >
+                              <Button asChild variant="outline" size="sm" className="min-w-[160px]">
+                                <a href={directionsUrl} target="_blank" rel="noopener noreferrer">
                                   <Navigation className="h-4 w-4 mr-2" />
                                   Directions
                                 </a>
@@ -615,12 +652,15 @@ export default function DriverClient() {
                                     <AlertDialogContent>
                                       <AlertDialogHeader>
                                         <AlertDialogTitle className="flex items-center gap-2">
-                                          {ActionIcon && <ActionIcon className="h-5 w-5 text-accent" />}
+                                          {ActionIcon && (
+                                            <ActionIcon className="h-5 w-5 text-accent" />
+                                          )}
                                           {actionData.label}?
                                         </AlertDialogTitle>
                                         <AlertDialogDescription>
-                                          Are you sure you want to update the order status to <strong>{nextStatus}</strong>? 
-                                          This will notify the customer and dispatcher.
+                                          Are you sure you want to update the order status to{' '}
+                                          <strong>{nextStatus}</strong>? This will notify the
+                                          customer and dispatcher.
                                         </AlertDialogDescription>
                                       </AlertDialogHeader>
                                       <AlertDialogFooter>
@@ -664,14 +704,13 @@ export default function DriverClient() {
                               #{order.id.slice(-8)}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                              {order.quotes?.pickup_address?.split(',')[0]} → {order.quotes?.dropoff_address?.split(',')[0]}
+                              {order.quotes?.pickup_address?.split(',')[0]} →{' '}
+                              {order.quotes?.dropoff_address?.split(',')[0]}
                             </div>
                           </div>
                         </div>
                         <div className="flex items-center gap-4">
-                          <div className="text-sm font-medium">
-                            ${order.price_total.toFixed(2)}
-                          </div>
+                          <div className="text-sm font-medium">${order.price_total.toFixed(2)}</div>
                           <StatusBadge status={order.status} />
                         </div>
                       </div>
@@ -697,19 +736,22 @@ export default function DriverClient() {
 
       {/* Location Tracking Status */}
       {selectedDriverId && activeOrders.length > 0 && (
-        <Card className={`mt-6 ${isLocationTracking ? 'border-success/20 bg-success/5' : 'border-warning/20 bg-warning/5'}`}>
+        <Card
+          className={`mt-6 ${isLocationTracking ? 'border-success/20 bg-success/5' : 'border-warning/20 bg-warning/5'}`}
+        >
           <CardContent className="p-4">
             <div className="flex items-start gap-3">
-              <Navigation className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isLocationTracking ? 'text-success' : 'text-warning'}`} />
+              <Navigation
+                className={`h-5 w-5 flex-shrink-0 mt-0.5 ${isLocationTracking ? 'text-success' : 'text-warning'}`}
+              />
               <div>
                 <p className="text-sm font-medium text-foreground mb-1">
                   {isLocationTracking ? '📍 Location Tracking Active' : '⚠️ Location Tracking'}
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  {isLocationTracking 
+                  {isLocationTracking
                     ? 'Your location is being shared with customers for real-time tracking. Updates every 30 seconds.'
-                    : 'Please enable location services to allow customers to track your delivery in real-time.'
-                  }
+                    : 'Please enable location services to allow customers to track your delivery in real-time.'}
                 </p>
               </div>
             </div>
@@ -724,12 +766,10 @@ export default function DriverClient() {
             <div className="flex items-start gap-3">
               <AlertCircle className="h-5 w-5 text-accent flex-shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-foreground mb-1">
-                  Background Sync Ready
-                </p>
+                <p className="text-sm font-medium text-foreground mb-1">Background Sync Ready</p>
                 <p className="text-xs text-muted-foreground">
-                  Your status updates will sync automatically when you're back online. 
-                  Changes are saved locally for offline reliability.
+                  Your status updates will sync automatically when you're back online. Changes are
+                  saved locally for offline reliability.
                 </p>
               </div>
             </div>

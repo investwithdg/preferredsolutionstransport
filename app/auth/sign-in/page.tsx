@@ -25,7 +25,7 @@ import { Mail, Loader2, TruckIcon, Lock, Chrome, Car, Shield, User } from 'lucid
 import { createClient } from '@/lib/supabase/client';
 import { getAuthRedirectUrl } from '@/lib/auth-helpers';
 
-type UserRole = 'recipient' | 'driver' | 'dispatcher';
+type UserRole = 'recipient' | 'driver' | 'dispatcher' | 'admin';
 
 export default function SignInPage() {
   const router = useRouter();

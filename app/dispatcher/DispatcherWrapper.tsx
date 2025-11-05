@@ -48,7 +48,7 @@ export default function DispatcherWrapper({ initialOrders, drivers }: Dispatcher
 
   if (isDemoMode) {
     // Use demo drivers
-    const demoDriverList = demoDrivers.map((driver) => ({
+    const demoDriverList = demoDrivers.map((driver: any) => ({
       id: driver.id,
       name: driver.name,
       phone: '(555) 123-4567',
