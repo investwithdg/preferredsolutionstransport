@@ -1,19 +1,18 @@
-import { createServiceRoleClient, createServerClient } from '@/lib/supabase/server';
+import { createServerClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import DispatcherWrapper from './DispatcherWrapper';
+import DispatcherClient from './DispatcherClient';
 
 export default async function DispatcherPage() {
-  const cookieClient = await createServerClient();
+  const supabase = await createServerClient();
   const {
     data: { session },
-  } = await cookieClient.auth.getSession();
+  } = await supabase.auth.getSession();
+
   if (!session) {
     redirect('/auth/sign-in');
   }
-  const supabase = createServiceRoleClient();
 
-  // Fetch orders ready for dispatch
-  const { data: orders, error: ordersError } = await supabase
+  const { data, error } = await supabase
     .from('orders')
     .select(
       `
@@ -56,13 +55,13 @@ export default async function DispatcherPage() {
       };
     }) || [];
 
-  if (ordersError) {
-    console.error('Error fetching orders:', ordersError);
+  if (error) {
+    console.error('Error fetching orders:', error);
   }
 
   if (driversError) {
     console.error('Error fetching drivers:', driversError);
   }
 
-  return <DispatcherWrapper initialOrders={orders || []} drivers={drivers} />;
+  return <DispatcherClient initialOrders={data || []} drivers={drivers} />;
 }

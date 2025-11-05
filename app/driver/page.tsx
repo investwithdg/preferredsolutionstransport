@@ -1,6 +1,8 @@
 import DriverClient from './DriverClient';
 import { createServerClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
+import { DriverDashboard } from '@/app/components/dashboards/driver/DriverDashboard';
+import { isMasterAccountEnabled } from '@/lib/config';
 
 // Force dynamic rendering because this page reads auth cookies via Supabase
 export const dynamic = 'force-dynamic';
@@ -39,18 +41,46 @@ export default async function DriverPage() {
       return redirect('/auth/sign-in');
     }
 
-    return (
-      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
-        <div className="bg-white shadow rounded-lg">
-          <div className="px-6 py-4 border-b border-gray-200">
-            <h1 className="text-2xl font-bold text-gray-900">Driver Dashboard</h1>
-            <p className="mt-1 text-sm text-gray-600">Manage your assigned deliveries</p>
-          </div>
+    let driverId: string | undefined;
 
-          <div className="p-6">
-            <DriverClient />
+    if (isMasterAccountEnabled()) {
+      // In master account mode, we need to fetch the driver record associated with the master user
+      const { data: driverRecord } = await supabase
+        .from('drivers')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .single();
+      driverId = driverRecord?.id;
+    } else {
+      const { data: driverRecord } = await supabase
+        .from('drivers')
+        .select('id')
+        .eq('user_id', session.user.id)
+        .single();
+      driverId = driverRecord?.id;
+    }
+
+    if (!driverId) {
+      return (
+        <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+          <div className="bg-red-50 border border-red-200 rounded-lg p-6">
+            <h1 className="text-2xl font-bold text-red-900 mb-4">Driver Not Found</h1>
+            <p className="text-red-700 mb-4">
+              No driver record found for your account. Please contact support.
+            </p>
+            <div className="mt-4">
+              <a href="/auth/sign-in" className="text-blue-600 hover:text-blue-800 underline">
+                Try signing in again
+              </a>
+            </div>
           </div>
         </div>
+      );
+    }
+
+    return (
+      <div className="max-w-7xl mx-auto py-12 px-4 sm:px-6 lg:px-8">
+        <DriverDashboard driverId={driverId} />
       </div>
     );
   } catch (error: any) {

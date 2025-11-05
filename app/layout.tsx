@@ -6,6 +6,7 @@ import { createServerClient } from '@/lib/supabase/server';
 import { Toaster } from '@/app/components/ui/sonner';
 import { ClientLayout } from '@/app/components/ClientLayout';
 import { RoleSwitcher } from '@/app/components/RoleSwitcher';
+import { isMasterAccountEnabled } from '@/lib/config';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -41,12 +42,14 @@ export default async function RootLayout({
   let role: string | null = null;
   if (session) {
     const { data: userRow } = await supabase
-      .from('users' as any)
+      .from('users')
       .select('role')
       .eq('auth_id', session.user.id)
       .single();
-    role = (userRow as any)?.role ?? null;
+    role = userRow?.role ?? null;
   }
+
+  const showRoleSwitcher = session && (isMasterAccountEnabled() || role === 'admin');
 
   return (
     <html lang="en">
@@ -125,7 +128,7 @@ export default async function RootLayout({
                           My Orders
                         </Link>
                       )}
-                      <RoleSwitcher currentRole={role} />
+                      {showRoleSwitcher && <RoleSwitcher currentRole={role} />}
                       <form action="/auth/sign-out" method="post" className="inline">
                         <button
                           type="submit"

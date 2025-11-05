@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import CustomerDashboardClient from './CustomerDashboardClient';
+import { CustomerDashboard } from '@/app/components/dashboards/customer/CustomerDashboard';
 
 export default async function CustomerDashboardPage() {
   const supabase = await createServerClient();
@@ -33,7 +33,7 @@ export default async function CustomerDashboardPage() {
   }
 
   // Fetch customer's orders
-  const { data: orders } = await supabase
+  const { data: orders, error } = await supabase
     .from('orders')
     .select(`
       *,
@@ -44,7 +44,7 @@ export default async function CustomerDashboardPage() {
     .order('created_at', { ascending: false });
 
   return (
-    <CustomerDashboardClient
+    <CustomerDashboard
       customer={customer}
       orders={orders || []}
     />

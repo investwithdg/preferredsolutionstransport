@@ -24,6 +24,7 @@ import { toast } from 'sonner';
 import { Mail, Loader2, TruckIcon, Lock, Chrome, Car, Shield, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getAuthRedirectUrl } from '@/lib/auth-helpers';
+import { isMasterAccountEnabled } from '@/lib/config';
 
 type UserRole = 'recipient' | 'driver' | 'dispatcher' | 'admin';
 
@@ -36,6 +37,7 @@ export default function SignInPage() {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [selectedRole, setSelectedRole] = useState<UserRole>('recipient');
+  const showMasterAccount = isMasterAccountEnabled();
 
   // Get role from URL if present
   useEffect(() => {
@@ -77,6 +79,30 @@ export default function SignInPage() {
       }
     }
   }, [searchParams]);
+
+  const handleMasterAccountSignIn = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch('/api/auth/master-login', {
+        method: 'POST',
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Master account sign-in failed');
+      }
+
+      toast.success('Sign in successful!');
+      router.push(data.redirectPath || '/');
+      router.refresh(); // to ensure layout re-renders with new session
+    } catch (error: any) {
+      toast.error('Sign in failed', {
+        description: error.message || 'An unexpected error occurred.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handlePasswordSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,14 +167,6 @@ export default function SignInPage() {
   const handleGoogleSignIn = async () => {
     setIsLoading(true);
 
-    // Debug logging
-    console.log('[Google OAuth Debug] Starting sign in process');
-    console.log('[Google OAuth Debug] Selected role:', selectedRole);
-    console.log(
-      '[Google OAuth Debug] Redirect URL:',
-      `${window.location.origin}/auth/callback?role=${selectedRole}`
-    );
-
     try {
       const { data, error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
@@ -162,14 +180,9 @@ export default function SignInPage() {
       });
 
       if (error) {
-        console.error('[Google OAuth Debug] OAuth error:', error);
         throw error;
       }
-
-      console.log('[Google OAuth Debug] OAuth initiated successfully:', data);
     } catch (error: any) {
-      console.error('[Google OAuth Debug] Sign in failed:', error);
-
       // More detailed error messages
       let errorMessage = 'Please try again';
       if (error.message?.includes('OAuth')) {
@@ -230,6 +243,27 @@ export default function SignInPage() {
             </CardDescription>
           </CardHeader>
           <CardContent>
+            {showMasterAccount && (
+              <>
+                <div className="space-y-3 mb-6">
+                  <Button
+                    type="button"
+                    variant="default"
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                    onClick={handleMasterAccountSignIn}
+                    disabled={isLoading}
+                  >
+                    <User className="h-4 w-4 mr-2" />
+                    Sign In as Master Account
+                  </Button>
+                </div>
+                <Separator className="my-6">
+                  <span className="px-2 text-xs text-muted-foreground bg-card">
+                    Or sign in manually
+                  </span>
+                </Separator>
+              </>
+            )}
             {/* Role Selector */}
             <div className="space-y-2 mb-6">
               <Label htmlFor="role">I am signing in as a</Label>

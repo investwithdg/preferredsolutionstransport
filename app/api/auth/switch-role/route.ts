@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceRoleClient } from '@/lib/supabase/server';
 import { createRouteHandlerClient } from '@/lib/supabase/route';
+import { isMasterAccountEnabled } from '@/lib/config';
 
 export const runtime = 'nodejs';
 
@@ -10,6 +11,10 @@ export const runtime = 'nodejs';
  * Body: { role: 'recipient' | 'driver' | 'dispatcher' | 'admin' }
  */
 export async function POST(req: NextRequest) {
+  if (!isMasterAccountEnabled()) {
+    return NextResponse.json({ error: 'This feature is disabled' }, { status: 403 });
+  }
+
   const res = NextResponse.next();
   try {
     const cookieClient = createRouteHandlerClient(req, res);

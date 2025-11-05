@@ -12,16 +12,15 @@ export default async function PaymentHistoryPage() {
     redirect('/auth/sign-in');
   }
 
-  // Verify user is a customer/recipient
-  const { data: userRole } = await supabase
-    .from('users')
-    .select('role')
-    .eq('auth_id', session.user.id)
-    .single();
+  const { data: payments, error } = await supabase
+    .from('payment_records')
+    .select('*')
+    .order('created_at', { ascending: false });
 
-  if (userRole?.role !== 'recipient' && userRole?.role !== 'admin') {
-    redirect('/');
+  if (error) {
+    console.error('Error fetching payment history:', error);
+    // Handle error appropriately
   }
 
-  return <PaymentHistoryClient />;
+  return <PaymentHistoryClient payments={payments || []} />;
 }

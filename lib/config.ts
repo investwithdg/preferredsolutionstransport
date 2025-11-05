@@ -76,12 +76,12 @@ export function handleApiError(error: unknown, operation: string) {
   };
 }
 
-// Demo mode helpers
-export const isDemoEnabled = (): boolean => process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
+// Master account helpers
+export const isMasterAccountEnabled = (): boolean => process.env.NEXT_PUBLIC_ENABLE_MASTER_ACCOUNT === 'true';
 
-export function requireDemoEnabled(): void {
-  if (!isDemoEnabled()) {
-    throw new AppError('Demo feature is disabled', 404, 'DEMO_DISABLED');
+export function requireMasterAccountEnabled(): void {
+  if (!isMasterAccountEnabled()) {
+    throw new AppError('Master account feature is disabled', 404, 'MASTER_ACCOUNT_DISABLED');
   }
 }
 
