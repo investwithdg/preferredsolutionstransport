@@ -168,7 +168,7 @@ export default function SignInPage() {
     setIsLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithOAuth({
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${getAuthRedirectUrl('/auth/callback')}?role=${selectedRole}`,

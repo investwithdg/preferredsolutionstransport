@@ -12,15 +12,5 @@ export default async function PaymentHistoryPage() {
     redirect('/auth/sign-in');
   }
 
-  const { data: payments, error } = await supabase
-    .from('payment_records')
-    .select('*')
-    .order('created_at', { ascending: false });
-
-  if (error) {
-    console.error('Error fetching payment history:', error);
-    // Handle error appropriately
-  }
-
-  return <PaymentHistoryClient payments={payments || []} />;
+  return <PaymentHistoryClient />;
 }

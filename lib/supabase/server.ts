@@ -17,7 +17,7 @@ export const createServerClient = async () => {
  * For Server Components (read-only cookies)
  */
 export async function createServerClientRSC() {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
 
   // If master account is enabled, use the service role client for all server-side operations
   if (isMasterAccountEnabled()) {
@@ -32,11 +32,11 @@ export async function createServerClientRSC() {
         get(name: string) {
           return cookieStore.get(name)?.value;
         },
-        set(name: string, value: string, options: CookieOptions) {
-          cookieStore.set({ name, value, ...options });
+        set(_name: string, _value: string, _options: CookieOptions) {
+          // Server Components cannot set cookies
         },
-        remove(name: string, options: CookieOptions) {
-          cookieStore.set({ name, value: '', ...options });
+        remove(_name: string, _options: CookieOptions) {
+          // Server Components cannot remove cookies
         },
       },
     }

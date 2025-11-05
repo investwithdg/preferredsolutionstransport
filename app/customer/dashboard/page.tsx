@@ -1,6 +1,6 @@
 import { createServerClient } from '@/lib/supabase/server';
 import { redirect } from 'next/navigation';
-import { CustomerDashboard } from '@/app/components/dashboards/customer/CustomerDashboard';
+import CustomerDashboardClient from './CustomerDashboardClient';
 
 export default async function CustomerDashboardPage() {
   const supabase = await createServerClient();
@@ -12,7 +12,6 @@ export default async function CustomerDashboardPage() {
     redirect('/auth/sign-in');
   }
 
-  // Get customer by auth user email
   const { data: customer } = await supabase
     .from('customers')
     .select('*')
@@ -32,19 +31,20 @@ export default async function CustomerDashboardPage() {
     );
   }
 
-  // Fetch customer's orders
-  const { data: orders, error } = await supabase
+  const { data: orders } = await supabase
     .from('orders')
-    .select(`
+    .select(
+      `
       *,
       quotes (*),
       drivers (name, phone)
-    `)
+    `
+    )
     .eq('customer_id', (customer as any).id)
     .order('created_at', { ascending: false });
 
   return (
-    <CustomerDashboard
+    <CustomerDashboardClient
       customer={customer}
       orders={orders || []}
     />
