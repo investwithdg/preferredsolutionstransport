@@ -40,7 +40,12 @@ export default function SignInPage() {
   // Get role from URL if present
   useEffect(() => {
     const roleParam = searchParams.get('role');
-    if (roleParam === 'driver' || roleParam === 'dispatcher' || roleParam === 'recipient') {
+    if (
+      roleParam === 'driver' ||
+      roleParam === 'dispatcher' ||
+      roleParam === 'recipient' ||
+      roleParam === 'admin'
+    ) {
       setSelectedRole(roleParam);
     }
 
