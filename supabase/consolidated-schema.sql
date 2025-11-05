@@ -97,7 +97,7 @@ CREATE TABLE IF NOT EXISTS public.orders (
 -- Drivers table (Milestone 2)
 CREATE TABLE IF NOT EXISTS public.drivers (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id uuid REFERENCES auth.users(id) UNIQUE, -- Nullable for now, will be required later
+  user_id uuid REFERENCES public.users(id) ON DELETE CASCADE UNIQUE, -- Links to app user table, not auth.users
   name text NOT NULL,
   phone text,
   vehicle_details jsonb, -- { "make": "Ford", "model": "Transit", "license_plate": "ABC1234" }
@@ -947,19 +947,30 @@ CREATE POLICY "Admin dispatcher full dispatch_events"
 -- =============================================================================
 -- DRIVER POLICIES (Own Profile + Assigned Orders)
 -- =============================================================================
--- Drivers can view/update their own profile
+-- Drivers can view/update their own profile (using public.users relationship)
 CREATE POLICY "Drivers manage own profile"
   ON public.drivers FOR ALL
-  USING (auth.uid() = user_id)
-  WITH CHECK (auth.uid() = user_id);
+  USING (
+    user_id IN (
+      SELECT id FROM public.users
+      WHERE auth_id = auth.uid()
+    )
+  )
+  WITH CHECK (
+    user_id IN (
+      SELECT id FROM public.users
+      WHERE auth_id = auth.uid()
+    )
+  );
 
 -- Drivers can view ALL driver profiles (for reference in dispatcher view)
 CREATE POLICY "Drivers view all driver profiles"
   ON public.drivers FOR SELECT
   USING (
     EXISTS (
-      SELECT 1 FROM public.drivers
-      WHERE drivers.user_id = auth.uid()
+      SELECT 1 FROM public.users
+      WHERE users.auth_id = auth.uid()
+      AND users.role = 'driver'
     )
   );
 
@@ -967,9 +978,10 @@ CREATE POLICY "Drivers view all driver profiles"
 CREATE POLICY "Drivers view assigned orders"
   ON public.orders FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM public.drivers
-      WHERE drivers.user_id = auth.uid() AND drivers.id = orders.driver_id
+    driver_id IN (
+      SELECT d.id FROM public.drivers d
+      JOIN public.users u ON u.id = d.user_id
+      WHERE u.auth_id = auth.uid()
     )
   );
 
@@ -978,15 +990,17 @@ CREATE POLICY "Drivers view assigned orders"
 CREATE POLICY "Drivers update assigned orders"
   ON public.orders FOR UPDATE
   USING (
-    EXISTS (
-      SELECT 1 FROM public.drivers
-      WHERE drivers.user_id = auth.uid() AND drivers.id = orders.driver_id
+    driver_id IN (
+      SELECT d.id FROM public.drivers d
+      JOIN public.users u ON u.id = d.user_id
+      WHERE u.auth_id = auth.uid()
     )
   )
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.drivers
-      WHERE drivers.user_id = auth.uid() AND drivers.id = orders.driver_id
+    driver_id IN (
+      SELECT d.id FROM public.drivers d
+      JOIN public.users u ON u.id = d.user_id
+      WHERE u.auth_id = auth.uid()
     )
   );
 
@@ -994,10 +1008,11 @@ CREATE POLICY "Drivers update assigned orders"
 CREATE POLICY "Drivers view own dispatch events"
   ON public.dispatch_events FOR SELECT
   USING (
-    EXISTS (
-      SELECT 1 FROM public.orders o
+    order_id IN (
+      SELECT o.id FROM public.orders o
       JOIN public.drivers d ON d.id = o.driver_id
-      WHERE o.id = dispatch_events.order_id AND d.user_id = auth.uid()
+      JOIN public.users u ON u.id = d.user_id
+      WHERE u.auth_id = auth.uid()
     )
   );
 
@@ -1007,8 +1022,9 @@ CREATE POLICY "Drivers can read their own locations"
   FOR SELECT
   USING (
     driver_id IN (
-      SELECT id FROM public.drivers 
-      WHERE user_id = auth.uid()
+      SELECT d.id FROM public.drivers d
+      JOIN public.users u ON u.id = d.user_id
+      WHERE u.auth_id = auth.uid()
     )
   );
 
@@ -1018,8 +1034,9 @@ CREATE POLICY "Drivers can insert their own locations"
   FOR INSERT
   WITH CHECK (
     driver_id IN (
-      SELECT id FROM public.drivers 
-      WHERE user_id = auth.uid()
+      SELECT d.id FROM public.drivers d
+      JOIN public.users u ON u.id = d.user_id
+      WHERE u.auth_id = auth.uid()
     )
   );
 
@@ -1071,10 +1088,10 @@ CREATE POLICY "Drivers can insert their PoD"
   FOR INSERT
   TO authenticated
   WITH CHECK (
-    EXISTS (
-      SELECT 1 FROM public.drivers
-      WHERE drivers.id = delivery_proof.driver_id
-      AND drivers.user_id = auth.uid()
+    driver_id IN (
+      SELECT d.id FROM public.drivers d
+      JOIN public.users u ON u.id = d.user_id
+      WHERE u.auth_id = auth.uid()
     )
   );
 
@@ -1084,10 +1101,10 @@ CREATE POLICY "Drivers can view their PoD"
   FOR SELECT
   TO authenticated
   USING (
-    EXISTS (
-      SELECT 1 FROM public.drivers
-      WHERE drivers.id = delivery_proof.driver_id
-      AND drivers.user_id = auth.uid()
+    driver_id IN (
+      SELECT d.id FROM public.drivers d
+      JOIN public.users u ON u.id = d.user_id
+      WHERE u.auth_id = auth.uid()
     )
   );
 
@@ -1183,7 +1200,9 @@ CREATE POLICY "Drivers can upload PoD files"
   WITH CHECK (
     bucket_id = 'proof-of-delivery'
     AND (storage.foldername(name))[1] IN (
-      SELECT driver_id::text FROM public.drivers WHERE user_id = auth.uid()
+      SELECT d.id::text FROM public.drivers d
+      JOIN public.users u ON u.id = d.user_id
+      WHERE u.auth_id = auth.uid()
     )
   );
 
@@ -1203,7 +1222,9 @@ CREATE POLICY "Drivers can update their PoD files"
   USING (
     bucket_id = 'proof-of-delivery'
     AND (storage.foldername(name))[1] IN (
-      SELECT driver_id::text FROM public.drivers WHERE user_id = auth.uid()
+      SELECT d.id::text FROM public.drivers d
+      JOIN public.users u ON u.id = d.user_id
+      WHERE u.auth_id = auth.uid()
     )
   );
 
@@ -1215,7 +1236,9 @@ CREATE POLICY "Drivers can delete their PoD files"
   USING (
     bucket_id = 'proof-of-delivery'
     AND (storage.foldername(name))[1] IN (
-      SELECT driver_id::text FROM public.drivers WHERE user_id = auth.uid()
+      SELECT d.id::text FROM public.drivers d
+      JOIN public.users u ON u.id = d.user_id
+      WHERE u.auth_id = auth.uid()
     )
   );
 

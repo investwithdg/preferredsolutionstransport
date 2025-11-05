@@ -75,14 +75,14 @@ export async function POST(req: NextRequest) {
 
       console.log('[ensure-role] Creating user record with role:', finalRole);
 
-      const { error: upsertErr } = await service.from('users').upsert(
+      const { data: userData, error: upsertErr } = await service.from('users').upsert(
         {
           auth_id: session.user.id,
           email: session.user.email,
           role: finalRole,
         },
         { onConflict: 'auth_id' }
-      );
+      ).select('id').single();
 
       if (upsertErr) {
         console.error('[ensure-role] upsert error details:', {
@@ -97,14 +97,14 @@ export async function POST(req: NextRequest) {
         }, { status: 500 });
       }
 
-      console.log('[ensure-role] User record created successfully');
+      console.log('[ensure-role] User record created successfully with ID:', userData.id);
 
-      // If driver, ensure a driver record exists
+      // If driver, ensure a driver record exists using public.users.id
       if (finalRole === 'driver') {
         const { error: driverInsertErr } = await service
           .from('drivers')
           .insert({
-            user_id: session.user.id,
+            user_id: userData.id, // Use public.users.id, not auth.users.id
             name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Driver',
             phone: session.user.user_metadata?.phone || '',
             vehicle_details: null,
@@ -115,6 +115,8 @@ export async function POST(req: NextRequest) {
         // Ignore duplicate key errors (unique user_id)
         if (driverInsertErr && !String(driverInsertErr.message).includes('duplicate')) {
           console.warn('[ensure-role] driver insert warning', driverInsertErr);
+        } else {
+          console.log('[ensure-role] Driver record created successfully');
         }
       }
     }

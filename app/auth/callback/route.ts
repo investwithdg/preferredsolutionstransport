@@ -69,23 +69,23 @@ export async function GET(req: NextRequest) {
         if (!userRole) {
           // Check if they came from a specific signup flow (role param in URL)
           if (roleParam && ['recipient', 'driver', 'dispatcher'].includes(roleParam)) {
-            // Create user record with the specified role
-            const { error: upsertError } = await service.from('users').upsert(
+            // Create user record with the specified role and get the user ID
+            const { data: userData, error: upsertError } = await service.from('users').upsert(
               {
                 auth_id: authId,
                 email: email,
                 role: roleParam as 'recipient' | 'driver' | 'dispatcher',
               },
               { onConflict: 'auth_id' }
-            );
+            ).select('id').single();
 
-            if (!upsertError) {
+            if (!upsertError && userData) {
               userRole = roleParam as 'admin' | 'dispatcher' | 'driver' | 'recipient';
 
-              // Create driver record if role is driver
+              // Create driver record if role is driver, using public.users.id
               if (roleParam === 'driver') {
                 await service.from('drivers').insert({
-                  user_id: authId,
+                  user_id: userData.id, // Use public.users.id, not auth.users.id
                   name: session.user.user_metadata?.name || email?.split('@')[0] || 'Driver',
                   phone: session.user.user_metadata?.phone || '',
                   vehicle_details: null,
