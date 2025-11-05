@@ -51,62 +51,44 @@ export default function OAuthRoleSelectPage() {
 
   const handleRoleSelection = async (role: UserRole) => {
     if (isLoading) return;
-    
+
     setIsLoading(true);
     setSelectedRole(role);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      
+
       if (!session) {
         throw new Error('No active session');
       }
 
-      // Create or update user record with selected role
-      const { error: userError } = await supabase
-        .from('users')
-        .upsert({
-          auth_id: session.user.id,
-          email: session.user.email,
-          role: role,
-        }, { onConflict: 'auth_id' });
-
-      if (userError) throw userError;
-
-      // If driver, create a driver record
-      if (role === 'driver') {
-        const { error: driverError } = await supabase
-          .from('drivers')
-          .insert({
-            name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Driver',
-            phone: session.user.user_metadata?.phone || '',
-            vehicle_details: '{}',
-          });
-
-        if (driverError && driverError.code !== '23505') { // Ignore duplicate key error
-          console.error('Error creating driver record:', driverError);
-        }
-      }
-
-      // Link customer record if recipient
-      if (role === 'recipient' && session.user.email) {
-        await supabase
-          .from('customers')
-          .update({ email: session.user.email })
-          .eq('email', session.user.email);
-      }
-
-      toast.success('Account setup complete!', {
-        description: `You're now registered as a ${role === 'recipient' ? 'customer' : role}`,
+      // Use server-side API to set role (has proper permissions via service role)
+      const response = await fetch('/api/auth/ensure-role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role }),
+        credentials: 'include',
       });
 
-      // Redirect based on role
-      const redirectPath = role === 'driver' 
-        ? '/driver' 
-        : role === 'dispatcher' 
-        ? '/dispatcher' 
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Failed to set role');
+      }
+
+      const result = await response.json();
+      const actualRole = result.role || role;
+
+      toast.success('Account setup complete!', {
+        description: `You're now registered as a ${actualRole === 'recipient' ? 'customer' : actualRole}`,
+      });
+
+      // Redirect based on actual role from server
+      const redirectPath = actualRole === 'driver'
+        ? '/driver'
+        : actualRole === 'dispatcher'
+        ? '/dispatcher'
         : '/customer/dashboard';
-      
+
       router.push(redirectPath);
     } catch (error: any) {
       toast.error('Failed to set role', {
