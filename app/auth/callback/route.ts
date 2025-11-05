@@ -97,6 +97,10 @@ export async function GET(req: NextRequest) {
                 // Customer record is already linked via email
                 // No action needed
               }
+            } else {
+              // Failed to create user with role, redirect to role selection page
+              console.error('[Auth Callback] Failed to set role:', upsertError);
+              return NextResponse.redirect(`${origin}/auth/oauth-role-select`);
             }
           } else {
             // No role specified, redirect to role selection page
