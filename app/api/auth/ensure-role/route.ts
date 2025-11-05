@@ -13,17 +13,30 @@ export const runtime = 'nodejs';
 export async function POST(req: NextRequest) {
   const res = NextResponse.next();
   try {
+    // Validate environment variables
+    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('[ensure-role] SUPABASE_SERVICE_ROLE_KEY is not set');
+      return NextResponse.json({
+        error: 'Server configuration error: SUPABASE_SERVICE_ROLE_KEY is not set'
+      }, { status: 500 });
+    }
+
     const cookieClient = createRouteHandlerClient(req, res);
     const {
       data: { session },
     } = await cookieClient.auth.getSession();
 
     if (!session?.user) {
+      console.log('[ensure-role] No session found');
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    console.log('[ensure-role] Processing request for user:', session.user.id);
+
     const body = await req.json().catch(() => ({}));
     const requestedRole = body?.role as 'recipient' | 'driver' | 'dispatcher' | undefined;
+
+    console.log('[ensure-role] Requested role:', requestedRole);
 
     const service = createServiceRoleClient();
 
@@ -35,9 +48,19 @@ export async function POST(req: NextRequest) {
       .maybeSingle();
 
     if (selectErr) {
-      console.error('[ensure-role] select error', selectErr);
-      return NextResponse.json({ error: 'Database error' }, { status: 500 });
+      console.error('[ensure-role] select error details:', {
+        message: selectErr.message,
+        details: selectErr.details,
+        hint: selectErr.hint,
+        code: selectErr.code,
+      });
+      return NextResponse.json({
+        error: 'Database error',
+        details: selectErr.message
+      }, { status: 500 });
     }
+
+    console.log('[ensure-role] Existing user record:', existing);
 
     let finalRole = existing?.role as 'admin' | 'dispatcher' | 'driver' | 'recipient' | null;
 
@@ -50,6 +73,8 @@ export async function POST(req: NextRequest) {
           ? requestedRole
           : 'recipient';
 
+      console.log('[ensure-role] Creating user record with role:', finalRole);
+
       const { error: upsertErr } = await service.from('users').upsert(
         {
           auth_id: session.user.id,
@@ -60,9 +85,19 @@ export async function POST(req: NextRequest) {
       );
 
       if (upsertErr) {
-        console.error('[ensure-role] upsert error', upsertErr);
-        return NextResponse.json({ error: 'Failed to set role' }, { status: 500 });
+        console.error('[ensure-role] upsert error details:', {
+          message: upsertErr.message,
+          details: upsertErr.details,
+          hint: upsertErr.hint,
+          code: upsertErr.code,
+        });
+        return NextResponse.json({
+          error: 'Failed to set role',
+          details: upsertErr.message
+        }, { status: 500 });
       }
+
+      console.log('[ensure-role] User record created successfully');
 
       // If driver, ensure a driver record exists
       if (finalRole === 'driver') {
