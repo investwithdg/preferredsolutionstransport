@@ -2,12 +2,10 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useMemo } from 'react';
 import { Card } from '@/app/components/ui/card';
 import { Button } from '@/app/components/ui/button';
 import { Badge } from '@/app/components/ui/badge';
 import { Separator } from '@/app/components/ui/separator';
-import { useDemoAuth } from '@/app/hooks/useDemoAuth';
 import { Settings, ListOrdered, Bell, Map as MapIcon, FileText, LogOut, User } from 'lucide-react';
 
 const navItems = [
@@ -21,13 +19,6 @@ const navItems = [
 
 export function DispatcherSidebar() {
   const pathname = usePathname();
-  const { demoUser } = useDemoAuth();
-
-  const roleLabel = useMemo(() => {
-    const role = demoUser?.role?.toLowerCase();
-    if (!role) return 'Dispatcher';
-    return role.charAt(0).toUpperCase() + role.slice(1);
-  }, [demoUser]);
 
   return (
     <aside className="w-full md:w-72 md:min-h-[calc(100vh-4rem)] md:border-r border-border p-4 space-y-4">
@@ -38,8 +29,8 @@ export function DispatcherSidebar() {
           </div>
           <div>
             <div className="text-sm text-muted-foreground">Welcome,</div>
-            <div className="text-foreground font-medium">{demoUser?.name || 'Dispatcher'}</div>
-            <Badge variant="secondary" className="mt-1 text-xs">{roleLabel}</Badge>
+            <div className="text-foreground font-medium">Dispatcher</div>
+            <Badge variant="secondary" className="mt-1 text-xs">Dispatcher</Badge>
           </div>
         </div>
       </Card>

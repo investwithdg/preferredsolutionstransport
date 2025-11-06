@@ -22,7 +22,6 @@ export async function GET() {
     hubspotToken: process.env.HUBSPOT_PRIVATE_APP_TOKEN ? '✓ Set' : '✗ Missing',
     vapidPublicKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY ? '✓ Set' : '✗ Missing',
     vapidPrivateKey: process.env.VAPID_PRIVATE_KEY ? '✓ Set' : '✗ Missing',
-    demoMode: process.env.NEXT_PUBLIC_DEMO_MODE || 'false',
   };
 
   // Check if critical variables are missing

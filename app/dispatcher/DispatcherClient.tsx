@@ -45,7 +45,6 @@ import { Download, Filter, CreditCard, ExternalLink } from 'lucide-react';
 import { useDispatcherSettings } from '@/app/hooks/useDispatcherSettings';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/app/components/ui/dialog';
 import { toast } from 'sonner';
-import { useDemo } from '@/app/demo/DemoContext';
 
 interface Driver {
   id: string;
@@ -145,7 +144,6 @@ export default function DispatcherClient({
   initialOrders,
   drivers: initialDrivers,
 }: DispatcherClientProps) {
-  const { isDemoMode, demoOrders, assignDemoOrder } = useDemo();
   const [isAssigning, setIsAssigning] = useState<string | null>(null);
   const [selectedDriver, setSelectedDriver] = useState<{ [orderId: string]: string }>({});
   const [selectedOrderForMap, setSelectedOrderForMap] = useState<Order | null>(null);
@@ -169,15 +167,10 @@ export default function DispatcherClient({
   const hubspotMetadata = orderForHubSpotDetails?.hubspot_metadata as Record<string, any> | null;
   const hasHubspotMetadata = !!(hubspotMetadata && Object.keys(hubspotMetadata).length > 0);
 
-  // Get initial orders from demo context in demo mode
-  const demoReadyOrders = isDemoMode
-    ? (demoOrders.filter((o: any) => o.status === 'ReadyForDispatch') as unknown as Order[])
-    : [];
-
   // Real-time subscriptions
   const { orders, lastUpdate } = useRealtimeOrders({
     status: 'ReadyForDispatch',
-    initialOrders: isDemoMode ? demoReadyOrders : initialOrders,
+    initialOrders: initialOrders,
   });
 
   const { drivers } = useRealtimeDrivers(initialDrivers);
@@ -193,27 +186,22 @@ export default function DispatcherClient({
     setIsAssigning(orderId);
 
     try {
-      if (isDemoMode) {
-        // Use shared demo context to assign order
-        assignDemoOrder(orderId, driverId);
-      } else {
-        const response = await fetch('/api/orders/assign', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            orderId,
-            driverId,
-          }),
-        });
+      const response = await fetch('/api/orders/assign', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          orderId,
+          driverId,
+        }),
+      });
 
-        if (!response.ok) {
-          throw new Error('Failed to assign driver');
-        }
-
-        // Real-time subscription will automatically update the list
+      if (!response.ok) {
+        throw new Error('Failed to assign driver');
       }
+
+      // Real-time subscription will automatically update the list
 
       // Clear the selection
       setSelectedDriver((prev) => {

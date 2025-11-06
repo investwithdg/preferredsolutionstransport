@@ -733,7 +733,6 @@ Ensure real-time is enabled for your tables in Supabase:
 **Scripts:**
 
 - `scripts/test-api.sh` - API endpoint testing
-- `scripts/test-demo-mode.sh` - Demo mode testing
 - `scripts/generate-vapid-keys.js` - VAPID keys for push notifications
 - `scripts/validate-hubspot-properties.js` - HubSpot property validation
 

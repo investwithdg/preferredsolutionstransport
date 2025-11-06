@@ -290,9 +290,6 @@ bash scripts/test-api.sh
 # Run API tests
 npm run test:api
 
-# Run demo mode tests
-npm run test:demo
-
 # Smoke tests
 npm run smoke
 ```

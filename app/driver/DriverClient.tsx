@@ -32,7 +32,6 @@ import { watchLocation, clearWatch } from '@/lib/google-maps/tracking';
 import { usePushNotifications } from '@/app/hooks/usePushNotifications';
 import { useRealtimeOrders } from '@/app/hooks/useRealtimeOrders';
 import type { Order as RealtimeOrder } from '@/app/hooks/useRealtimeOrders';
-import { useDemo } from '@/app/demo/DemoContext';
 import { ProofOfDeliveryModal } from '@/app/components/delivery/ProofOfDeliveryModal';
 import {
   Package,
@@ -61,7 +60,6 @@ interface Driver {
 }
 
 export default function DriverClient() {
-  const { isDemoMode, currentDriverId, demoDrivers, demoOrders, updateDemoOrderStatus } = useDemo();
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
@@ -77,19 +75,12 @@ export default function DriverClient() {
   });
 
   // Use real-time orders hook with driver filter
-  // In demo mode, use shared demo orders filtered by selected driver
-  const demoDriverOrders =
-    isDemoMode && selectedDriverId
-      ? (demoOrders.filter((o: any) => o.driver_id === selectedDriverId) as unknown as Order[])
-      : [];
-
   const {
     orders,
     isLoading,
     refresh: refreshOrders,
   } = useRealtimeOrders({
     driverId: selectedDriverId || undefined,
-    initialOrders: isDemoMode ? demoDriverOrders : [],
   });
 
   const fetchDrivers = useCallback(async () => {
@@ -104,45 +95,16 @@ export default function DriverClient() {
   }, []);
 
   useEffect(() => {
-    if (isDemoMode) {
-      // In demo mode, use demo drivers
-      const demoDriverList = demoDrivers.map((driver: any) => ({
-        id: driver.id,
-        name: driver.name,
-        phone: '(555) 123-4567',
-        vehicle_details: { type: 'Van', plate: 'DEMO-123' },
-        active_orders_count: 0,
-        is_available: true,
-      }));
-      setDrivers(demoDriverList);
-
-      // Auto-select the current demo driver
-      if (currentDriverId) {
-        setSelectedDriverId(currentDriverId);
-      } else if (demoDriverList.length > 0) {
-        setSelectedDriverId(demoDriverList[0].id);
-      }
-    } else {
-      // In non-demo mode, only fetch if a driver is selected (avoid unnecessary load)
-      setDrivers([]);
-      if (selectedDriverId) {
-        fetchDrivers();
-      }
+    // Only fetch if a driver is selected (avoid unnecessary load)
+    setDrivers([]);
+    if (selectedDriverId) {
+      fetchDrivers();
     }
-  }, [isDemoMode, currentDriverId, demoDrivers, fetchDrivers, selectedDriverId]);
+  }, [fetchDrivers, selectedDriverId]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     setIsUpdating(orderId);
     try {
-      if (isDemoMode) {
-        // In demo mode, update shared demo context
-        updateDemoOrderStatus(orderId, newStatus);
-        toast.success('Status updated!', {
-          description: `Order marked as ${newStatus}`,
-        });
-        return;
-      }
-
       const requestBody = {
         status: newStatus,
         notes: `Status updated by driver via dashboard`,
@@ -311,9 +273,6 @@ export default function DriverClient() {
 
           // Send location update for each active order
           activeOrders.forEach(async (order) => {
-            if (isDemoMode) {
-              return;
-            }
             try {
               const payload = {
                 driverId: selectedDriverId,
@@ -396,38 +355,6 @@ export default function DriverClient() {
         breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Driver' }]}
       />
 
-      {/* Driver Selection (Demo Mode) */}
-      {isDemoMode && (
-        <Card className="mb-8 bg-muted/50 border-2 border-dashed">
-          <CardContent className="p-6">
-            <div className="flex items-center gap-4">
-              <div className="rounded-full bg-background p-3">
-                <TruckIcon className="h-6 w-6 text-muted-foreground" />
-              </div>
-              <div className="flex-1">
-                <label
-                  htmlFor="driver-select"
-                  className="text-sm font-medium text-foreground mb-2 block"
-                >
-                  Select Driver (Demo Mode)
-                </label>
-                <Select value={selectedDriverId} onValueChange={setSelectedDriverId}>
-                  <SelectTrigger id="driver-select" className="w-full max-w-md">
-                    <SelectValue placeholder="Choose a driver..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {drivers.map((driver) => (
-                      <SelectItem key={driver.id} value={driver.id}>
-                        {driver.name} ({driver.active_orders_count} active orders)
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       {/* Push Notification Settings */}
       {selectedDriverId && pushNotifications.isSupported && (
