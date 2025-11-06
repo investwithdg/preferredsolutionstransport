@@ -350,13 +350,6 @@ CREATE TRIGGER trigger_update_delivery_proof_updated_at
   FOR EACH ROW
   EXECUTE FUNCTION update_delivery_proof_updated_at();
 
--- Trigger for audit logging on users table
-DROP TRIGGER IF EXISTS audit_user_changes ON public.users;
-CREATE TRIGGER audit_user_changes
-  AFTER INSERT OR UPDATE ON public.users
-  FOR EACH ROW
-  EXECUTE FUNCTION public.audit_user_role_changes();
-
 -- Trigger for audit logging on order assignments
 DROP TRIGGER IF EXISTS audit_order_assignments ON public.orders;
 CREATE TRIGGER audit_order_assignments
@@ -643,6 +636,13 @@ CREATE POLICY "Users update own record"
   ON public.users FOR UPDATE
   USING (auth.uid() = auth_id)
   WITH CHECK (auth.uid() = auth_id);
+
+-- Trigger for audit logging on users table
+DROP TRIGGER IF EXISTS audit_user_changes ON public.users;
+CREATE TRIGGER audit_user_changes
+  AFTER INSERT OR UPDATE ON public.users
+  FOR EACH ROW
+  EXECUTE FUNCTION public.audit_user_role_changes();
 
 -- Helper function to get current user's role
 CREATE OR REPLACE FUNCTION public.current_user_role()
