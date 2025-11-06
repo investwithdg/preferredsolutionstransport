@@ -606,9 +606,8 @@ Set up alerts for:
 
 ## Best Practices
 
-1. **Always test in demo mode first** before using real integrations
-2. **Use test Stripe cards** - never use real payment methods
-3. **Keep test data clearly labeled** with `@test.preferredsolutions` domain
+1. **Use test Stripe cards** - never use real payment methods
+2. **Keep test data clearly labeled** with `@test.preferredsolutions` domain
 4. **Reset test data regularly** to ensure clean state
 5. **Document any issues** you encounter for future reference
 

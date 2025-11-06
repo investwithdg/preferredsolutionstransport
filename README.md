@@ -195,7 +195,6 @@ cp env.example .env.local
 - `HUBSPOT_PRIVATE_APP_TOKEN` - CRM integration + email notifications
 - `NEXT_PUBLIC_APP_URL` - Your app URL (for email tracking links, default: http://localhost:3000)
 - `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` - Optional SMS alerts for drivers (use Messaging Service SID instead of `TWILIO_FROM_NUMBER` if preferred)
-- `NEXT_PUBLIC_DEMO_MODE` - Enable demo UI (role switcher, demo data). Keep false in production
 
 **NEW for Phase 1-3:**
 
@@ -219,7 +218,7 @@ This single file contains:
 - Production-ready indexes and constraints
 - Rate limiting infrastructure
 - Monitoring functions
-- Test data seeding (5 demo drivers)
+- Test data seeding
 
 **Optional: Set up user roles after creating auth users:**
 
@@ -246,19 +245,6 @@ npm run dev
 ```
 
 Open http://localhost:3000 in your browser.
-
-### Demo Mode
-
-Set `NEXT_PUBLIC_DEMO_MODE=true` in `.env.local` to enable demo features:
-
-- Floating role switcher
-- Demo drivers and demo dispatcher data
-- Middleware bypasses auth in demo via `demo-mode` cookie
-- Test dispatcher workflow without authentication
-
-**⚠️ Important for Vercel**: After setting `NEXT_PUBLIC_DEMO_MODE=true` in environment variables, you MUST redeploy to rebuild the app. The demo mode check is now runtime-based but requires the components to be bundled.
-
-**⚠️ Security**: In production, leave `NEXT_PUBLIC_DEMO_MODE` unset/false to disable all demo surfaces.
 
 ### Validation & Quality Checks
 
@@ -315,9 +301,8 @@ Use the script in `scripts/test-api.sh` or test manually:
 3.  Return to `/thank-you`
 4.  Visit `/dispatcher` and you should see a new order with `ReadyForDispatch`
 5.  Assign an available driver to the order
-6.  Visit `/driver`, select the assigned driver from the demo dropdown
-7.  Verify you can see the assigned order and update its status
-8.  In your Stripe CLI window, you should see `checkout.session.completed`
+6.  Visit `/driver` and verify you can see the assigned order and update its status
+7.  In your Stripe CLI window, you should see `checkout.session.completed`
 
 ## 💰 Pricing Configuration
 

@@ -48,7 +48,7 @@ vercel deploy --prod
 
 #### Quick Test Flow:
 
-1. Navigate to `/driver` (demo mode works!)
+1. Navigate to `/driver`
 2. Select a driver
 3. Find an "In Transit" order
 4. Click **Mark Delivered**
@@ -385,7 +385,7 @@ SELECT * FROM delivery_proof LIMIT 1;
 
 2. **Test Photo Capture**:
    - Navigate to `/driver`
-   - Select a driver (demo mode)
+   - Select a driver
    - Find an "In Transit" order
    - Click "Mark Delivered"
    - Test camera functionality
@@ -462,7 +462,6 @@ For issues or questions:
 2. Review browser console errors
 3. Check Supabase logs in dashboard
 4. Verify database schema matches migration
-5. Test in demo mode to isolate issues
 
 ## License
 
