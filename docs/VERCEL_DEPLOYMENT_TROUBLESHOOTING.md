@@ -99,16 +99,6 @@ git push origin main
 
 ## Special Cases
 
-### Demo Mode
-
-If you want to test the application without authentication:
-
-1. Set `NEXT_PUBLIC_DEMO_MODE=true` in Vercel environment variables
-2. Redeploy
-3. Visit the homepage and you'll see a demo mode banner
-
-⚠️ **Never enable demo mode in production!**
-
 ### Supabase Redirect URLs
 
 Make sure your Supabase project has the correct redirect URLs configured:

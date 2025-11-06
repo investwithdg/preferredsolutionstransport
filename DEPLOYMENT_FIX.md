@@ -159,24 +159,6 @@ After redeployment completes:
 
 ---
 
-## Need Demo Mode?
-
-If you want to test the app without authentication:
-
-1. In Vercel, add:
-
-   ```bash
-   NEXT_PUBLIC_DEMO_MODE=true
-   ```
-
-2. Redeploy
-
-3. Visit homepage - you'll see a demo mode banner
-
-⚠️ **Never enable demo mode in production!**
-
----
-
 ## Testing Locally
 
 To test these fixes locally:

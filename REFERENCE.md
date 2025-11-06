@@ -11,8 +11,7 @@ This document consolidates all essential information for deploying, configuring,
 5. [Configuration](#5-configuration)
 6. [Troubleshooting](#6-troubleshooting)
 7. [Security & Access Control](#7-security--access-control)
-8. [Demo Mode](#8-demo-mode)
-9. [API Routes](#9-api-routes)
+8. [API Routes](#8-api-routes)
 
 ---
 
@@ -97,11 +96,6 @@ NEXT_PUBLIC_SITE_URL=https://your-domain.com
 NEXT_PUBLIC_BASE_URL=https://your-domain.com
 ```
 
-**Demo Mode (NEVER enable in production!):**
-```env
-NEXT_PUBLIC_DEMO_MODE=false
-```
-
 ### Supabase Auth Setup (Updated for @supabase/ssr)
 
 **Client Setup:**
@@ -158,7 +152,7 @@ This single file contains:
 - Production-ready indexes and constraints
 - Rate limiting infrastructure
 - Monitoring functions
-- Test data seeding (5 demo drivers)
+- Test data seeding
 
 ### Optional: Set Up User Roles
 
@@ -562,61 +556,7 @@ Protected routes automatically redirect based on authentication status:
 
 ---
 
-## 8. Demo Mode
-
-Demo Mode allows you to quickly switch between different user roles without authentication - perfect for testing and demonstrations.
-
-### Enabling Demo Mode
-
-1. Add to your `.env.local`:
-   ```env
-   NEXT_PUBLIC_DEMO_MODE=true
-   ```
-
-2. Restart your development server:
-   ```bash
-   npm run dev
-   ```
-
-3. You'll see a yellow warning banner and floating demo widget
-
-⚠️ **IMPORTANT**: Never enable Demo Mode in production!
-
-### Role Switching
-
-- **Customer**: View quotes, make payments, track orders
-- **Dispatcher**: Assign drivers to orders, view dispatch queue
-- **Driver**: Accept orders, update delivery status
-- **Admin**: Manage users, drivers, view all orders
-
-### Quick Actions
-
-Pre-configured navigation for complete workflows:
-1. **Start as Customer → Quote**: Begin customer journey
-2. **View as Dispatcher → Assign**: Switch to dispatcher view
-3. **View as Driver → Update Status**: View assigned orders as driver
-4. **View as Admin → Manage**: Access admin dashboard
-
-### Demo Features
-
-- ✅ Role switching without authentication
-- ✅ 3 demo drivers available for selection
-- ✅ Quick action flows for testing workflows
-- ✅ State persistence across page refreshes
-- ✅ Create test orders instantly
-- ✅ Reset all demo data between tests
-
-### Testing Scripts
-
-```bash
-npm run test-demo-mode.sh  # Test demo mode functionality
-npm run test-api.sh        # Test API endpoints
-npm run smoke.sh           # Quick smoke test
-```
-
----
-
-## 9. API Routes
+## 8. API Routes
 
 ### Core Endpoints
 

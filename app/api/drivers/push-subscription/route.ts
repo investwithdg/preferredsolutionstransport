@@ -13,13 +13,6 @@ export async function POST(request: NextRequest) {
     
     const { driverId, subscription } = subscriptionSchema.parse(requestBody);
 
-    // In demo mode, don't save to the database, just return success
-    if (process.env.NEXT_PUBLIC_DEMO_MODE === 'true' && driverId.startsWith('demo-')) {
-      console.log(`Demo mode: Bypassing database for push subscription for ${driverId}`);
-      const { body: responseBody, init } = http.ok({ success: true, demo: true });
-      return NextResponse.json(responseBody, init);
-    }
-
     await upsertDriverPushSubscription(driverId, subscription);
     const { body: responseBody, init } = http.ok({ success: true });
     return NextResponse.json(responseBody, init);
