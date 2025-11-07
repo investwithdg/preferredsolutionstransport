@@ -66,11 +66,24 @@ export default function DriverClient() {
           return;
         }
 
+        // First get the public.users record to get the user's ID
+        const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('auth_id', session.user.id)
+          .single();
+
+        if (userError || !userData) {
+          console.error('Error fetching user record:', userError);
+          setIsLoadingDriverId(false);
+          return;
+        }
+
         // Query drivers table to find the driver record for this user
         const { data: driver, error } = await supabase
           .from('drivers')
           .select('id')
-          .eq('user_id', session.user.id)
+          .eq('user_id', userData.id)
           .single();
 
         if (error || !driver) {

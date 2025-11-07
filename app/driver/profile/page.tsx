@@ -13,6 +13,26 @@ export default async function DriverProfilePage() {
     redirect('/auth/sign-in');
   }
 
+  // First get the public.users record to get the user's ID
+  const { data: userData, error: userError } = await supabase
+    .from('users')
+    .select('id')
+    .eq('auth_id', session.user.id)
+    .single();
+
+  if (userError || !userData) {
+    return (
+      <div className="container max-w-[1200px] mx-auto py-8 px-4 sm:px-6 lg:px-8">
+        <div className="text-center py-12">
+          <h1 className="text-heading-lg font-semibold mb-4">User Not Found</h1>
+          <p className="text-muted-foreground">
+            No user profile found for this account.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   const { data: driverWithOrders, error } = await supabase
     .from('drivers')
     .select(
@@ -26,7 +46,7 @@ export default async function DriverProfilePage() {
       )
     `
     )
-    .eq('user_id', session.user.id)
+    .eq('user_id', userData.id)
     .single();
 
   if (error || !driverWithOrders) {

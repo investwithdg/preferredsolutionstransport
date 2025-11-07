@@ -36,10 +36,12 @@ export async function POST(req: NextRequest) {
     const service = createServiceRoleClient();
 
     // Update the user's role
-    const { error: updateErr } = await service
+    const { data: updatedUser, error: updateErr } = await service
       .from('users')
       .update({ role: newRole })
-      .eq('auth_id', session.user.id);
+      .eq('auth_id', session.user.id)
+      .select('id')
+      .single();
 
     if (updateErr) {
       console.error('[switch-role] update error', updateErr);
@@ -47,11 +49,11 @@ export async function POST(req: NextRequest) {
     }
 
     // If switching to driver, ensure a driver record exists
-    if (newRole === 'driver') {
+    if (newRole === 'driver' && updatedUser?.id) {
       const { error: driverInsertErr } = await service
         .from('drivers')
         .insert({
-          user_id: session.user.id,
+          user_id: updatedUser.id, // Use public.users.id, not auth.users.id
           name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Driver',
           phone: session.user.user_metadata?.phone || '',
           vehicle_details: null,

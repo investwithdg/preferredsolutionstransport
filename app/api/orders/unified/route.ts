@@ -35,10 +35,10 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
     }
 
-    // Get user role
+    // Get user role and ID
     const { data: userData, error: userError } = await db
       .from('users')
-      .select('role')
+      .select('id, role')
       .eq('auth_id', user.id)
       .single();
 
@@ -99,7 +99,7 @@ export async function GET(request: NextRequest) {
       const { data: driver } = await db
         .from('drivers')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', userData.id)
         .single();
 
       if (driver) {
