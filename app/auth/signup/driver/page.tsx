@@ -71,16 +71,20 @@ export default function DriverSignUpPage() {
 
       if (data.user) {
         // Create user record in public.users table
-        const { error: userError } = await supabase.from('users').upsert(
+        const { data: userRecord, error: userError } = await supabase.from('users').upsert(
           {
             auth_id: data.user.id,
             email: formData.email,
             role: 'driver',
           },
           { onConflict: 'auth_id' }
-        );
+        ).select().single();
 
-        if (userError) console.error('Error creating user record:', userError);
+        if (userError || !userRecord) {
+          console.error('Error creating user record:', userError);
+          toast.error('Failed to create user profile');
+          return;
+        }
 
         // Create driver record with vehicle details
         const vehicleDetails = JSON.stringify({
@@ -90,12 +94,17 @@ export default function DriverSignUpPage() {
         });
 
         const { error: driverError } = await supabase.from('drivers').insert({
+          user_id: userRecord.id, // Link to public.users.id
           name: formData.name,
           phone: formData.phone,
           vehicle_details: vehicleDetails,
         });
 
-        if (driverError) console.error('Error creating driver record:', driverError);
+        if (driverError) {
+          console.error('Error creating driver record:', driverError);
+          toast.error('Failed to create driver profile');
+          return;
+        }
 
         toast.success('Driver account created!', {
           description: 'Please check your email to verify your account.',

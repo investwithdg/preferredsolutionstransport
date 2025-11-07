@@ -141,20 +141,20 @@ export async function POST(request: NextRequest) {
     }
 
     // Create user record in public.users
-    const { error: userError } = await supabase.from('users').insert({
+    const { data: userRecord, error: userError } = await supabase.from('users').insert({
       auth_id: authData.user.id,
       email: email,
       role: role,
-    });
+    }).select().single();
 
-    if (userError) {
+    if (userError || !userRecord) {
       console.error('Error creating user record:', userError);
 
       // Cleanup: delete auth user if public.users insert failed
       await supabase.auth.admin.deleteUser(authData.user.id);
 
       return NextResponse.json(
-        { error: 'Failed to create user record', details: userError.message },
+        { error: 'Failed to create user record', details: userError?.message || 'No user record returned' },
         { status: 500 }
       );
     }
@@ -162,7 +162,7 @@ export async function POST(request: NextRequest) {
     // If role is driver, create driver record
     if (role === 'driver') {
       const { error: driverError } = await supabase.from('drivers').insert({
-        user_id: authData.user.id,
+        user_id: userRecord.id, // Use public.users.id, not auth.users.id
         name: name || email.split('@')[0],
         phone: '',
         vehicle_details: null,
