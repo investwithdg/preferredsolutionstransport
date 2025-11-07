@@ -52,6 +52,7 @@ export default function RoleSelectPage() {
   const handleRoleSelection = async (role: UserRole) => {
     if (isLoading) return;
 
+    console.log('[RoleSelect] Starting role selection:', role);
     setIsLoading(true);
     setSelectedRole(role);
 
@@ -59,8 +60,11 @@ export default function RoleSelectPage() {
       const { data: { session } } = await supabase.auth.getSession();
 
       if (!session) {
+        console.error('[RoleSelect] No active session');
         throw new Error('No active session');
       }
+
+      console.log('[RoleSelect] Session found, calling API');
 
       // Use server-side API to set role (has proper permissions via service role)
       const response = await fetch('/api/auth/ensure-role', {
@@ -70,12 +74,17 @@ export default function RoleSelectPage() {
         credentials: 'include',
       });
 
+      console.log('[RoleSelect] API response status:', response.status);
+
       if (!response.ok) {
         const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Failed to set role');
+        console.error('[RoleSelect] API error:', errorData);
+        throw new Error(errorData.error || errorData.details || 'Failed to set role');
       }
 
       const result = await response.json();
+      console.log('[RoleSelect] API result:', result);
+
       const actualRole = result.role || role;
 
       toast.success('Account setup complete!', {
@@ -89,8 +98,10 @@ export default function RoleSelectPage() {
         ? '/dispatcher'
         : '/customer/dashboard';
 
+      console.log('[RoleSelect] Redirecting to:', redirectPath);
       router.push(redirectPath);
     } catch (error: any) {
+      console.error('[RoleSelect] Error during role selection:', error);
       toast.error('Failed to set role', {
         description: error.message || 'Please try again',
       });
