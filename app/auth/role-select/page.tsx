@@ -9,7 +9,7 @@ import { createClient } from '@/lib/supabase/client';
 
 type UserRole = 'recipient' | 'driver' | 'dispatcher';
 
-export default function OAuthRoleSelectPage() {
+export default function RoleSelectPage() {
   const router = useRouter();
   const supabase = createClient();
   const [isLoading, setIsLoading] = useState(false);

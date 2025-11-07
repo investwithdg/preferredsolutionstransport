@@ -6,9 +6,10 @@ export const runtime = 'nodejs';
 
 /**
  * POST /api/auth/ensure-role
- * Ensures the authenticated user has a role record in public.users.
- * If absent, creates one using the provided role.
- * Body: { role: 'recipient' | 'driver' | 'dispatcher' }
+ * Dual purpose endpoint:
+ * - When called WITHOUT body.role: Only checks and returns existing role (used by sign-in)
+ * - When called WITH body.role: Creates/updates the role (used by role-select page)
+ * Body (optional): { role: 'recipient' | 'driver' | 'dispatcher' }
  */
 export async function POST(req: NextRequest) {
   const res = NextResponse.next();
@@ -41,8 +42,8 @@ export async function POST(req: NextRequest) {
 
     let finalRole = existing?.role as 'admin' | 'dispatcher' | 'driver' | 'recipient' | null;
 
-    // If no role on record yet, set it from request (default to recipient if invalid)
-    if (!finalRole) {
+    // If a role was requested AND user doesn't have a role yet, create it
+    if (requestedRole && !finalRole) {
       finalRole =
         requestedRole === 'driver' ||
         requestedRole === 'dispatcher' ||
@@ -50,14 +51,18 @@ export async function POST(req: NextRequest) {
           ? requestedRole
           : 'recipient';
 
-      const { error: upsertErr } = await service.from('users').upsert(
-        {
-          auth_id: session.user.id,
-          email: session.user.email,
-          role: finalRole,
-        },
-        { onConflict: 'auth_id' }
-      );
+      const { data: userRecord, error: upsertErr } = await service
+        .from('users')
+        .upsert(
+          {
+            auth_id: session.user.id,
+            email: session.user.email,
+            role: finalRole,
+          },
+          { onConflict: 'auth_id' }
+        )
+        .select()
+        .single();
 
       if (upsertErr) {
         console.error('[ensure-role] upsert error', upsertErr);
@@ -65,11 +70,11 @@ export async function POST(req: NextRequest) {
       }
 
       // If driver, ensure a driver record exists
-      if (finalRole === 'driver') {
+      if (finalRole === 'driver' && userRecord?.id) {
         const { error: driverInsertErr } = await service
           .from('drivers')
           .insert({
-            user_id: session.user.id,
+            user_id: userRecord.id, // Use public.users.id, not auth.users.id
             name: session.user.user_metadata?.name || session.user.email?.split('@')[0] || 'Driver',
             phone: session.user.user_metadata?.phone || '',
             vehicle_details: null,
@@ -84,6 +89,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Return the role (existing or newly created)
     return NextResponse.json({ ok: true, role: finalRole });
   } catch (err) {
     console.error('[ensure-role] unexpected error', err);

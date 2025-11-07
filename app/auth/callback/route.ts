@@ -9,14 +9,12 @@ export async function GET(req: NextRequest) {
   try {
     const requestUrl = new URL(req.url);
     const code = requestUrl.searchParams.get('code');
-    const roleParam = requestUrl.searchParams.get('role'); // Get role from query param
     const error = requestUrl.searchParams.get('error');
     const errorDescription = requestUrl.searchParams.get('error_description');
     const origin = process.env.NEXT_PUBLIC_SITE_URL || getBaseUrl();
 
     console.log('[Auth Callback Debug] Full URL:', requestUrl.toString());
     console.log('[Auth Callback Debug] Code:', code ? 'Present' : 'Missing');
-    console.log('[Auth Callback Debug] Role:', roleParam);
     console.log('[Auth Callback Debug] Error:', error);
     console.log('[Auth Callback Debug] Error Description:', errorDescription);
     console.log('[Auth Callback Debug] Origin:', origin);
@@ -67,45 +65,8 @@ export async function GET(req: NextRequest) {
 
         // If user doesn't have a role yet
         if (!userRole) {
-          // Check if they came from a specific signup flow (role param in URL)
-          if (roleParam && ['recipient', 'driver', 'dispatcher'].includes(roleParam)) {
-            // Create user record with the specified role
-            const { error: upsertError } = await service.from('users').upsert(
-              {
-                auth_id: authId,
-                email: email,
-                role: roleParam as 'recipient' | 'driver' | 'dispatcher',
-              },
-              { onConflict: 'auth_id' }
-            );
-
-            if (!upsertError) {
-              userRole = roleParam as 'admin' | 'dispatcher' | 'driver' | 'recipient';
-
-              // Create driver record if role is driver
-              if (roleParam === 'driver') {
-                await service.from('drivers').insert({
-                  user_id: authId,
-                  name: session.user.user_metadata?.name || email?.split('@')[0] || 'Driver',
-                  phone: session.user.user_metadata?.phone || '',
-                  vehicle_details: null,
-                });
-              }
-
-              // Link customer record if role is recipient (no auth_email field needed)
-              if (roleParam === 'recipient' && email) {
-                // Customer record is already linked via email
-                // No action needed
-              }
-            } else {
-              // Failed to create user with role, redirect to role selection page
-              console.error('[Auth Callback] Failed to set role:', upsertError);
-              return NextResponse.redirect(`${origin}/auth/oauth-role-select`);
-            }
-          } else {
-            // No role specified, redirect to role selection page
-            return NextResponse.redirect(`${origin}/auth/oauth-role-select`);
-          }
+          // Redirect to role selection page
+          return NextResponse.redirect(`${origin}/auth/role-select`);
         }
 
         // Ensure user record exists (for existing users)

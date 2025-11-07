@@ -13,20 +13,11 @@ import { Button } from '@/app/components/ui/button';
 import { Input } from '@/app/components/ui/input';
 import { Label } from '@/app/components/ui/label';
 import { Separator } from '@/app/components/ui/separator';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/app/components/ui/select';
 import { toast } from 'sonner';
-import { Mail, Loader2, TruckIcon, Lock, Chrome, Car, Shield, User } from 'lucide-react';
+import { Mail, Loader2, TruckIcon, Lock, Chrome, User } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { getAuthRedirectUrl } from '@/lib/auth-helpers';
 import { isMasterAccountEnabled } from '@/lib/config';
-
-type UserRole = 'recipient' | 'driver' | 'dispatcher' | 'admin';
 
 export default function SignInPage() {
   const router = useRouter();
@@ -36,22 +27,10 @@ export default function SignInPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<UserRole>('recipient');
   const showMasterAccount = isMasterAccountEnabled();
 
-  // Get role from URL if present
+  // Check for auth errors from callback
   useEffect(() => {
-    const roleParam = searchParams.get('role');
-    if (
-      roleParam === 'driver' ||
-      roleParam === 'dispatcher' ||
-      roleParam === 'recipient' ||
-      roleParam === 'admin'
-    ) {
-      setSelectedRole(roleParam);
-    }
-
-    // Check for auth errors from callback
     const error = searchParams.get('error');
     const message = searchParams.get('message');
 
@@ -95,6 +74,7 @@ export default function SignInPage() {
       toast.success('Sign in successful!');
       router.push(data.redirectPath || '/');
       router.refresh(); // to ensure layout re-renders with new session
+      return;
     } catch (error: any) {
       toast.error('Sign in failed', {
         description: error.message || 'An unexpected error occurred.',
@@ -123,37 +103,46 @@ export default function SignInPage() {
       if (error) throw error;
 
       if (data.user) {
-        // Ensure role record exists on the server and get the ACTUAL role
-        let actualRole = selectedRole;
+        // Check if user has a role in the database
         try {
           const response = await fetch('/api/auth/ensure-role', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ role: selectedRole }),
+            body: JSON.stringify({}), // No role passed, just check existing role
             credentials: 'include',
           });
 
           if (response.ok) {
             const result = await response.json();
-            // Use the actual role from the database, not the selected role
-            actualRole = result.role || selectedRole;
+            const userRole = result.role;
+            
+            if (userRole) {
+              // User has a role, redirect to appropriate dashboard
+              toast.success('Sign in successful!');
+              const redirectPath =
+                userRole === 'driver'
+                  ? '/driver'
+                  : userRole === 'dispatcher' || userRole === 'admin'
+                    ? '/dispatcher'
+                    : '/customer/dashboard';
+              router.push(redirectPath);
+              return;
+            } else {
+              // User has no role, redirect to role selection
+              router.push('/auth/role-select');
+              return;
+            }
+          } else {
+            // API error, redirect to role selection as fallback
+            router.push('/auth/role-select');
+            return;
           }
         } catch (e) {
-          // Non-fatal - continue with redirect using selected role
           console.warn('[Sign In] ensure-role call failed', e);
+          // On error, redirect to role selection
+          router.push('/auth/role-select');
+          return;
         }
-
-        toast.success('Sign in successful!');
-
-        // Redirect based on ACTUAL role from database (not selected role)
-        const redirectPath =
-          actualRole === 'driver'
-            ? '/driver'
-            : actualRole === 'dispatcher' || actualRole === 'admin'
-              ? '/dispatcher'
-              : '/customer/dashboard';
-
-        router.push(redirectPath);
       }
     } catch (error: any) {
       toast.error('Sign in failed', {
@@ -171,7 +160,7 @@ export default function SignInPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
-          redirectTo: `${getAuthRedirectUrl('/auth/callback')}?role=${selectedRole}`,
+          redirectTo: getAuthRedirectUrl('/auth/callback'),
           queryParams: {
             access_type: 'offline',
             prompt: 'consent',
@@ -204,7 +193,7 @@ export default function SignInPage() {
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'facebook',
         options: {
-          redirectTo: `${getAuthRedirectUrl('/auth/callback')}?role=${selectedRole}`,
+          redirectTo: getAuthRedirectUrl('/auth/callback'),
         },
       });
 
@@ -264,39 +253,6 @@ export default function SignInPage() {
                 </Separator>
               </>
             )}
-            {/* Role Selector */}
-            <div className="space-y-2 mb-6">
-              <Label htmlFor="role">I am signing in as a</Label>
-              <Select
-                value={selectedRole}
-                onValueChange={(value) => setSelectedRole(value as UserRole)}
-              >
-                <SelectTrigger id="role">
-                  <SelectValue placeholder="Select your role" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="recipient">
-                    <div className="flex items-center gap-2">
-                      <User className="h-4 w-4" />
-                      <span>Customer</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="driver">
-                    <div className="flex items-center gap-2">
-                      <Car className="h-4 w-4" />
-                      <span>Driver</span>
-                    </div>
-                  </SelectItem>
-                  <SelectItem value="dispatcher">
-                    <div className="flex items-center gap-2">
-                      <Shield className="h-4 w-4" />
-                      <span>Dispatcher</span>
-                    </div>
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
             {/* Social Sign In */}
             <div className="space-y-3 mb-6">
               <Button
@@ -396,7 +352,7 @@ export default function SignInPage() {
                   Forgot password?
                 </a>
                 <a
-                  href={`/auth/signup/${selectedRole === 'recipient' ? 'customer' : selectedRole}`}
+                  href="/auth/signup/customer"
                   className="hover:text-accent font-medium transition-colors"
                 >
                   Need an account?
