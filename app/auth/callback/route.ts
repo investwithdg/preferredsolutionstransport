@@ -61,7 +61,7 @@ export async function GET(req: NextRequest) {
           .eq('auth_id', authId)
           .single();
 
-        let userRole = existingUser?.role;
+        const userRole = existingUser?.role;
 
         // If user doesn't have a role yet
         if (!userRole) {
