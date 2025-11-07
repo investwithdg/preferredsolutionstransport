@@ -188,6 +188,7 @@ INSERT INTO auth.identities (
   user_id,
   identity_data,
   provider,
+  provider_id,
   last_sign_in_at,
   created_at,
   updated_at
@@ -197,6 +198,7 @@ INSERT INTO auth.identities (
     '00000000-0000-0000-0000-000000000001',
     '{"sub":"00000000-0000-0000-0000-000000000001","email":"admin@preferredsolutions.test"}',
     'email',
+    'admin@preferredsolutions.test',
     now(),
     now(),
     now()
@@ -206,6 +208,7 @@ INSERT INTO auth.identities (
     '00000000-0000-0000-0000-000000000002',
     '{"sub":"00000000-0000-0000-0000-000000000002","email":"dispatcher@preferredsolutions.test"}',
     'email',
+    'dispatcher@preferredsolutions.test',
     now(),
     now(),
     now()
@@ -215,6 +218,7 @@ INSERT INTO auth.identities (
     '00000000-0000-0000-0000-000000000003',
     '{"sub":"00000000-0000-0000-0000-000000000003","email":"driver@preferredsolutions.test"}',
     'email',
+    'driver@preferredsolutions.test',
     now(),
     now(),
     now()
@@ -224,6 +228,7 @@ INSERT INTO auth.identities (
     '00000000-0000-0000-0000-000000000004',
     '{"sub":"00000000-0000-0000-0000-000000000004","email":"customer@preferredsolutions.test"}',
     'email',
+    'customer@preferredsolutions.test',
     now(),
     now(),
     now()

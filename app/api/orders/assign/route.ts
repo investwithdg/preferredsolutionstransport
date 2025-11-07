@@ -155,40 +155,82 @@ export async function POST(request: NextRequest) {
 
     // Send push notification to driver
     if (driver.push_subscription) {
+      let pushNotificationStatus: 'sent' | 'failed' | 'invalid_subscription' = 'failed';
+      let pushErrorMessage: string | undefined;
+      
       try {
-        const subscription = driver.push_subscription as PushSubscription;
-        const quotes = updatedOrder.quotes as any;
+        // Validate and parse push subscription from JSON
+        const subscriptionJson = driver.push_subscription;
+        if (
+          typeof subscriptionJson === 'object' &&
+          subscriptionJson !== null &&
+          !Array.isArray(subscriptionJson) &&
+          'endpoint' in subscriptionJson &&
+          'keys' in subscriptionJson &&
+          typeof subscriptionJson.endpoint === 'string' &&
+          typeof subscriptionJson.keys === 'object' &&
+          subscriptionJson.keys !== null &&
+          'p256dh' in subscriptionJson.keys &&
+          'auth' in subscriptionJson.keys &&
+          typeof subscriptionJson.keys.p256dh === 'string' &&
+          typeof subscriptionJson.keys.auth === 'string'
+        ) {
+          const subscription: PushSubscription = {
+            endpoint: subscriptionJson.endpoint,
+            keys: {
+              p256dh: subscriptionJson.keys.p256dh,
+              auth: subscriptionJson.keys.auth,
+            },
+          };
+          const quotes = updatedOrder.quotes as any;
         
-        await sendPushNotification(subscription, {
-          title: '🚚 New Delivery Assignment',
-          body: `Order #${orderId.slice(-8)} - ${quotes?.pickup_address || 'Pickup'} to ${quotes?.dropoff_address || 'Dropoff'}`,
-          icon: '/icon-192x192.png',
-          badge: '/icon-192x192.png',
-          tag: `order-${orderId}`,
-          url: '/driver',
-          data: {
-            orderId,
-            type: 'order_assigned'
-          }
-        });
+          await sendPushNotification(subscription, {
+            title: '🚚 New Delivery Assignment',
+            body: `Order #${orderId.slice(-8)} - ${quotes?.pickup_address || 'Pickup'} to ${quotes?.dropoff_address || 'Dropoff'}`,
+            icon: '/icon-192x192.png',
+            badge: '/icon-192x192.png',
+            tag: `order-${orderId}`,
+            url: '/driver',
+            data: {
+              orderId,
+              type: 'order_assigned'
+            }
+          });
 
-        // Log push notification event
+          pushNotificationStatus = 'sent';
+        } else {
+          // Validation failed
+          pushNotificationStatus = 'invalid_subscription';
+          pushErrorMessage = 'Push subscription failed validation';
+          console.error('Invalid push subscription format for driver:', driverId);
+        }
+      } catch (pushError) {
+        // Log error but don't fail the request
+        pushNotificationStatus = 'failed';
+        pushErrorMessage = pushError instanceof Error ? pushError.message : 'Unknown error';
+        console.error('Failed to send push notification:', pushError);
+      }
+
+      // Always log the push notification attempt regardless of outcome
+      try {
         await supabase
           .from('dispatch_events')
           .insert({
             order_id: orderId,
             actor: 'system',
-            event_type: 'push_notification_sent',
+            event_type: pushNotificationStatus === 'sent' ? 'push_notification_sent' : 'push_notification_failed',
             payload: {
               notification_type: 'driver_assigned',
               driver_id: driverId,
+              status: pushNotificationStatus,
+              ...(pushErrorMessage && { error: pushErrorMessage }),
             },
             source: 'webpush',
             event_id: `push_${orderId}_driver_assigned_${Date.now()}`,
           });
-      } catch (pushError) {
-        // Log error but don't fail the request
-        console.error('Failed to send push notification:', pushError);
+      } catch (logError) {
+        // If logging fails, just console log it
+        console.error('Failed to log push notification event:', logError);
       }
     }
 

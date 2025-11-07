@@ -1,7 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { geocodeAddress } from '@/lib/google-maps/tracking';
+import { useCallback, useEffect, useState } from 'react';
 
 export type DriverLocation = {
   driverId: string;
@@ -12,31 +11,14 @@ export type DriverLocation = {
   updatedAt: string;
 };
 
-type OrderLike = {
-  id: string;
-  status: string;
-  driver_id?: string | null;
-  quotes?: { pickup_address?: string; dropoff_address?: string } | null;
-};
-
 type UseDriverLocationsArgs = {
   drivers: { id: string }[];
-  orders: OrderLike[];
+  orders?: unknown[]; // Kept for API compatibility but not used internally
   pollMs?: number;
 };
 
-export function useDriverLocations({ drivers, orders, pollMs = 30000 }: UseDriverLocationsArgs) {
+export function useDriverLocations({ drivers, orders: _orders, pollMs = 30000 }: UseDriverLocationsArgs) {
   const [locations, setLocations] = useState<Record<string, DriverLocation | undefined>>({});
-
-  const activeOrdersByDriver = useMemo(() => {
-    const map: Record<string, OrderLike | undefined> = {};
-    for (const o of orders) {
-      if (o.driver_id && !['Delivered', 'Canceled'].includes(o.status)) {
-        map[o.driver_id] = o;
-      }
-    }
-    return map;
-  }, [orders]);
 
   const fetchOnce = useCallback(async () => {
     // Fetch latest location for each driver
@@ -65,7 +47,7 @@ export function useDriverLocations({ drivers, orders, pollMs = 30000 }: UseDrive
       );
       setLocations(prev => ({ ...prev, ...updates }));
     } catch {}
-  }, [drivers, activeOrdersByDriver]);
+  }, [drivers]);
 
   useEffect(() => {
     fetchOnce();

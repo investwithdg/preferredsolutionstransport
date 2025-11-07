@@ -1,19 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { PageHeader } from '@/app/components/shared/PageHeader';
 import { EmptyState } from '@/app/components/shared/EmptyState';
 import { LoadingState } from '@/app/components/shared/LoadingState';
 import { Button } from '@/app/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/app/components/ui/card';
 import { StatusBadge } from '@/app/components/shared/StatusBadge';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/app/components/ui/select';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -33,6 +26,7 @@ import { usePushNotifications } from '@/app/hooks/usePushNotifications';
 import { useRealtimeOrders } from '@/app/hooks/useRealtimeOrders';
 import type { Order as RealtimeOrder } from '@/app/hooks/useRealtimeOrders';
 import { ProofOfDeliveryModal } from '@/app/components/delivery/ProofOfDeliveryModal';
+import { createClient } from '@/lib/supabase/client';
 import {
   Package,
   MapPin,
@@ -50,24 +44,52 @@ import {
 
 type Order = RealtimeOrder;
 
-interface Driver {
-  id: string;
-  name: string;
-  phone?: string;
-  vehicle_details?: any;
-  active_orders_count: number;
-  is_available: boolean;
-}
-
 export default function DriverClient() {
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
-  const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [isLoadingDriverId, setIsLoadingDriverId] = useState(true);
   const [isUpdating, setIsUpdating] = useState<string | null>(null);
   const [isLocationTracking, setIsLocationTracking] = useState(false);
   const [podModalOpen, setPodModalOpen] = useState(false);
   const [selectedOrderForPod, setSelectedOrderForPod] = useState<Order | null>(null);
   const locationWatchIdRef = useRef<number | null>(null);
   const lastLocationUpdateRef = useRef<number>(0);
+
+  // Fetch the current driver's ID from the authenticated user's session
+  useEffect(() => {
+    const fetchDriverId = async () => {
+      try {
+        const supabase = createClient();
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          setIsLoadingDriverId(false);
+          return;
+        }
+
+        // Query drivers table to find the driver record for this user
+        const { data: driver, error } = await supabase
+          .from('drivers')
+          .select('id')
+          .eq('user_id', session.user.id)
+          .single();
+
+        if (error || !driver) {
+          console.error('Error fetching driver ID:', error);
+          setIsLoadingDriverId(false);
+          return;
+        }
+
+        setSelectedDriverId(driver.id);
+      } catch (error) {
+        console.error('Error fetching driver ID:', error);
+        toast.error('Failed to load driver information');
+      } finally {
+        setIsLoadingDriverId(false);
+      }
+    };
+
+    fetchDriverId();
+  }, []);
 
   // Push notification hook
   const pushNotifications = usePushNotifications({
@@ -82,25 +104,6 @@ export default function DriverClient() {
   } = useRealtimeOrders({
     driverId: selectedDriverId || undefined,
   });
-
-  const fetchDrivers = useCallback(async () => {
-    try {
-      const response = await fetch('/api/drivers');
-      const data = await response.json();
-      setDrivers(data.drivers || []);
-    } catch (error) {
-      console.error('Error fetching drivers:', error);
-      toast.error('Failed to load drivers');
-    }
-  }, []);
-
-  useEffect(() => {
-    // Only fetch if a driver is selected (avoid unnecessary load)
-    setDrivers([]);
-    if (selectedDriverId) {
-      fetchDrivers();
-    }
-  }, [fetchDrivers, selectedDriverId]);
 
   const updateOrderStatus = async (orderId: string, newStatus: string) => {
     setIsUpdating(orderId);
@@ -343,6 +346,44 @@ export default function DriverClient() {
       toast.error('Location tracking not supported');
     }
   }, [selectedDriverId, activeOrders]);
+
+  // Show loading state while fetching driver ID
+  if (isLoadingDriverId) {
+    return (
+      <div
+        className="container max-w-[1200px] mx-auto py-8 px-4 sm:px-6 lg:px-8"
+        data-testid="driver-dashboard"
+      >
+        <PageHeader
+          title="Driver Dashboard"
+          description="Manage your assigned deliveries with quick status updates"
+          breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Driver' }]}
+        />
+        <LoadingState message="Loading driver information..." />
+      </div>
+    );
+  }
+
+  // Show error state if driver ID couldn't be fetched
+  if (!selectedDriverId) {
+    return (
+      <div
+        className="container max-w-[1200px] mx-auto py-8 px-4 sm:px-6 lg:px-8"
+        data-testid="driver-dashboard"
+      >
+        <PageHeader
+          title="Driver Dashboard"
+          description="Manage your assigned deliveries with quick status updates"
+          breadcrumbs={[{ label: 'Home', href: '/' }, { label: 'Driver' }]}
+        />
+        <EmptyState
+          icon={AlertCircle}
+          title="Driver Profile Not Found"
+          description="No driver profile found for your account. Please contact support if you believe this is an error."
+        />
+      </div>
+    );
+  }
 
   return (
     <div
